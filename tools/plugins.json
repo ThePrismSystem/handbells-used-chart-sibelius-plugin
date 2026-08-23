@@ -10,7 +10,8 @@
         "src/BellName.mss",
         "src/Collect.mss",
         "src/Columns.mss",
-        "src/Plan.mss"
+        "src/Plan.mss",
+        "src/Marker.mss"
       ],
       "data": {
         "_PluginMenuName": "Handbells Used Chart",
@@ -39,13 +40,15 @@
         "src/Collect.mss",
         "src/Columns.mss",
         "src/Plan.mss",
+        "src/Marker.mss",
         "test/Assert.mss",
         "test/TestMain.mss",
         "test/TestPitch.mss",
         "test/TestBellName.mss",
         "test/TestCollect.mss",
         "test/TestColumns.mss",
-        "test/TestPlan.mss"
+        "test/TestPlan.mss",
+        "test/TestMarker.mss"
       ],
       "data": {
         "_PluginMenuName": "Handbells Used Chart Tests",
