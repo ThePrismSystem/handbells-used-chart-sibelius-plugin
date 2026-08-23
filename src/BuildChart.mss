@@ -14,7 +14,7 @@ BuildChart(score, plan, options) {
     //    metre allows would spill into the piece's own bars.
     // Whether the stemless diamond exists decides how long a chime column is,
     // so it is settled before a single bar is sized.
-    chimeStyle = StemlessDiamondStyle();
+    chimeStyle = StemlessDiamondStyle(score);
 
     barsBefore = score.NthStaff(1).BarCount;
     columnsArray = CreateSparseArray();
@@ -47,6 +47,8 @@ BuildChart(score, plan, options) {
             return BuildFailure('Sibelius could not add the chart bass staff.');
         }
         bass.NthBar(1).AddClef(0, 'clef.bass');
+        SilenceKeySignature(treble);
+        SilenceKeySignature(bass);
         trebleStaves.Push(treble);
         bassStaves.Push(bass);
     }
@@ -179,9 +181,13 @@ DressNote(note, kind, color, chimeStyle) {
 // 24, and ManuScript cannot create one, so the plugin looks for a notehead the
 // user made by hand. The README says how to make it.
 //
+// NoteStyleIndex belongs to Score, not to Sibelius. Calling it on the wrong
+// object is not a parse error, it is 'Method NoteStyleIndex not found' at run
+// time, in front of the user.
+//
 // Returns the style index, or -1 when the score has no such notehead.
-StemlessDiamondStyle() {
-    index = Sibelius.NoteStyleIndex(StemlessDiamondName());
+StemlessDiamondStyle(score) {
+    index = score.NoteStyleIndex(StemlessDiamondName());
     // An absent style comes back as an empty string on some builds and as a
     // negative index on others, so both are read as absent.
     if (not(utils.IsNumeric('' & index, True))) {
@@ -234,7 +240,14 @@ HexDigit(char) {
 // H4: AddSpecialBarline adds an object to the bar, so it must not run inside a
 // `for each` over that bar's contents. Setting Hidden on an object being
 // iterated is fine — that changes a property, it does not add or remove.
+// The system staff is where the time signature actually lives. Walking
+// NthStaff(1) to StaffCount never reaches it, which is why hiding time
+// signatures by type appeared to do nothing: there was no TimeSignature on any
+// ordinary staff to hide. It runs first so a bar with nothing else in it is
+// still cleared.
 HideBarFurniture(score, barNumber) {
+    HideBarObjects(score.SystemStaff.NthBar(barNumber));
+
     n = 1;
     while (n <= score.StaffCount) {
         bar = score.NthStaff(n).NthBar(barNumber);
@@ -246,18 +259,33 @@ HideBarFurniture(score, barNumber) {
                 nr.Hidden = True;
             }
         }
-        for each TimeSignature ts in bar {
-            ts.Hidden = True;
-        }
-        // A chart shows no key signature either: it is an inventory of bells,
-        // and every accidental on it is already spelled on the notehead.
-        // KeySignature derives from BarObject, so it hides the same way.
-        for each KeySignature ks in bar {
-            ks.Hidden = True;
-        }
+        HideBarObjects(bar);
         bar.AddSpecialBarline(SpecialBarlineInvisible);
         n = n + 1;
     }
+}
+
+// Both signature types derive from BarObject, so both hide the same way. This
+// runs on ordinary staves and on the system staff, which hold different things.
+HideBarObjects(bar) {
+    for each TimeSignature ts in bar {
+        ts.Hidden = True;
+    }
+    for each KeySignature ks in bar {
+        ks.Hidden = True;
+    }
+    return True;
+}
+
+// Hiding a KeySignature only works on one that exists as an object in the bar.
+// A score's opening key is not one: it belongs to the staff, so a chart staff
+// inherits it with nothing in any bar to hide. The chart staves therefore get
+// an explicit key change of their own — atonal, so no accidentals print at any
+// system start; hidden, so the change itself does not print; and one-staff-only,
+// so the piece's own staves keep the key they had.
+SilenceKeySignature(staff) {
+    staff.NthBar(1).AddKeySignature(0, -8, True, False, True, True);
+    return True;
 }
 
 // Title, composer and lyricist are system text attached to the score's first

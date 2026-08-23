@@ -38,7 +38,7 @@ Diagnose() {
         }
         b = b + 1;
     }
-    trace('[stemless diamond] lookup = ' & StemlessDiamondStyle());
+    trace('[stemless diamond] lookup = ' & StemlessDiamondStyle(score));
     return True;
 }
 
