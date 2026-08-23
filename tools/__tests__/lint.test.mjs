@@ -153,3 +153,9 @@ test('does not flag the subscript forms when they appear inside a string', () =>
     const source = "A() {\n    trace('  ' & label & '[' & i & '].Length = ' & column.Length);\n    m = 1;\n}\n";
     assert.deepEqual(lintSource('x.mss', source), []);
 });
+
+test('flags a double quote inside a comment, as build.mjs does', () => {
+    const findings = lintSource('x.mss', 'A() {\n    // a " quote in a comment\n    x = 1;\n}\n');
+    assert.equal(findings.length, 1);
+    assert.match(findings[0].message, /double quote/);
+});

@@ -7,7 +7,12 @@ import { parseMethods } from './build.mjs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 const RULES = [
-    [/"/, 'contains a double quote; a .plg stores method bodies in double quotes, so use single quotes'],
+    // Checked against the RAW line, comments included: a .plg wraps the WHOLE
+    // method body in double quotes, so a quote inside a // comment breaks the
+    // file exactly as one in code does. build.mjs rejects it either way; lint
+    // has to agree, or lint passes and the build fails for a reason lint
+    // just told you was fine.
+    [/"/, 'contains a double quote; a .plg stores method bodies in double quotes, so use single quotes, in comments as well as code', null, true],
     [/\+=|-=|\*=|\/=/, 'uses += or similar; ManuScript has no compound assignment, write x = x + 1'],
     [/\+\+|--/, 'uses ++ or --; ManuScript has neither'],
     [/==/, 'uses ==; ManuScript compares with a single ='],
@@ -76,7 +81,7 @@ export function lintSource(path, source) {
         // The plain-pattern rules still see the raw line, because the
         // double-quote rule is specifically about what is inside strings.
         const bare = code.replace(/'[^']*'/g, "''");
-        for (const [pattern, message, predicate] of RULES) {
+        for (const [pattern, message, predicate, onRaw] of RULES) {
             if (predicate) {
                 if (predicate(bare)) {
                     // Older predicate rules carry no message of their own.
@@ -88,7 +93,7 @@ export function lintSource(path, source) {
                             : 'mixes and/or without parenthesising both sides; ManuScript has no operator precedence');
                     }
                 }
-            } else if (pattern.test(code)) {
+            } else if (pattern.test(onRaw ? text : code)) {
                 report(index, message);
             }
         }
