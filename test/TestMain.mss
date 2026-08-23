@@ -10,6 +10,7 @@ Run() {
     TestPitch();
     TestBellName();
     TestCollect();
+    TestColumns();
     Sibelius.MessageBox(AssertReport());
     trace(AssertReport());
 }

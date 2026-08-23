@@ -8,7 +8,8 @@
         "src/Run.mss",
         "src/Pitch.mss",
         "src/BellName.mss",
-        "src/Collect.mss"
+        "src/Collect.mss",
+        "src/Columns.mss"
       ],
       "data": {
         "_PluginMenuName": "Handbells Used Chart",
@@ -35,11 +36,13 @@
         "src/Pitch.mss",
         "src/BellName.mss",
         "src/Collect.mss",
+        "src/Columns.mss",
         "test/Assert.mss",
         "test/TestMain.mss",
         "test/TestPitch.mss",
         "test/TestBellName.mss",
-        "test/TestCollect.mss"
+        "test/TestCollect.mss",
+        "test/TestColumns.mss"
       ],
       "data": {
         "_PluginMenuName": "Handbells Used Chart Tests",
