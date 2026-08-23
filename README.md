@@ -41,14 +41,24 @@ Two rough edges worth knowing before you run it on work you care about:
 
 The simplest route is the [latest
 release](https://github.com/ThePrismSystem/handbells-used-chart-sibelius-plugin/releases/latest):
-download the zip, and copy `HandbellsUsedChart.plg` into
+download the zip and copy `HandbellsUsedChart.plg` into Sibelius' per-user
+plugin folder, under a `Handbells` subfolder.
+
+On macOS:
 
 ```
 ~/Library/Application Support/Avid/Sibelius/Plugins/Handbells/
 ```
 
-(creating the `Handbells` folder if it doesn't exist yet), then restart
-Sibelius so it picks up the new plugin.
+On Windows:
+
+```
+C:\Users\<username>\AppData\Roaming\Avid\Sibelius\Plugins\Handbells\
+```
+
+Create the `Handbells` folder if it isn't there, then restart Sibelius. The
+subfolder name is the category the plugin appears under in the Plug-ins
+gallery, so call it something you will recognise.
 
 ### Building it yourself
 
@@ -129,9 +139,14 @@ chart into a real score and remove it again.
 
 ## Known limitations
 
-- macOS and Sibelius Ultimate 2026 only. `Initialize` checks
+- Sibelius Ultimate 2026 or later. `Initialize` checks
   `Sibelius.ProgramVersion` and declines to register the plugin on an older
   release rather than failing obscurely partway through a run.
+- Developed and tested on macOS. Nothing in the ManuScript is
+  platform-specific and it should behave the same on Windows, but that is
+  untested, so treat Windows as unverified rather than supported. Only
+  `npm run deploy`, a convenience for copying a fresh build into place, is
+  macOS-only.
 - Handbells sound an octave above written pitch. Sibelius has no transposing
   handbell instrument, so the plugin applies that octave itself.
 - Only `DiamondNoteStyle` is read as a handchime notehead. Sibelius has two

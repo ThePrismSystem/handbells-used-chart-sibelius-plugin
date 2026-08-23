@@ -12,8 +12,9 @@ const CATEGORY = 'Handbells';
 export function pluginDir(platform, home) {
     if (platform !== 'darwin') {
         throw new Error(
-            `Sibelius only runs on macOS and Windows, and this project targets macOS; ` +
-            `cannot deploy from ${platform}.`
+            `This script only knows the macOS plugin folder; cannot deploy from ` +
+            `${platform}. On Windows, copy the .plg into ` +
+            `%APPDATA%\\Avid\\Sibelius\\Plugins\\${CATEGORY} by hand.`
         );
     }
     return join(home, 'Library/Application Support/Avid/Sibelius/Plugins', CATEGORY);

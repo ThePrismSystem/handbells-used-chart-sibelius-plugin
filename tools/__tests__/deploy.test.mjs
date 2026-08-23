@@ -9,6 +9,7 @@ test('resolves the macOS per-user plugin folder', () => {
     );
 });
 
-test('refuses unsupported platforms', () => {
-    assert.throws(() => pluginDir('linux', '/home/me'), /only runs on macOS/);
+test('refuses platforms it has no folder for, and says where to copy by hand', () => {
+    assert.throws(() => pluginDir('linux', '/home/me'), /only knows the macOS plugin folder/);
+    assert.throws(() => pluginDir('win32', 'C:\\Users\\me'), /Avid\\Sibelius\\Plugins\\Handbells/);
 });
