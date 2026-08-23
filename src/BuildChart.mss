@@ -12,11 +12,16 @@ BuildChart(score, plan, options) {
     //    precede the notes: until a bar declares its own length it still holds
     //    the score's ordinary metre, and a chart with more columns than the
     //    metre allows would spill into the piece's own bars.
+    // Whether the stemless diamond exists decides how long a chime column is,
+    // so it is settled before a single bar is sized.
+    chimeStyle = StemlessDiamondStyle();
+
     barsBefore = score.NthStaff(1).BarCount;
     columnsArray = CreateSparseArray();
     for i = 0 to sections.Length {
         columnsArray.Push(sections[i].columns);
-        score.InsertBars(1, i + 1, sections[i].columns * 256);
+        tick = ColumnTick(sections[i].kind, chimeStyle);
+        score.InsertBars(1, i + 1, sections[i].columns * tick);
     }
     if (score.NthStaff(1).BarCount != (barsBefore + sections.Length)) {
         return BuildFailure('Sibelius did not insert the chart bars.');
@@ -58,8 +63,11 @@ BuildChart(score, plan, options) {
         if (sections[i].kind = 'chimes') {
             color = options.chimeColor;
         }
-        WriteColumns(trebleStaves[i], i + 1, sections[i].treble, sections[i].kind, color);
-        WriteColumns(bassStaves[i], i + 1, sections[i].bass, sections[i].kind, color);
+        tick = ColumnTick(sections[i].kind, chimeStyle);
+        WriteColumns(trebleStaves[i], i + 1, sections[i].treble,
+            sections[i].kind, color, chimeStyle, tick);
+        WriteColumns(bassStaves[i], i + 1, sections[i].bass,
+            sections[i].kind, color, chimeStyle, tick);
     }
 
     // 5. Hide the structural furniture across every staff in the chart bars.
@@ -114,16 +122,16 @@ BuildFailure(message) {
 // chord's notes reorder by pitch as they arrive. So every note in a column is
 // written first, and only then are they dressed by iterating the finished
 // chord. The MuseScore version splits these for the same reason.
-WriteColumns(staff, barNumber, columns, kind, color) {
+WriteColumns(staff, barNumber, columns, kind, color, chimeStyle, tick) {
     bar = staff.NthBar(barNumber);
     for c = 0 to columns.Length {
         notes = columns[c];
-        position = c * 256;
+        position = c * tick;
         chord = null;
 
         for n = 0 to notes.Length {
             raw = FromBellSpace(notes[n].pitch, notes[n].diatonic, staff);
-            note = bar.AddNote(position, raw.pitch, 256, False, 1, raw.diatonic);
+            note = bar.AddNote(position, raw.pitch, tick, False, 1, raw.diatonic);
             if (IsObject(note)) {
                 chord = note.ParentNoteRest;
             }
@@ -131,7 +139,7 @@ WriteColumns(staff, barNumber, columns, kind, color) {
 
         if (IsObject(chord)) {
             for each n in chord {
-                DressNote(n, kind, color);
+                DressNote(n, kind, color, chimeStyle);
             }
         }
     }
@@ -142,10 +150,14 @@ WriteColumns(staff, barNumber, columns, kind, color) {
 // thing entirely. In Sibelius stemlessness IS a notehead style, so it is set
 // here rather than on the NoteRest, and it is why bells and chimes cannot both
 // simply take their obvious style constant.
-DressNote(note, kind, color) {
+DressNote(note, kind, color, chimeStyle) {
     note.NoteStyle = StemlessNoteStyle;
     if (kind = 'chimes') {
-        note.NoteStyle = ChimeNoteStyle();
+        if (chimeStyle >= 0) {
+            note.NoteStyle = chimeStyle;
+        } else {
+            note.NoteStyle = DiamondNoteStyle;
+        }
         if (color != '') {
             note.ColorRed = HexByte(color, 1);
             note.ColorGreen = HexByte(color, 3);
@@ -161,23 +173,38 @@ DressNote(note, kind, color) {
     }
 }
 
-// There is no stemless-diamond constant: the 24 documented styles pair a head
-// shape with a stem setting, and only the plain head has a stemless variant.
-// Sibelius scores can carry styles beyond those 24, reachable by name, so the
-// name is looked up and the plain diamond is the fallback. The fallback keeps
-// its stem, which is visibly wrong but still a chart.
-ChimeNoteStyle() {
-    names = CreateSparseArray(
-        'Diamond (stemless)', 'Stemless diamond', 'Diamond no stem', 'Diamond without stem');
-    for i = 0 to names.Length {
-        index = Sibelius.NoteStyleIndex(names[i]);
-        if (utils.IsNumeric('' & index, True)) {
-            if (index >= 0) {
-                return index;
-            }
+// There is no stemless-diamond constant. The 24 documented styles pair a head
+// shape with a stem setting, and only the plain head has a stemless variant, so
+// chimes cannot get one the way bells do. A score can carry styles beyond those
+// 24, and ManuScript cannot create one, so the plugin looks for a notehead the
+// user made by hand. The README says how to make it.
+//
+// Returns the style index, or -1 when the score has no such notehead.
+StemlessDiamondStyle() {
+    index = Sibelius.NoteStyleIndex(StemlessDiamondName());
+    // An absent style comes back as an empty string on some builds and as a
+    // negative index on others, so both are read as absent.
+    if (not(utils.IsNumeric('' & index, True))) {
+        return -1;
+    }
+    if (index < 0) {
+        return -1;
+    }
+    return index;
+}
+
+// The fallback for a score with no stemless diamond: a semibreve carries no
+// stem at any notehead style, so the chimes lose their stems by being whole
+// notes instead. It costs the filled notehead — a semibreve head is hollow —
+// which is why the custom notehead is worth making. Bells never need this:
+// StemlessNoteStyle is a documented constant present in every score.
+ColumnTick(kind, chimeStyle) {
+    if (kind = 'chimes') {
+        if (chimeStyle < 0) {
+            return 1024;
         }
     }
-    return DiamondNoteStyle;
+    return 256;
 }
 
 // Reads two hex digits from a '#rrggbb' string. Anything unparseable yields 0,

@@ -74,6 +74,31 @@ An unparseable colour leaves the chimes black rather than failing the run.
 Each label counts physical bells, so a bell appearing under two spellings is
 counted once.
 
+## The handchime notehead
+
+Chart notes carry no stems. Handbells use Sibelius' built-in `Stemless`
+notehead, which every score has. Handchimes need a stemless *diamond*, and
+Sibelius ships no such notehead — its diamond styles all carry stems, and
+ManuScript cannot create a notehead style, so the plugin cannot make one for
+you.
+
+Make it once, by hand, and every score you apply that house style to gets it:
+
+1. **Notations → Noteheads → Edit Noteheads**.
+2. Select **Diamond** and click **New**, which starts a copy of it.
+3. Name the copy exactly **`Diamond (stemless)`**.
+4. Switch off **Stems** (and **Ledger lines**, if you prefer the published
+   look), then click OK.
+
+The plugin looks the notehead up by that name and uses it when it is there.
+To use a different name, change `STEMLESS_DIAMOND` in `tools/plugins.json`
+and rebuild.
+
+Without it, the plugin still produces a stemless chart: chime columns are
+written as whole notes instead, which carry no stems at any notehead style.
+The cost is that a whole note's head is hollow rather than filled, so the
+chimes read as outlined diamonds. Handbells are unaffected either way.
+
 ## Usage
 
 Running the plugin on a score that already carries a chart it made replaces

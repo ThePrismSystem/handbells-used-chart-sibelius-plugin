@@ -16,3 +16,9 @@ EnableStringSafety() {
         SetInterpreterOption(TreatSingleCharacterAsString);
     }
 }
+
+// The notehead the user makes by hand; see the README. Kept next to the other
+// score-facing names so renaming it is a one-line change in the manifest.
+StemlessDiamondName() {
+    return '' & STEMLESS_DIAMOND;
+}
