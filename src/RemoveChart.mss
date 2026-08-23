@@ -84,6 +84,9 @@ RemoveChart(score) {
     score.ShowEmptyStaves(found.firstStaff, score.StaffCount,
         found.sections + 1, score.NthStaff(1).BarCount);
 
+    // Before any bar goes, rescue the title block it is carrying.
+    MoveSystemText(score, found.sections);
+
     // Bars first: removing the staves renumbers everything underneath us. The
     // marker goes with the bar that holds it.
     barsBefore = score.NthStaff(1).BarCount;
@@ -110,4 +113,60 @@ RemoveChart(score) {
     }
 
     return CreateDictionary('removed', True, 'error', '');
+}
+
+// The score's title block is system text anchored to the score's first bar,
+// and the chart is built in front of that bar, so the title block ends up
+// owned by a chart bar. Deleting the bar takes it with it. The text is moved
+// to the first music bar just before the bars go.
+//
+// The delete follows the guide's documented shape: collect every item first,
+// then delete in REVERSE order. Deleting forwards while iterating desyncs the
+// iterator, which is why an earlier attempt at this left the originals in
+// place and added copies beside them, doubling the title block.
+//
+// Style, Dx and Dy all travel. The title block styles are page-aligned and
+// carry offsets of their own, so re-adding at the default position is what
+// scattered them across the chart last time.
+MoveSystemText(score, chartBars) {
+    system = score.SystemStaff;
+    target = system.NthBar(chartBars + 1);
+
+    b = 1;
+    while (b <= chartBars) {
+        bar = system.NthBar(b);
+
+        counter = 0;
+        for each item in bar {
+            if (item.Type = 'SystemTextItem') {
+                name = 'moved' & counter;
+                @name = item;
+                counter = counter + 1;
+            }
+        }
+
+        // Re-add before deleting: an item's properties are only readable while
+        // the item is still in the score.
+        i = 0;
+        while (i < counter) {
+            name = 'moved' & i;
+            item = @name;
+            copy = target.AddText(0, '' & item.Text, '' & item.StyleId);
+            if (IsObject(copy)) {
+                copy.Dx = item.Dx;
+                copy.Dy = item.Dy;
+            }
+            i = i + 1;
+        }
+
+        while (counter > 0) {
+            counter = counter - 1;
+            name = 'moved' & counter;
+            item = @name;
+            item.Delete();
+        }
+
+        b = b + 1;
+    }
+    return True;
 }

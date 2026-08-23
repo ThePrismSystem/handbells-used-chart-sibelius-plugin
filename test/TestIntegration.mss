@@ -32,6 +32,13 @@ TestBuildChart() {
         return False;
     }
 
+    // The tests run on whatever score is open, which may already carry a chart
+    // from a real run. BuildChart does not clear one first - ChartScore does
+    // that - so building here would stack a second chart, leaving two markers.
+    // TestRemoveChart would then remove one and still find the other, which is
+    // what 'marker gone' and 'second removal finds no chart' were reporting.
+    RemoveChart(score);
+
     staffCountBefore = score.StaffCount;
     barCountBefore = score.NthStaff(1).BarCount;
 
