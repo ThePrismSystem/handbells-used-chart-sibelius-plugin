@@ -189,6 +189,11 @@ RelocateSystemText(score, fromBars, targetBarNum, musicalOnly) {
 // Horizontal is left at the default, which for a musical direction is the
 // start of the bar, and that is where it belongs.
 PlaceMovedText(copy, item) {
+    // Before anything else. A full score hides the part-name and header items
+    // that only belong in the parts, and a recreated item defaults to visible,
+    // which is where a spurious 'Full Score' came from.
+    copy.Hidden = item.Hidden;
+
     if (StyleIsPageAligned(item.StyleId)) {
         copy.ResetPosition();
         return True;
