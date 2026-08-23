@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, unlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -75,21 +75,47 @@ export function buildPlugin(entry, read) {
     return lines.join('\n') + '\n';
 }
 
+// Decides one manifest entry's outcome and carries it out through the
+// injected io, so a skip can never leave a stale .plg from an earlier build
+// sitting where deploy.mjs would still pick it up.
+export function buildEntry(entry, io) {
+    const outputPath = join('build', entry.output);
+    const missing = entry.sources.filter((p) => !io.exists(p));
+
+    if (missing.length > 0) {
+        const removedStale = io.exists(outputPath);
+        if (removedStale) io.remove(outputPath);
+        return { status: 'skipped', outputPath, missing, removedStale };
+    }
+
+    const text = buildPlugin(entry, io.read);
+    io.write(outputPath, text);
+    return { status: 'built', outputPath };
+}
+
 function main() {
     const manifest = JSON.parse(readFileSync(join(ROOT, 'tools/plugins.json'), 'utf8'));
     mkdirSync(join(ROOT, 'build'), { recursive: true });
 
+    const io = {
+        exists: (p) => existsSync(join(ROOT, p)),
+        read: (p) => (existsSync(join(ROOT, p)) ? readFileSync(join(ROOT, p), 'utf8') : null),
+        write: (p, text) => writeFileSync(join(ROOT, p), text, 'utf8'),
+        remove: (p) => unlinkSync(join(ROOT, p))
+    };
+
     for (const entry of manifest.plugins) {
-        const missing = entry.sources.filter((p) => !existsSync(join(ROOT, p)));
-        if (missing.length > 0) {
-            // A later task writes these. Say so loudly: a silent skip here would
-            // let a stale .plg from an earlier build reach Sibelius unnoticed.
-            console.log(`skipped build/${entry.output} (not yet written: ${missing.join(', ')})`);
+        const result = buildEntry(entry, io);
+        if (result.status === 'skipped') {
+            // A later task writes these sources. Say so loudly, and say just as
+            // loudly when a stale .plg from an earlier build gets removed —
+            // deploy.mjs copies whatever it finds in build/, so leaving it would
+            // let it reach Sibelius unnoticed.
+            const staleNote = result.removedStale ? `; removed stale ${result.outputPath}` : '';
+            console.log(`skipped ${result.outputPath} (not yet written: ${result.missing.join(', ')})${staleNote}`);
             continue;
         }
-        const text = buildPlugin(entry, (p) => readFileSync(join(ROOT, p), 'utf8'));
-        writeFileSync(join(ROOT, 'build', entry.output), text, 'utf8');
-        console.log(`built build/${entry.output}`);
+        console.log(`built ${result.outputPath}`);
     }
 }
 

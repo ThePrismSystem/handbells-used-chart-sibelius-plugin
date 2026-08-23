@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseMethods, buildPlugin } from '../build.mjs';
+import { parseMethods, buildPlugin, buildEntry } from '../build.mjs';
 
 test('parseMethods reads a single method', () => {
     const src = 'Foo(a, b) {\n    return a;\n}\n';
@@ -73,4 +73,51 @@ test('buildPlugin reports which source is missing', () => {
         () => buildPlugin(entry, (p) => files[p] ?? null),
         /b\.mss/
     );
+});
+
+test('buildEntry removes a stale output when its plugin is skipped', () => {
+    const entry = { output: 'X.plg', sources: ['a.mss', 'b.mss'] };
+    const files = { 'a.mss': 'Run() {\n}\n', 'build/X.plg': '{\n}\n' };
+    const removed = [];
+    const io = {
+        exists: (p) => p in files,
+        read: (p) => files[p] ?? null,
+        write: () => { throw new Error('must not write a plugin with a missing source'); },
+        remove: (p) => removed.push(p)
+    };
+    const result = buildEntry(entry, io);
+    assert.equal(result.status, 'skipped');
+    assert.deepEqual(result.missing, ['b.mss']);
+    assert.deepEqual(removed, ['build/X.plg']);
+});
+
+test('buildEntry does not attempt removal when there is no stale output', () => {
+    const entry = { output: 'X.plg', sources: ['a.mss', 'b.mss'] };
+    const files = { 'a.mss': 'Run() {\n}\n' };
+    const removed = [];
+    const io = {
+        exists: (p) => p in files,
+        read: (p) => files[p] ?? null,
+        write: () => { throw new Error('must not write a plugin with a missing source'); },
+        remove: (p) => removed.push(p)
+    };
+    const result = buildEntry(entry, io);
+    assert.equal(result.status, 'skipped');
+    assert.deepEqual(removed, []);
+});
+
+test('buildEntry builds and writes when every source is present', () => {
+    const entry = { output: 'X.plg', sources: ['a.mss'], data: {} };
+    const files = { 'a.mss': 'Run() {\n}\n' };
+    const written = [];
+    const io = {
+        exists: (p) => p in files,
+        read: (p) => files[p] ?? null,
+        write: (p, text) => written.push([p, text]),
+        remove: () => { throw new Error('must not remove anything when nothing is stale'); }
+    };
+    const result = buildEntry(entry, io);
+    assert.equal(result.status, 'built');
+    assert.equal(written.length, 1);
+    assert.equal(written[0][0], 'build/X.plg');
 });
