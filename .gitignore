@@ -1,0 +1,24 @@
+# AI tooling — not part of this project
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+.claude/
+.claude-prism/
+.cursor/
+.cursorrules
+.aider*
+.github/copilot-instructions.md
+docs/superpowers/
+
+# Vendor documentation — copyrighted, not ours to redistribute
+*.pdf
+
+# Editor and OS
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Node
+node_modules/
