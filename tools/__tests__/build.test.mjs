@@ -41,19 +41,6 @@ test('buildPlugin rejects a double quote in a body', () => {
     assert.throws(() => buildPlugin(entry, (p) => files[p]), /double quote/);
 });
 
-test('buildPlugin honours exclude', () => {
-    const entry = {
-        output: 'X.plg',
-        sources: ['a.mss', 'b.mss'],
-        exclude: ['b.mss'],
-        data: {}
-    };
-    const files = { 'a.mss': 'A() {\n}\n', 'b.mss': 'B() {\n}\n' };
-    const out = buildPlugin(entry, (p) => files[p]);
-    assert.ok(out.includes('A "'));
-    assert.ok(!out.includes('B "'));
-});
-
 test('buildPlugin rejects duplicate method names across files', () => {
     const entry = { output: 'X.plg', sources: ['a.mss', 'b.mss'], data: {} };
     const files = { 'a.mss': 'Same() {\n}\n', 'b.mss': 'Same() {\n}\n' };

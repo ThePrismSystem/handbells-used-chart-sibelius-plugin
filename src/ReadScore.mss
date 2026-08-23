@@ -1,6 +1,6 @@
 // Turns the open score into the note records the plan is built from. Records
 // are in bell space; this is the only file that reads raw Sibelius pitches.
-ReadScoreNotes(score, skipFromStaff) {
+ReadScoreNotes(score) {
     records = CreateSparseArray();
     selection = score.Selection;
 
@@ -10,7 +10,7 @@ ReadScoreNotes(score, skipFromStaff) {
             // BarObject, and touching it crashes the plugin. IsObject is False
             // for these.
             if (IsObject(bar)) {
-                ReadBarNotes(bar, records, skipFromStaff);
+                ReadBarNotes(bar, records);
             }
         }
     } else {
@@ -19,7 +19,7 @@ ReadScoreNotes(score, skipFromStaff) {
             staff = score.NthStaff(n);
             b = 1;
             while (b <= staff.BarCount) {
-                ReadBarNotes(staff.NthBar(b), records, skipFromStaff);
+                ReadBarNotes(staff.NthBar(b), records);
                 b = b + 1;
             }
             n = n + 1;
@@ -29,11 +29,8 @@ ReadScoreNotes(score, skipFromStaff) {
     return records;
 }
 
-ReadBarNotes(bar, records, skipFromStaff) {
+ReadBarNotes(bar, records) {
     staff = bar.ParentStaff;
-    if ((skipFromStaff > 0) and (staff.StaffNum >= skipFromStaff)) {
-        return False;
-    }
 
     for each NoteRest nr in bar {
         // H3: `for each Note n in nr` does not work. Notes inside a NoteRest
@@ -43,8 +40,7 @@ ReadBarNotes(bar, records, skipFromStaff) {
             records.Push(CreateDictionary(
                 'pitch', bell.pitch,
                 'diatonic', bell.diatonic,
-                'head', NoteHeadKind(n),
-                'staffNum', staff.StaffNum
+                'head', NoteHeadKind(n)
             ));
         }
     }

@@ -18,8 +18,13 @@ FindChart(score) {
         return FindFailure(unidentifiable);
     }
 
+    // Below 2, not below 1. A firstStaff of 1 leaves no piece behind the chart,
+    // and ShowEmptyStaves(1, 0, ...) would then be handed an inverted 1-based
+    // range that the reference does not define. BuildChart cannot produce it,
+    // so it only arrives from a hand-edited marker, which is exactly the case
+    // this branch exists to refuse.
     firstStaff = (score.StaffCount - (recorded.sections * 2)) + 1;
-    if (firstStaff < 1) {
+    if (firstStaff < 2) {
         return FindFailure(unidentifiable);
     }
 

@@ -18,6 +18,9 @@
         "src/BuildChart.mss",
         "src/RemoveChart.mss"
       ],
+      "raw": [
+        "src/Settings.msd"
+      ],
       "data": {
         "_PluginMenuName": "Handbells Used Chart",
         "CHART_INSTRUMENT": "instrument.other.trebleclef",
@@ -32,7 +35,6 @@
         "_NoBellsFound": "No handbells or handchimes were found in this score.",
         "_ChartWasRemoved": "The existing chart was removed.",
         "_ChartWasReplaced": "An existing chart was replaced.",
-        "_RemovedChart": "The existing chart was removed.",
         "_NoChartToRemove": "This score carries no chart that this plug-in made."
       }
     },
@@ -47,6 +49,8 @@
         "src/Plan.mss",
         "src/Marker.mss",
         "src/ReadScore.mss",
+        "src/Options.mss",
+        "src/Report.mss",
         "src/BuildChart.mss",
         "src/RemoveChart.mss",
         "test/Assert.mss",
@@ -57,6 +61,8 @@
         "test/TestColumns.mss",
         "test/TestPlan.mss",
         "test/TestMarker.mss",
+        "test/TestOptions.mss",
+        "test/TestReport.mss",
         "test/TestIntegration.mss"
       ],
       "data": {
@@ -72,12 +78,7 @@
         "dlg_chimeLabel": "",
         "dlg_chimeColor": "",
         "dlg_remove": "0",
-        "_ScoreError": "Open a score with one or more staves and run the plug-in again.",
-        "_NoBellsFound": "No handbells or handchimes were found in this score.",
-        "_ChartWasRemoved": "The existing chart was removed.",
-        "_ChartWasReplaced": "An existing chart was replaced.",
-        "_RemovedChart": "The existing chart was removed.",
-        "_NoChartToRemove": "This score carries no chart that this plug-in made."
+        "_SettingsDialog": ""
       }
     }
   ]

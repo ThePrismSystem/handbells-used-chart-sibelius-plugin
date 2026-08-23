@@ -12,11 +12,12 @@ CollectBells(records) {
     for i = 0 to records.Length {
         record = records[i];
 
-        // H13 again, and this one bit: a record whose diatonic is legitimately 0
-        // was read as null and filed as unreadable, so the out-of-range bell C0
-        // never reached the chart's warnings. `= null` cannot be used on a
-        // field that may hold a real zero. IsNumeric separates them, because a
-        // null coerces to a string that is not a number while 0 coerces to '0'.
+        // H13 (`0 = null` evaluates TRUE) again, and this one bit: a record
+        // whose diatonic is legitimately 0 was read as null and filed as
+        // unreadable, so the out-of-range bell C0 never reached the chart's
+        // warnings. `= null` cannot be used on a field that may hold a real
+        // zero. IsNumeric separates them, because a null coerces to a string
+        // that is not a number while 0 coerces to '0'.
         readable = 1;
         if (not(utils.IsNumeric('' & record.pitch, True))) {
             readable = 0;
@@ -37,7 +38,10 @@ CollectBells(records) {
                 region = RegionOf(record.diatonic);
 
                 if (region = '') {
-                    // 1, not True: H7, containers do not reliably hold Booleans.
+                    // 1, not True: H7 covers sparse arrays, and this is a
+                    // dictionary, but a presence marker has no reason to be a
+                    // Boolean either way. Dictionaries elsewhere in the plugin
+                    // do carry Booleans and the suite asserts on them.
                     if (seenOutOfRange[bell.name] = null) {
                         seenOutOfRange[bell.name] = 1;
                         outOfRange.Push(bell.name);

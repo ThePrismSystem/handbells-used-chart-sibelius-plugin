@@ -8,6 +8,6 @@ Initialize() {
     // The reference section's major * 1000 formula describes 3.1.3 -> 3130 and
     // does not fit the year releases; it is not the encoding in use here.
     if (Sibelius.ProgramVersion >= 20260000) {
-        AddToPluginsMenu(_PluginMenuName, 'Run');
+        AddToPluginsMenu('' & _PluginMenuName, 'Run');
     }
 }

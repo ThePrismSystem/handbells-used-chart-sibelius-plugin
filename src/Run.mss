@@ -3,13 +3,13 @@ Run() {
     // ScoreCount catches Sibelius running with no score open at all, which
     // ActiveScore alone does not.
     if (Sibelius.ScoreCount = 0) {
-        Sibelius.MessageBox(_ScoreError);
+        Sibelius.MessageBox('' & _ScoreError);
         return False;
     }
 
     score = Sibelius.ActiveScore;
     if (score.StaffCount = 0) {
-        Sibelius.MessageBox(_ScoreError);
+        Sibelius.MessageBox('' & _ScoreError);
         return False;
     }
 
@@ -49,14 +49,17 @@ ChartScore(score, options) {
         return CreateDictionary('ok', False, 'kind', 'error', 'text', removal.error);
     }
 
+    // H2 again: every Data read is coerced before it goes anywhere. These two
+    // are stored into a dictionary and compared against '' back in Run, so an
+    // uncoerced read would put a TreeNode where a string is later tested.
     if (options.remove) {
         if (removal.removed) {
-            return CreateDictionary('ok', True, 'kind', 'info', 'text', _RemovedChart);
+            return CreateDictionary('ok', True, 'kind', 'info', 'text', '' & _ChartWasRemoved);
         }
-        return CreateDictionary('ok', False, 'kind', 'warning', 'text', _NoChartToRemove);
+        return CreateDictionary('ok', False, 'kind', 'warning', 'text', '' & _NoChartToRemove);
     }
 
-    plan = BuildPlan(ReadScoreNotes(score, 0), options);
+    plan = BuildPlan(ReadScoreNotes(score), options);
 
     // Warnings are folded into the message ahead of the nothing-to-draw case,
     // not reported after it. A score whose only bells lie outside C2-C9 plans

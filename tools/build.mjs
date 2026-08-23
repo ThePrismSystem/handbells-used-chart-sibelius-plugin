@@ -35,12 +35,10 @@ export function parseMethods(source) {
 }
 
 export function buildPlugin(entry, read) {
-    const exclude = new Set(entry.exclude || []);
     const seen = new Map();
     const lines = ['{'];
 
     for (const path of entry.sources) {
-        if (exclude.has(path)) continue;
         const source = read(path);
         if (source === null) {
             throw new Error(`Missing source ${path}`);
@@ -69,7 +67,6 @@ export function buildPlugin(entry, read) {
     // `Name "value"` shape, and re-quoting it would corrupt the very bytes
     // the capture step exists to preserve.
     for (const path of entry.raw || []) {
-        if (exclude.has(path)) continue;
         const content = read(path);
         if (content === null) {
             throw new Error(`Missing source ${path}`);

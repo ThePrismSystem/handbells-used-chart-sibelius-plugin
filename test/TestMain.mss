@@ -1,7 +1,7 @@
 Initialize() {
     EnableStringSafety();
     if (Sibelius.ProgramVersion >= 20260000) {
-        AddToPluginsMenu(_PluginMenuName, 'Run');
+        AddToPluginsMenu('' & _PluginMenuName, 'Run');
     }
 }
 
@@ -14,6 +14,8 @@ Run() {
     TestColumnsOrphan();
     TestPlan();
     TestMarker();
+    TestOptions();
+    TestReport();
     TestReadScore();
     TestBuildChart();
     TestRemoveChart();

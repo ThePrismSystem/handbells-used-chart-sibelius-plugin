@@ -5,7 +5,7 @@ TestReadScore() {
         return False;
     }
 
-    records = ReadScoreNotes(score, 0);
+    records = ReadScoreNotes(score);
     AssertTrue(records.Length > 0, 'read at least one note from the open score');
 
     // Every record is in bell space, so nothing may be below C2 as a bell
@@ -35,7 +35,7 @@ TestBuildChart() {
     staffCountBefore = score.StaffCount;
     barCountBefore = score.NthStaff(1).BarCount;
 
-    records = ReadScoreNotes(score, 0);
+    records = ReadScoreNotes(score);
     options = CreateDictionary('bellLabel', '', 'chimeLabel', '', 'chimeColor', '');
     plan = BuildPlan(records, options);
     result = BuildChart(score, plan, options);

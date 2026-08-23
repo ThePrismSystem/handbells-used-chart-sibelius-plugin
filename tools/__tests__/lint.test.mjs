@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { lintSource, lintFiles } from '../lint.mjs';
+import { lintSource, lintFiles, lintCalls } from '../lint.mjs';
 
 const messages = (src) => lintSource('a.mss', src).map((f) => f.message);
 
@@ -158,4 +158,46 @@ test('flags a double quote inside a comment, as build.mjs does', () => {
     const findings = lintSource('x.mss', 'A() {\n    // a " quote in a comment\n    x = 1;\n}\n');
     assert.equal(findings.length, 1);
     assert.match(findings[0].message, /double quote/);
+});
+
+test('lintCalls accepts a plug-in whose calls are all defined or built in', () => {
+    const sources = [
+        ['a.mss', 'Run() {\n    x = Helper(CreateSparseArray());\n    trace(x);\n}\n'],
+        ['b.mss', 'Helper(list) {\n    return list.Length;\n}\n']
+    ];
+    assert.deepEqual(lintCalls(sources), []);
+});
+
+test('lintCalls flags a call into a module left out of the manifest entry', () => {
+    const sources = [['a.mss', 'Run() {\n    x = Helper(1);\n}\n']];
+    const findings = lintCalls(sources);
+    assert.equal(findings.length, 1);
+    assert.equal(findings[0].line, 2);
+    assert.match(findings[0].message, /calls Helper, which no source in this plug-in defines/);
+});
+
+test('lintCalls ignores dotted calls, which the host resolves', () => {
+    const sources = [['a.mss', 'Run() {\n    s = Sibelius.ActiveScore;\n'
+        + '    n = s.NthStaff(1);\n    utils.DeleteStaff(s, 1, False);\n}\n']];
+    assert.deepEqual(lintCalls(sources), []);
+});
+
+test('lintCalls ignores control keywords and text inside strings and comments', () => {
+    const sources = [['a.mss', 'Run() {\n    if (x = 1) {\n        while (y) {\n'
+        + "            trace('Missing(1) here');\n            // Absent(2) too\n"
+        + '        }\n    }\n    for i = 0 to 3 {\n    }\n}\n']];
+    assert.deepEqual(lintCalls(sources), []);
+});
+
+test('the arithmetic rule sees an expression that opens right after a bracket', () => {
+    assert.match(messages('A() {\n    x = Foo(a + b * c);\n}\n')[0], /no operator precedence/);
+});
+
+test('the arithmetic rule still accepts a fully bracketed expression', () => {
+    assert.deepEqual(lintSource('a.mss', 'A() {\n    x = (a + b) * c;\n}\n'), []);
+});
+
+test('the division rule sees a division that is not followed by ; or )', () => {
+    assert.match(messages('A() {\n    x = a / b + c;\n}\n').join(' '), /divides without forcing/);
+    assert.match(messages('A() {\n    x = Method(a / b, c);\n}\n').join(' '), /divides without forcing/);
 });
