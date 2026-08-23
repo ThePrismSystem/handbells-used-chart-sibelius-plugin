@@ -59,3 +59,9 @@ test('buildPlugin rejects duplicate method names across files', () => {
     const files = { 'a.mss': 'Same() {\n}\n', 'b.mss': 'Same() {\n}\n' };
     assert.throws(() => buildPlugin(entry, (p) => files[p]), /Same/);
 });
+
+test('buildPlugin rejects a double quote in a data variable', () => {
+    const entry = { output: 'X.plg', sources: ['a.mss'], data: { _Key: 'val"ue' } };
+    const files = { 'a.mss': 'Run() {\n}\n' };
+    assert.throws(() => buildPlugin(entry, (p) => files[p]), /double quote/);
+});
