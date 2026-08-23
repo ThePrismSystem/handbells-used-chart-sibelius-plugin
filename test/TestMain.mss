@@ -8,6 +8,7 @@ Initialize() {
 Run() {
     AssertReset();
     TestPitch();
+    TestBellName();
     Sibelius.MessageBox(AssertReport());
     trace(AssertReport());
 }
