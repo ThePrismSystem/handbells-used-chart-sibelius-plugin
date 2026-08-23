@@ -14,6 +14,7 @@ Run() {
     TestColumnsOrphan();
     TestPlan();
     TestMarker();
+    TestReadScore();
     Sibelius.MessageBox(AssertReport());
     trace(AssertReport());
 }
