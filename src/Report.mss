@@ -1,0 +1,43 @@
+ReportSay(kind, text) {
+    trace('Handbells Used Chart [' & kind & '] ' & text);
+    Sibelius.MessageBox(text);
+}
+
+// One branch per warning type, rather than a two-way test that treats anything
+// unrecognised as the out-of-range case: that shape reads names on a warning
+// that carries none, and a new type would take the whole run down inside the
+// code meant to explain a problem.
+WarningLines(plan) {
+    lines = '';
+    for i = 0 to plan.warnings.Length {
+        warning = plan.warnings[i];
+        line = '';
+        if (warning.type = 'unknown-notehead') {
+            line = warning.count & ' note(s) with an unrecognised notehead were skipped';
+        }
+        if (warning.type = 'unreadable-pitch') {
+            line = warning.count & ' note(s) with an unreadable pitch were skipped';
+        }
+        if (warning.type = 'out-of-range') {
+            line = 'Bells outside C2-C9 were skipped: ' & JoinNames(warning.names);
+        }
+        if (line != '') {
+            if (lines != '') {
+                lines = lines & '\n';
+            }
+            lines = lines & line;
+        }
+    }
+    return lines;
+}
+
+JoinNames(names) {
+    text = '';
+    for i = 0 to names.Length {
+        if (i > 0) {
+            text = text & ', ';
+        }
+        text = text & names[i];
+    }
+    return text;
+}

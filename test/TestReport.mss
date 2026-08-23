@@ -1,0 +1,41 @@
+TestReport() {
+    AssertEquals(JoinNames(CreateSparseArray()), '', 'no names joins to nothing');
+    AssertEquals(JoinNames(CreateSparseArray('C2')), 'C2', 'one name needs no separator');
+    AssertEquals(JoinNames(CreateSparseArray('C2', 'B9')), 'C2, B9', 'two names are comma separated');
+
+    empty = CreateDictionary('warnings', CreateSparseArray());
+    AssertEquals(WarningLines(empty), '', 'a plan with no warnings has no lines');
+
+    unknown = CreateDictionary('warnings', CreateSparseArray(
+        CreateDictionary('type', 'unknown-notehead', 'count', 3, 'names', CreateSparseArray())
+    ));
+    AssertEquals(WarningLines(unknown),
+        '3 note(s) with an unrecognised notehead were skipped',
+        'unknown notehead line');
+
+    unreadable = CreateDictionary('warnings', CreateSparseArray(
+        CreateDictionary('type', 'unreadable-pitch', 'count', 1, 'names', CreateSparseArray())
+    ));
+    AssertEquals(WarningLines(unreadable),
+        '1 note(s) with an unreadable pitch were skipped',
+        'unreadable pitch line');
+
+    outOfRange = CreateDictionary('warnings', CreateSparseArray(
+        CreateDictionary('type', 'out-of-range', 'count', 2,
+            'names', CreateSparseArray('C0', 'B9'))
+    ));
+    AssertEquals(WarningLines(outOfRange),
+        'Bells outside C2-C9 were skipped: C0, B9',
+        'out of range line names the bells');
+
+    // Two warnings join with a newline, and a type the code does not know is
+    // dropped rather than taking the run down inside the reporting path.
+    both = CreateDictionary('warnings', CreateSparseArray(
+        CreateDictionary('type', 'unknown-notehead', 'count', 3, 'names', CreateSparseArray()),
+        CreateDictionary('type', 'something-else', 'count', 9, 'names', CreateSparseArray()),
+        CreateDictionary('type', 'out-of-range', 'count', 1, 'names', CreateSparseArray('C0'))
+    ));
+    AssertEquals(WarningLines(both),
+        '3 note(s) with an unrecognised notehead were skipped\nBells outside C2-C9 were skipped: C0',
+        'two known warnings join with a newline and an unknown type is dropped');
+}
