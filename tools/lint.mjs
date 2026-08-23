@@ -148,6 +148,23 @@ export function lintSource(path, source) {
         }
     });
 
+    // Dynamic variables are indirection over ordinary variables, and ordinary
+    // variables are method-local: only Data variables and user properties are
+    // global. A method that reads `@name` without having written one in the
+    // same body is reaching for a variable that cannot exist, and Sibelius
+    // answers by opening the plug-in editor mid-run and carrying on in an
+    // undefined state. Found by splitting a collect phase from an apply phase.
+    for (const method of parseMethods(source)) {
+        const body = method.body.replace(/\/\/.*$/gm, '').replace(/'[^']*'/g, "''");
+        const writes = /@\w+\s*=(?!=)/.test(body);
+        const reads = [...body.matchAll(/@(\w+)/g)]
+            .filter((m) => !/^\s*=(?!=)/.test(body.slice(m.index + m[0].length)));
+        if (reads.length > 0 && !writes) {
+            report(0, `method ${method.name} reads a dynamic variable it never assigns; `
+                + `these are method-local, so pass the values as a parameter instead`);
+        }
+    }
+
     // H8: a `//` comment on a method's closing line is a syntax error.
     for (const method of parseMethods(source)) {
         const body = method.body.replace(/\s+$/, '');

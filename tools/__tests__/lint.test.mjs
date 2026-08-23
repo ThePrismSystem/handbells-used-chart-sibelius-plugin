@@ -201,3 +201,19 @@ test('the division rule sees a division that is not followed by ; or )', () => {
     assert.match(messages('A() {\n    x = a / b + c;\n}\n').join(' '), /divides without forcing/);
     assert.match(messages('A() {\n    x = Method(a / b, c);\n}\n').join(' '), /divides without forcing/);
 });
+
+test('flags a method that reads a dynamic variable it never assigns', () => {
+    const src = 'Apply(n) {\n    i = 0;\n    while (i < n) {\n'
+        + "        name = 'pending' & i;\n        copy = @name;\n"
+        + '        i = i + 1;\n    }\n}\n';
+    const findings = lintSource('a.mss', src).map((f) => f.message);
+    assert.match(findings.join(' '), /reads a dynamic variable it never assigns/);
+});
+
+test('accepts a method that assigns and reads dynamic variables together', () => {
+    const src = 'Collect(bar) {\n    n = 0;\n    for each item in bar {\n'
+        + "        name = 'item' & n;\n        @name = item;\n        n = n + 1;\n    }\n"
+        + "    while (n > 0) {\n        n = n - 1;\n        name = 'item' & n;\n"
+        + '        got = @name;\n        got.Delete();\n    }\n}\n';
+    assert.deepEqual(lintSource('a.mss', src), []);
+});
