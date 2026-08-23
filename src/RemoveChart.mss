@@ -162,6 +162,11 @@ RelocateSystemText(score, fromBars, targetBarNum, musicalOnly) {
             item = @name;
             copy = target.AddText(0, '' & item.Text, '' & item.StyleId);
             if (IsObject(copy)) {
+                // Assigned again, because AddText flattens a line break: a
+                // composer field reading 'NAME' over 'Arranged by NAME' came
+                // back as one line. Text is read/write, so setting it on the
+                // finished object puts the break back.
+                copy.Text = '' & item.Text;
                 PlaceMovedText(copy, item);
             }
             i = i + 1;
