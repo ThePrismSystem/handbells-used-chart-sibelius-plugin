@@ -5,6 +5,27 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-08-23
+
+Documentation and comments. No behaviour change: the plug-in does exactly
+what 1.0.0 did, and only the comments carried inside it differ.
+
+### Fixed
+
+- Installation now gives the Windows plugin folder as well as the macOS
+  one, and notes that the subfolder name is the category the plugin appears
+  under in the Plug-ins gallery.
+- Dropped the claim that the plugin is macOS-only. Nothing in the
+  ManuScript is platform-specific; it is only untested on Windows, which
+  the limitations now say instead. `npm run deploy` remains macOS-only, and
+  its refusal message names the folder to copy into by hand.
+
+### Changed
+
+- A wording pass over the readme and the source comments, mostly replacing
+  em dashes that had become a tic. Method bodies are copied into the `.plg`
+  verbatim, so the rebuilt plug-in carries the reworded comments.
+
 ## [1.0.0] - 2026-08-23
 
 First release. Verified against Sibelius Ultimate 2026 on macOS.
