@@ -16,6 +16,7 @@ Run() {
     TestMarker();
     TestReadScore();
     TestBuildChart();
+    TestRemoveChart();
     Sibelius.MessageBox(AssertReport());
     trace(AssertReport());
 }

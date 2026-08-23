@@ -45,3 +45,30 @@ TestBuildChart() {
     expected = plan.sections[0].columns * 256;
     AssertEquals(score.NthStaff(1).NthBar(1).Length, expected, 'chart bar length');
 }
+
+TestRemoveChart() {
+    score = Sibelius.ActiveScore;
+    if (score = null) {
+        AssertTrue(False, 'open a score before running the integration tests');
+        return False;
+    }
+
+    // Runs after TestBuildChart, so a chart is present.
+    found = FindChart(score);
+    AssertTrue(found.found, 'chart identified: ' & found.error);
+
+    staffCountBefore = score.StaffCount;
+    barCountBefore = score.NthStaff(1).BarCount;
+    sections = found.sections;
+
+    result = RemoveChart(score);
+    AssertTrue(result.removed, 'chart removed: ' & result.error);
+    AssertEquals(score.StaffCount, staffCountBefore - (sections * 2), 'chart staves gone');
+    AssertEquals(score.NthStaff(1).BarCount, barCountBefore - sections, 'chart bars gone');
+    AssertEquals(MarkerFind(score), null, 'marker gone');
+
+    // A second removal finds nothing and says so without erroring.
+    again = RemoveChart(score);
+    AssertEquals(again.removed, False, 'second removal finds no chart');
+    AssertEquals(again.error, '', 'no chart is not an error');
+}
