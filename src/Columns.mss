@@ -111,8 +111,8 @@ AnchorColumns(anchors, attachmentLists, offsets) {
 
 SortColumns(columns) {
     // ManuScript raises 'End value is not greater than the start value in a for
-    // statement' when the end is BELOW the start, so `for i = 1 to 0` — an empty
-    // collection — is a run-time error, not an empty loop. Proved in Sibelius by
+    // statement' when the end is BELOW the start, so `for i = 1 to 0` (an empty
+    // collection) is a run-time error, not an empty loop. Proved in Sibelius by
     // a fixture with no bass bells at all.
     if (columns.Length < 2) {
         return False;
@@ -147,8 +147,8 @@ ColumnSortsAfter(a, b) {
 
 SortNotesByPitch(notes) {
     // ManuScript raises 'End value is not greater than the start value in a for
-    // statement' when the end is BELOW the start, so `for i = 1 to 0` — an empty
-    // collection — is a run-time error, not an empty loop. Proved in Sibelius by
+    // statement' when the end is BELOW the start, so `for i = 1 to 0` (an empty
+    // collection) is a run-time error, not an empty loop. Proved in Sibelius by
     // a fixture with no bass bells at all.
     if (notes.Length < 2) {
         return False;

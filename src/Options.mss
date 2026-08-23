@@ -34,7 +34,7 @@ UsableColor(value) {
 // The Substring calls sit inside the loop rather than in its condition. With
 // no documented short-circuiting for `and`, a condition of the form
 // `(Length(text) > 0) and (Substring(text, ...) = ' ')` would call Substring
-// on an empty string — and the second one with a start index of -1 — on the
+// on an empty string, and the second one with a start index of -1, on the
 // pass that empties the text.
 Trim(value) {
     text = '' & value;
