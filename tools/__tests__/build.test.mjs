@@ -60,6 +60,54 @@ test('buildPlugin rejects duplicate method names across files', () => {
     assert.throws(() => buildPlugin(entry, (p) => files[p]), /Same/);
 });
 
+test('buildPlugin emits a raw file byte-for-byte between methods and data', () => {
+    const entry = {
+        output: 'X.plg',
+        sources: ['src/A.mss'],
+        raw: ['src/Fixture.raw'],
+        data: { _PluginMenuName: 'Test Plugin' }
+    };
+    // A synthetic stand-in for a captured dialog block: deliberately carries a
+    // backslash and a tab so a passthrough that quoted or escaped it would be
+    // caught by this assertion.
+    const rawContent = '_FixtureDialog "block\twith\\backslash\nand a newline"';
+    const files = {
+        'src/A.mss': 'Run() {\n    trace(\'hi\');\n}\n',
+        'src/Fixture.raw': rawContent
+    };
+    const out = buildPlugin(entry, (p) => files[p]);
+    assert.ok(out.includes(rawContent), 'raw content must appear unchanged');
+
+    const methodIndex = out.indexOf('Run "');
+    const rawIndex = out.indexOf(rawContent);
+    const dataIndex = out.indexOf('_PluginMenuName');
+    assert.ok(methodIndex < rawIndex, 'raw content must come after methods');
+    assert.ok(rawIndex < dataIndex, 'raw content must come before data variables');
+});
+
+test('buildPlugin reports a missing raw file', () => {
+    const entry = { output: 'X.plg', sources: ['a.mss'], raw: ['b.raw'], data: {} };
+    const files = { 'a.mss': 'Run() {\n}\n' };
+    assert.throws(
+        () => buildPlugin(entry, (p) => files[p] ?? null),
+        /b\.raw/
+    );
+});
+
+test('buildEntry treats a missing raw file the same as a missing source', () => {
+    const entry = { output: 'X.plg', sources: ['a.mss'], raw: ['b.raw'] };
+    const files = { 'a.mss': 'Run() {\n}\n' };
+    const io = {
+        exists: (p) => p in files,
+        read: (p) => files[p] ?? null,
+        write: () => { throw new Error('must not write a plugin with a missing raw file'); },
+        remove: () => {}
+    };
+    const result = buildEntry(entry, io);
+    assert.equal(result.status, 'skipped');
+    assert.deepEqual(result.missing, ['b.raw']);
+});
+
 test('buildPlugin rejects a double quote in a data variable', () => {
     const entry = { output: 'X.plg', sources: ['a.mss'], data: { _Key: 'val"ue' } };
     const files = { 'a.mss': 'Run() {\n}\n' };

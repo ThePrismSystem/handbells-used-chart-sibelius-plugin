@@ -64,6 +64,19 @@ export function buildPlugin(entry, read) {
         }
     }
 
+    // Raw entries are dropped in byte-for-byte: no quoting, no escaping. A
+    // dialog captured out of Sibelius's own editor already carries its own
+    // `Name "value"` shape, and re-quoting it would corrupt the very bytes
+    // the capture step exists to preserve.
+    for (const path of entry.raw || []) {
+        if (exclude.has(path)) continue;
+        const content = read(path);
+        if (content === null) {
+            throw new Error(`Missing source ${path}`);
+        }
+        lines.push(content);
+    }
+
     for (const [name, value] of Object.entries(entry.data || {})) {
         if (String(value).includes('"')) {
             throw new Error(`Data variable ${name} contains a double quote`);
@@ -87,7 +100,8 @@ export function buildEntry(entry, io) {
         throw new Error(`Plugin output ${entry.output} must be a bare filename`);
     }
     const outputPath = join('build', entry.output);
-    const missing = entry.sources.filter((p) => !io.exists(p));
+    const required = [...entry.sources, ...(entry.raw || [])];
+    const missing = required.filter((p) => !io.exists(p));
 
     if (missing.length > 0) {
         const removedStale = io.exists(outputPath);

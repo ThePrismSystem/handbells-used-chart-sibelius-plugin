@@ -6,6 +6,8 @@
         "src/Constants.mss",
         "src/Initialize.mss",
         "src/Run.mss",
+        "src/Options.mss",
+        "src/Report.mss",
         "src/Pitch.mss",
         "src/BellName.mss",
         "src/Collect.mss",
