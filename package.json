@@ -1,0 +1,15 @@
+{
+  "name": "handbells-used-chart-sibelius",
+  "version": "0.1.0",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "description": "Sibelius plugin that charts every handbell and handchime a piece uses",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "lint": "node tools/lint.mjs",
+    "deploy": "node tools/build.mjs && node tools/deploy.mjs",
+    "test": "node --test tools/__tests__/*.test.mjs"
+  }
+}

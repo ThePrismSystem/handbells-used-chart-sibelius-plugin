@@ -1,0 +1,57 @@
+{
+  "plugins": [
+    {
+      "output": "HandbellsUsedChart.plg",
+      "sources": [
+        "src/Constants.mss",
+        "src/Initialize.mss",
+        "src/Run.mss"
+      ],
+      "data": {
+        "_PluginMenuName": "Handbells Used Chart",
+        "CHART_INSTRUMENT": "instrument.other.trebleclef",
+        "LABEL_TEXT_STYLE": "text.staff.plain",
+        "MARKER_PREFIX": "HBUC",
+        "MARKER_VERSION": "1",
+        "dlg_bellLabel": "",
+        "dlg_chimeLabel": "",
+        "dlg_chimeColor": "",
+        "dlg_remove": "0",
+        "_ScoreError": "Open a score with one or more staves and run the plug-in again.",
+        "_NoBellsFound": "No handbells or handchimes were found in this score.",
+        "_ChartWasRemoved": "The existing chart was removed.",
+        "_ChartWasReplaced": "An existing chart was replaced.",
+        "_RemovedChart": "The existing chart was removed.",
+        "_NoChartToRemove": "This score carries no chart that this plug-in made."
+      }
+    },
+    {
+      "output": "HandbellsUsedChartTests.plg",
+      "sources": [
+        "src/Constants.mss",
+        "test/Assert.mss",
+        "test/TestMain.mss"
+      ],
+      "data": {
+        "_PluginMenuName": "Handbells Used Chart Tests",
+        "g_passed": "",
+        "g_failed": "",
+        "g_failures": "",
+        "CHART_INSTRUMENT": "instrument.other.trebleclef",
+        "LABEL_TEXT_STYLE": "text.staff.plain",
+        "MARKER_PREFIX": "HBUC",
+        "MARKER_VERSION": "1",
+        "dlg_bellLabel": "",
+        "dlg_chimeLabel": "",
+        "dlg_chimeColor": "",
+        "dlg_remove": "0",
+        "_ScoreError": "Open a score with one or more staves and run the plug-in again.",
+        "_NoBellsFound": "No handbells or handchimes were found in this score.",
+        "_ChartWasRemoved": "The existing chart was removed.",
+        "_ChartWasReplaced": "An existing chart was replaced.",
+        "_RemovedChart": "The existing chart was removed.",
+        "_NoChartToRemove": "This score carries no chart that this plug-in made."
+      }
+    }
+  ]
+}
