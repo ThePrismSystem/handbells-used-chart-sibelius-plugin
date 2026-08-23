@@ -121,3 +121,14 @@ test('buildEntry builds and writes when every source is present', () => {
     assert.equal(written.length, 1);
     assert.equal(written[0][0], 'build/X.plg');
 });
+
+test('buildEntry refuses an output name that escapes build/', () => {
+    const io = {
+        exists: () => false,
+        read: () => null,
+        write: () => assert.fail('must not write'),
+        remove: () => assert.fail('must not remove')
+    };
+    const entry = { output: '../../etc/passwd', sources: ['a.mss'] };
+    assert.throws(() => buildEntry(entry, io), /must be a bare filename/);
+});

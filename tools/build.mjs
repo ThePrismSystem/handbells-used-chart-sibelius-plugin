@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync, mkdirSync, existsSync, unlinkSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -79,6 +79,13 @@ export function buildPlugin(entry, read) {
 // injected io, so a skip can never leave a stale .plg from an earlier build
 // sitting where deploy.mjs would still pick it up.
 export function buildEntry(entry, io) {
+    // This function deletes files, so the output name has to stay a bare
+    // filename. join('build', '../../x') escapes build/ entirely, and the
+    // manifest being repo-controlled today is not a reason to let a later
+    // edit to it reach outside.
+    if (entry.output !== basename(entry.output)) {
+        throw new Error(`Plugin output ${entry.output} must be a bare filename`);
+    }
     const outputPath = join('build', entry.output);
     const missing = entry.sources.filter((p) => !io.exists(p));
 
