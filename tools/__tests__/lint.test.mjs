@@ -148,3 +148,8 @@ test('allows .Length on a plain name and a property on one subscript', () => {
         + "    columns[index[key]].notes.Push(entry);\n    m = 1;\n}\n";
     assert.deepEqual(lintSource('x.mss', source), []);
 });
+
+test('does not flag the subscript forms when they appear inside a string', () => {
+    const source = "A() {\n    trace('  ' & label & '[' & i & '].Length = ' & column.Length);\n    m = 1;\n}\n";
+    assert.deepEqual(lintSource('x.mss', source), []);
+});

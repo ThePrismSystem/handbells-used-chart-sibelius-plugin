@@ -30,8 +30,8 @@ const RULES = [
     // throughout the guide; it is applying .Length or a further subscript to an
     // already-subscripted expression that the parser will not take. Bind the
     // subscripted value to a local first.
-    [/\]\s*\.Length\b/, 'applies .Length to a subscripted expression; assign it to a variable first, as Sibelius will not parse this'],
-    [/\]\s*\[/, 'chains two subscripts; assign the first lookup to a variable first, as Sibelius will not parse this']
+    [null, 'applies .Length to a subscripted expression; assign it to a variable first, as Sibelius will not parse this', subscriptThenLength],
+    [null, 'chains two subscripts; assign the first lookup to a variable first, as Sibelius will not parse this', chainedSubscript]
 ];
 
 // `and`/`or` bind left to right like everything else, so an unparenthesised
@@ -45,6 +45,16 @@ function andOrUnparenthesised(code) {
         temp = temp.replace(/\)\s*\b(and|or)\b\s*\(/, '___');
     }
     return /\b(and|or)\b/.test(temp);
+}
+
+// Both of these run on the string-blanked copy: a trace message containing the
+// literal text '].Length' is not a use of the construct.
+function subscriptThenLength(code) {
+    return /\]\s*\.Length\b/.test(code);
+}
+
+function chainedSubscript(code) {
+    return /\]\s*\[/.test(code);
 }
 
 // A division is fine once the line commits to an integer or a float result.
@@ -69,9 +79,14 @@ export function lintSource(path, source) {
         for (const [pattern, message, predicate] of RULES) {
             if (predicate) {
                 if (predicate(bare)) {
-                    report(index, predicate === divisionUnforced
-                        ? 'divides without forcing the result; use RoundDown(a / b) for an integer or (a * 1.0) / b for a float'
-                        : 'mixes and/or without parenthesising both sides; ManuScript has no operator precedence');
+                    // Older predicate rules carry no message of their own.
+                    if (message) {
+                        report(index, message);
+                    } else {
+                        report(index, predicate === divisionUnforced
+                            ? 'divides without forcing the result; use RoundDown(a / b) for an integer or (a * 1.0) / b for a float'
+                            : 'mixes and/or without parenthesising both sides; ManuScript has no operator precedence');
+                    }
                 }
             } else if (pattern.test(code)) {
                 report(index, message);
