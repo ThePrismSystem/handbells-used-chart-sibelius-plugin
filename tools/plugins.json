@@ -12,7 +12,8 @@
         "src/Columns.mss",
         "src/Plan.mss",
         "src/Marker.mss",
-        "src/ReadScore.mss"
+        "src/ReadScore.mss",
+        "src/BuildChart.mss"
       ],
       "data": {
         "_PluginMenuName": "Handbells Used Chart",
@@ -43,6 +44,7 @@
         "src/Plan.mss",
         "src/Marker.mss",
         "src/ReadScore.mss",
+        "src/BuildChart.mss",
         "test/Assert.mss",
         "test/TestMain.mss",
         "test/TestPitch.mss",
