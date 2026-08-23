@@ -23,7 +23,15 @@ const RULES = [
     [/\b(and|or)\b/, null, andOrUnparenthesised],
     [/for\s+each\s+Note\s+\w+\s+in\b/, 'uses `for each Note n in ...`; inside a NoteRest this must be `for each n in nr`'],
     [/\/\*|\*\//, 'uses a block comment; these corrupt the line numbers in ManuScript error reports'],
-    [/\.Push\s*\(\s*(True|False)\s*\)|\[\s*[^\]]+\s*\]\s*=\s*(True|False)\s*;/, 'stores a Boolean in an array; store 1 or 0 instead']
+    [/\.Push\s*\(\s*(True|False)\s*\)|\[\s*[^\]]+\s*\]\s*=\s*(True|False)\s*;/, 'stores a Boolean in an array; store 1 or 0 instead'],
+    // Sibelius rejects both of these with a bare 'Parse error near \'. Found
+    // the hard way: the plugin failed to load at the first `expr[i].Length` in
+    // the file. `name.Length` and `name[i].Property` are fine and used
+    // throughout the guide; it is applying .Length or a further subscript to an
+    // already-subscripted expression that the parser will not take. Bind the
+    // subscripted value to a local first.
+    [/\]\s*\.Length\b/, 'applies .Length to a subscripted expression; assign it to a variable first, as Sibelius will not parse this'],
+    [/\]\s*\[/, 'chains two subscripts; assign the first lookup to a variable first, as Sibelius will not parse this']
 ];
 
 // `and`/`or` bind left to right like everything else, so an unparenthesised

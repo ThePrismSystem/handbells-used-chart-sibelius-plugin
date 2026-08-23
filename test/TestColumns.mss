@@ -3,6 +3,12 @@
 // would leave D7 and D8 forming their own column and assert a shape the code
 // cannot produce. A6 is the second column because it must sort after the
 // stack's anchor pitch of 86.
+//
+// Every subscripted value is bound to a local before anything is read from it.
+// Sibelius rejects `expr[i].Length` outright with a parse error, and the guide
+// shows no example of it, nor of a chained `expr[i][j]`. Both forms are absent
+// from the whole reference. `name.Length` and `name[i].Property` are used
+// throughout the guide and parse, so everything here is expressed with those.
 TestColumns() {
     d6 = MakeBell(86, 43, 'trebleStaff');
     d7 = MakeBell(98, 50, 'trebleRow1');
@@ -13,14 +19,21 @@ TestColumns() {
 
     built = BuildColumns(CreateSparseArray(d6, d7, d8, a6, c3, c4));
 
-    AssertEquals(built.treble.Length, 2, 'two treble columns');
-    AssertEquals(built.treble[0].Length, 3, 'D stacks three octaves');
-    AssertEquals(built.treble[0][0].pitch, 86, 'lowest in stack first');
-    AssertEquals(built.treble[0][2].pitch, 110, 'highest in stack last');
-    AssertEquals(built.treble[1].Length, 1, 'A6 is its own column');
-    AssertEquals(built.bass.Length, 2, 'two bass columns');
-    AssertEquals(built.bass[0][0].pitch, 48, 'low bell leftmost');
-    AssertEquals(built.bass[1][0].pitch, 60, 'staff bell after it');
+    treble = built.treble;
+    bass = built.bass;
+    stack = treble[0];
+    secondTreble = treble[1];
+    lowColumn = bass[0];
+    staffColumn = bass[1];
+
+    AssertEquals(treble.Length, 2, 'two treble columns');
+    AssertEquals(stack.Length, 3, 'D stacks three octaves');
+    AssertEquals(stack[0].pitch, 86, 'lowest in stack first');
+    AssertEquals(stack[2].pitch, 110, 'highest in stack last');
+    AssertEquals(secondTreble.Length, 1, 'A6 is its own column');
+    AssertEquals(bass.Length, 2, 'two bass columns');
+    AssertEquals(lowColumn[0].pitch, 48, 'low bell leftmost');
+    AssertEquals(staffColumn[0].pitch, 60, 'staff bell after it');
     AssertEquals(built.length, 2, 'length is the wider side');
 }
 
@@ -33,7 +46,7 @@ MakeBell(pitch, diatonic, region) {
 
 // The other half of AnchorColumns: an attachment whose anchor is not in the
 // score at all. G7 has no G6 on the treble staff, so it becomes its own column
-// — but it must still sort by the anchor it WOULD have had (91), not by its own
+// - but it must still sort by the anchor it WOULD have had (91), not by its own
 // pitch (103), or a piece that uses a high bell without its staff-octave
 // partner prints that bell out of reading order.
 TestColumnsOrphan() {
@@ -42,7 +55,11 @@ TestColumnsOrphan() {
 
     built = BuildColumns(CreateSparseArray(a6, g7));
 
-    AssertEquals(built.treble.Length, 2, 'orphan attachment makes its own column');
-    AssertEquals(built.treble[0][0].pitch, 103, 'orphan sorts by its absent anchor');
-    AssertEquals(built.treble[1][0].pitch, 93, 'staff bell sorts after it');
+    treble = built.treble;
+    orphanColumn = treble[0];
+    staffColumn = treble[1];
+
+    AssertEquals(treble.Length, 2, 'orphan attachment makes its own column');
+    AssertEquals(orphanColumn[0].pitch, 103, 'orphan sorts by its absent anchor');
+    AssertEquals(staffColumn[0].pitch, 93, 'staff bell sorts after it');
 }

@@ -130,3 +130,21 @@ test('reports linted files and skipped files accurately', () => {
     assert.equal(results.findings.length, 2);
     assert.equal(results.skipped.length, 1);
 });
+
+test('flags .Length applied to a subscripted expression', () => {
+    const findings = lintSource('x.mss', "A() {\n    n = built.treble[0].Length;\n    m = 1;\n}\n");
+    assert.equal(findings.length, 1);
+    assert.match(findings[0].message, /\.Length to a subscripted expression/);
+});
+
+test('flags a chained subscript', () => {
+    const findings = lintSource('x.mss', "A() {\n    p = built.treble[0][0].pitch;\n    m = 1;\n}\n");
+    assert.equal(findings.length, 1);
+    assert.match(findings[0].message, /chains two subscripts/);
+});
+
+test('allows .Length on a plain name and a property on one subscript', () => {
+    const source = "A() {\n    n = treble.Length;\n    p = stack[0].pitch;\n"
+        + "    columns[index[key]].notes.Push(entry);\n    m = 1;\n}\n";
+    assert.deepEqual(lintSource('x.mss', source), []);
+});
