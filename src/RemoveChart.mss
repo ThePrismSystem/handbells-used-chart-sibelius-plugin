@@ -86,7 +86,7 @@ RemoveChart(score) {
 
     // Before any bar goes, rescue the title block it is carrying and drop the
     // renumbering that only made sense while the chart was in front.
-    RelocateSystemText(score, found.sections, found.sections + 1, False);
+    pending = RelocateSystemText(score, found.sections, found.sections + 1, False);
     ClearHiddenBarNumber(score.NthStaff(1).NthBar(found.sections + 1));
 
     // Bars first: removing the staves renumbers everything underneath us. The
@@ -100,6 +100,10 @@ RemoveChart(score) {
             'This score records a Handbells Used chart, but Sibelius did not remove '
             & 'the chart bars.'));
     }
+
+    // The score has its final bar count now, so the rescued text can take up
+    // the offsets it had before the chart existed.
+    ApplyDeferredText(pending);
 
     // Bottom-up, so deleting one staff does not renumber the ones still to go.
     staffCountBefore = score.StaffCount;
@@ -129,9 +133,14 @@ RemoveChart(score) {
 // then delete in REVERSE order. Deleting forwards while iterating desyncs the
 // iterator, which is why an earlier attempt left the originals in place and
 // added copies beside them, doubling the title block.
+//
+// Placement is NOT done here. It is recorded and returned as a count, for the
+// caller to apply through ApplyDeferredText once the score has settled. See
+// there for why.
 RelocateSystemText(score, fromBars, targetBarNum, musicalOnly) {
     system = score.SystemStaff;
     target = system.NthBar(targetBarNum);
+    pending = 0;
 
     b = 1;
     while (b <= fromBars) {
@@ -162,7 +171,17 @@ RelocateSystemText(score, fromBars, targetBarNum, musicalOnly) {
             item = @name;
             copy = target.AddText(0, '' & item.Text, '' & item.StyleId);
             if (IsObject(copy)) {
-                PlaceMovedText(copy, item);
+                // A full score hides the part-name and header items that only
+                // belong in the parts, and a recreated item defaults to
+                // visible. That is where a spurious 'Full Score' came from.
+                copy.Hidden = item.Hidden;
+                name = 'pending' & pending;
+                @name = copy;
+                name = 'pendingDx' & pending;
+                @name = item.Dx;
+                name = 'pendingDy' & pending;
+                @name = item.Dy;
+                pending = pending + 1;
             }
             i = i + 1;
         }
@@ -176,29 +195,37 @@ RelocateSystemText(score, fromBars, targetBarNum, musicalOnly) {
 
         b = b + 1;
     }
-    return True;
+    return pending;
 }
 
-// A page-aligned item is positioned against the page, and its offsets were
-// measured from the system about to be deleted, so carrying them over put the
-// title and subtitle off the top of the page. Its own style knows better.
+// Why placement waits.
 //
-// Everything else is staff-relative, and a staff is a staff in either bar, so
-// the vertical nudge still means what it meant. It is worth keeping: two tempo
-// texts separated only by their Dy land on top of each other without it.
-// Horizontal is left at the default, which for a musical direction is the
-// start of the bar, and that is where it belongs.
-PlaceMovedText(copy, item) {
-    // Before anything else. A full score hides the part-name and header items
-    // that only belong in the parts, and a recreated item defaults to visible,
-    // which is where a spurious 'Full Score' came from.
-    copy.Hidden = item.Hidden;
-
-    if (StyleIsPageAligned(item.StyleId)) {
-        copy.ResetPosition();
-        return True;
+// An offset is measured from the system the item hangs on, and on a removal
+// that system is about to disappear. Setting Dy while the chart bars are still
+// there records it against a bar sitting low on the page, under two chart
+// systems; when those bars go the bar rises to the top and the same Dy now
+// points off the page above it. That is what threw the title and subtitle off
+// the score.
+//
+// Resetting to the style default avoided that but threw away the score's own
+// positioning, which is what shifted everything. Deferring is what makes the
+// original offsets correct again: applied after the score has settled into its
+// final shape, they mean exactly what they meant before the chart existed.
+ApplyDeferredText(pending) {
+    i = 0;
+    while (i < pending) {
+        name = 'pending' & i;
+        copy = @name;
+        name = 'pendingDx' & i;
+        dx = @name;
+        name = 'pendingDy' & i;
+        dy = @name;
+        if (IsObject(copy)) {
+            copy.Dx = dx;
+            copy.Dy = dy;
+        }
+        i = i + 1;
     }
-    copy.Dy = item.Dy;
     return True;
 }
 
