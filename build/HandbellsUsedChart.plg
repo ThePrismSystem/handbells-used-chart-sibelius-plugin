@@ -1,0 +1,1411 @@
+{
+	ChartInstrument "() {
+    return '' & CHART_INSTRUMENT;
+}"
+	LabelTextStyle "() {
+    return '' & LABEL_TEXT_STYLE;
+}"
+	EnableStringSafety "() {
+    if (Sibelius.ProgramVersion > 20200600) {
+        SetInterpreterOption(TreatSingleCharacterAsString);
+    }
+}"
+	StemlessDiamondName "() {
+    return '' & STEMLESS_DIAMOND;
+}"
+	Initialize "() {
+    EnableStringSafety();
+    // 2026 is the only version this targets. Registering on an older release
+    // would offer a menu item that fails somewhere deep in the build with no
+    // explanation, so it declines to appear at all.
+    // Year-based releases encode as YYYY * 10000 + minor * 100 + revision * 10,
+    // which is why the guide's own example compares 2020.6 against 20200600.
+    // The reference section's major * 1000 formula describes 3.1.3 -> 3130 and
+    // does not fit the year releases; it is not the encoding in use here.
+    if (Sibelius.ProgramVersion >= 20260000) {
+        AddToPluginsMenu('' & _PluginMenuName, 'Run');
+    }
+}"
+	Run "() {
+    // Ed Hirschman's guard clauses: a plugin should never fail ungracefully.
+    // ScoreCount catches Sibelius running with no score open at all, which
+    // ActiveScore alone does not.
+    if (Sibelius.ScoreCount = 0) {
+        Sibelius.MessageBox('' & _ScoreError);
+        return False;
+    }
+
+    score = Sibelius.ActiveScore;
+    if (score.StaffCount = 0) {
+        Sibelius.MessageBox('' & _ScoreError);
+        return False;
+    }
+
+    options = ReadOptions();
+    if (options = null) {
+        return False;
+    }
+
+    selection = score.Selection;
+    selection.StoreCurrentSelection();
+    // H10: the cheapest speedup available. Every branch below must restore it,
+    // including the early returns, or the score stops repainting.
+    score.Redraw = False;
+
+    // Every exit path below runs through here, so Redraw and the selection are
+    // restored exactly once no matter which branch ends the run. Doing it with
+    // a return in each branch is how one of them eventually gets missed and
+    // leaves the user's score frozen.
+    message = ChartScore(score, options);
+
+    score.Redraw = True;
+    selection.RestoreSelection();
+
+    if (message.text != '') {
+        ReportSay(message.kind, message.text);
+    }
+    return message.ok;
+}"
+	ChartScore "(score, options) {
+    // Removal first, so a re-run replaces its own chart rather than reading it
+    // back in and charting the chart.
+    removal = RemoveChart(score);
+    if (removal.error != '') {
+        return CreateDictionary('ok', False, 'kind', 'error', 'text', removal.error);
+    }
+
+    // H2 again: every Data read is coerced before it goes anywhere. These two
+    // are stored into a dictionary and compared against '' back in Run, so an
+    // uncoerced read would put a TreeNode where a string is later tested.
+    if (options.remove) {
+        if (removal.removed) {
+            return CreateDictionary('ok', True, 'kind', 'info', 'text', '' & _ChartWasRemoved);
+        }
+        return CreateDictionary('ok', False, 'kind', 'warning', 'text', '' & _NoChartToRemove);
+    }
+
+    plan = BuildPlan(ReadScoreNotes(score), options);
+
+    // Warnings are folded into the message ahead of the nothing-to-draw case,
+    // not reported after it. A score whose only bells lie outside C2-C9 plans
+    // no sections at all, and being told 'no handbells were found' is both
+    // wrong and useless when the run knows exactly which bells it skipped.
+    warnings = WarningLines(plan);
+
+    if (plan.sections.Length = 0) {
+        text = '' & _NoBellsFound;
+        if (removal.removed) {
+            text = text & ('\n\n' & _ChartWasRemoved);
+        }
+        if (warnings != '') {
+            text = (warnings & '\n\n') & text;
+        }
+        return CreateDictionary('ok', False, 'kind', 'warning', 'text', text);
+    }
+
+    result = BuildChart(score, plan, options);
+    if (not(result.ok)) {
+        return CreateDictionary('ok', False, 'kind', 'error', 'text', result.error);
+    }
+
+    summary = '';
+    for i = 0 to plan.sections.Length {
+        if (i > 0) {
+            summary = summary & '\n';
+        }
+        summary = summary & plan.sections[i].label;
+    }
+    if (removal.removed) {
+        summary = summary & ('\n\n' & _ChartWasReplaced);
+    }
+    if (warnings != '') {
+        summary = (warnings & '\n\n') & summary;
+    }
+
+    return CreateDictionary('ok', True, 'kind', 'info', 'text', summary);
+}"
+	ReadOptions "() {
+    if (not(Sibelius.ShowDialog(_SettingsDialog, self))) {
+        return null;
+    }
+    return CreateDictionary(
+        'bellLabel', Trim(dlg_bellLabel),
+        'chimeLabel', Trim(dlg_chimeLabel),
+        'chimeColor', UsableColor(dlg_chimeColor),
+        'remove', ('' & dlg_remove) = '1'
+    );
+}"
+	UsableColor "(value) {
+    text = Trim(value);
+    if (text = '') {
+        return '';
+    }
+    if (Substring(text, 0, 1) != '#') {
+        text = '#' & text;
+    }
+    if (Length(text) != 7) {
+        return '';
+    }
+    return text;
+}"
+	Trim "(value) {
+    text = '' & value;
+
+    trimming = 1;
+    while (trimming = 1) {
+        if (Length(text) = 0) {
+            trimming = 0;
+        } else {
+            if (Substring(text, 0, 1) = ' ') {
+                text = Substring(text, 1);
+            } else {
+                trimming = 0;
+            }
+        }
+    }
+
+    trimming = 1;
+    while (trimming = 1) {
+        if (Length(text) = 0) {
+            trimming = 0;
+        } else {
+            if (Substring(text, Length(text) - 1, 1) = ' ') {
+                text = Substring(text, 0, Length(text) - 1);
+            } else {
+                trimming = 0;
+            }
+        }
+    }
+
+    return text;
+}"
+	ReportSay "(kind, text) {
+    trace('Handbells Used Chart [' & kind & '] ' & text);
+    Sibelius.MessageBox(text);
+}"
+	WarningLines "(plan) {
+    lines = '';
+    for i = 0 to plan.warnings.Length {
+        warning = plan.warnings[i];
+        line = '';
+        if (warning.type = 'unknown-notehead') {
+            line = warning.count & ' note(s) with an unrecognised notehead were skipped';
+        }
+        if (warning.type = 'unreadable-pitch') {
+            line = warning.count & ' note(s) with an unreadable pitch were skipped';
+        }
+        if (warning.type = 'out-of-range') {
+            line = 'Bells outside C2-C9 were skipped: ' & JoinNames(warning.names);
+        }
+        if (line != '') {
+            if (lines != '') {
+                lines = lines & '\n';
+            }
+            lines = lines & line;
+        }
+    }
+    return lines;
+}"
+	JoinNames "(names) {
+    text = '';
+    for i = 0 to names.Length {
+        if (i > 0) {
+            text = text & ', ';
+        }
+        text = text & names[i];
+    }
+    return text;
+}"
+	StaffChromaticTransposition "(staff) {
+    if (staff = null) {
+        return 0;
+    }
+    t = staff.InitialInstrumentType;
+    // Summed because the reference does not say how the two combine, and an
+    // octave-transposing instrument reports in the second field, not the
+    // first. Both read 0 on every instrument this plugin has been run against.
+    return t.ChromaticTransposition + t.ChromaticTranspositionInScore;
+}"
+	StaffDiatonicTransposition "(staff) {
+    if (staff = null) {
+        return 0;
+    }
+    t = staff.InitialInstrumentType;
+    return t.DiatonicTransposition + t.DiatonicTranspositionInScore;
+}"
+	ToBellSpace "(pitch, diatonic, staff) {
+    bellTransposition = 12;
+    bellTranspositionDiatonic = 7;
+    sibeliusDiatonicOrigin = 7;
+
+    written = pitch - StaffChromaticTransposition(staff);
+    writtenDiatonic = diatonic - StaffDiatonicTransposition(staff);
+
+    return CreateDictionary(
+        'pitch', written + bellTransposition,
+        'diatonic', (writtenDiatonic + bellTranspositionDiatonic) - sibeliusDiatonicOrigin
+    );
+}"
+	FromBellSpace "(bellPitch, bellDiatonic, staff) {
+    bellTransposition = 12;
+    bellTranspositionDiatonic = 7;
+    sibeliusDiatonicOrigin = 7;
+
+    written = bellPitch - bellTransposition;
+    writtenDiatonic = (bellDiatonic - bellTranspositionDiatonic) + sibeliusDiatonicOrigin;
+
+    return CreateDictionary(
+        'pitch', written + StaffChromaticTransposition(staff),
+        'diatonic', writtenDiatonic + StaffDiatonicTransposition(staff)
+    );
+}"
+	NaturalOffset "(letterStep) {
+    offsets = CreateSparseArray(0, 2, 4, 5, 7, 9, 11);
+    return offsets[letterStep];
+}"
+	LetterName "(letterStep) {
+    letters = CreateSparseArray('C', 'D', 'E', 'F', 'G', 'A', 'B');
+    return letters[letterStep];
+}"
+	AccidentalText "(alter) {
+    if (alter = -2) { return 'bb'; }
+    if (alter = -1) { return 'b'; }
+    if (alter = 1)  { return '#'; }
+    if (alter = 2)  { return 'x'; }
+    return '';
+}"
+	BellNameOf "(bellPitch, bellDiatonic) {
+    letterStep = bellDiatonic % 7;
+    octave = RoundDown(bellDiatonic / 7);
+    // '' & forces a string: LetterName returns a one-character literal, which
+    // without H1's interpreter option is a code point, and even with it the
+    // coercion documents the intent.
+    letter = '' & LetterName(letterStep);
+    natural = ((octave + 1) * 12) + (0 + NaturalOffset(letterStep));
+    alter = bellPitch - natural;
+
+    return CreateDictionary(
+        'pitch', bellPitch,
+        'diatonic', bellDiatonic,
+        'letter', letter,
+        'alter', alter,
+        'octave', octave,
+        'name', letter & AccidentalText(alter) & octave
+    );
+}"
+	RegionOf "(bellDiatonic) {
+    if ((bellDiatonic >= 14) and (bellDiatonic <= 20)) { return 'bassRow2'; }
+    if ((bellDiatonic >= 21) and (bellDiatonic <= 27)) { return 'bassRow1'; }
+    if ((bellDiatonic >= 28) and (bellDiatonic <= 35)) { return 'bassStaff'; }
+    if ((bellDiatonic >= 36) and (bellDiatonic <= 49)) { return 'trebleStaff'; }
+    if ((bellDiatonic >= 50) and (bellDiatonic <= 56)) { return 'trebleRow1'; }
+    if ((bellDiatonic >= 57) and (bellDiatonic <= 63)) { return 'trebleRow2'; }
+    return '';
+}"
+	CollectBells "(records) {
+    bells = CreateSparseArray();
+    chimes = CreateSparseArray();
+    seenBell = CreateDictionary();
+    seenChime = CreateDictionary();
+    outOfRange = CreateSparseArray();
+    seenOutOfRange = CreateDictionary();
+    unknown = 0;
+    unreadable = 0;
+
+    for i = 0 to records.Length {
+        record = records[i];
+
+        // H13 (`0 = null` evaluates TRUE) again, and this one bit: a record
+        // whose diatonic is legitimately 0 was read as null and filed as
+        // unreadable, so the out-of-range bell C0 never reached the chart's
+        // warnings. `= null` cannot be used on a field that may hold a real
+        // zero. IsNumeric separates them, because a null coerces to a string
+        // that is not a number while 0 coerces to '0'.
+        readable = 1;
+        if (not(utils.IsNumeric('' & record.pitch, True))) {
+            readable = 0;
+        }
+        if (not(utils.IsNumeric('' & record.diatonic, True))) {
+            readable = 0;
+        }
+
+        if (readable = 1) {
+            kind = '';
+            if (record.head = 'normal')  { kind = 'bells'; }
+            if (record.head = 'diamond') { kind = 'chimes'; }
+
+            if (kind = '') {
+                unknown = unknown + 1;
+            } else {
+                bell = BellNameOf(record.pitch, record.diatonic);
+                region = RegionOf(record.diatonic);
+
+                if (region = '') {
+                    // 1, not True: H7 covers sparse arrays, and this is a
+                    // dictionary, but a presence marker has no reason to be a
+                    // Boolean either way. Dictionaries elsewhere in the plugin
+                    // do carry Booleans and the suite asserts on them.
+                    if (seenOutOfRange[bell.name] = null) {
+                        seenOutOfRange[bell.name] = 1;
+                        outOfRange.Push(bell.name);
+                    }
+                } else {
+                    key = record.pitch & ':' & record.diatonic;
+                    if (kind = 'bells') {
+                        if (seenBell[key] = null) {
+                            bell._property:region = region;
+                            bell._property:count = 0;
+                            seenBell[key] = bell;
+                            bells.Push(bell);
+                        }
+                        found = seenBell[key];
+                        found.count = found.count + 1;
+                    } else {
+                        if (seenChime[key] = null) {
+                            bell._property:region = region;
+                            bell._property:count = 0;
+                            seenChime[key] = bell;
+                            chimes.Push(bell);
+                        }
+                        found = seenChime[key];
+                        found.count = found.count + 1;
+                    }
+                }
+            }
+        } else {
+            unreadable = unreadable + 1;
+        }
+    }
+
+    return CreateDictionary(
+        'bells', SortBells(bells),
+        'chimes', SortBells(chimes),
+        'unknown', unknown,
+        'unreadable', unreadable,
+        'outOfRange', outOfRange
+    );
+}"
+	SortBells "(list) {
+    // ManuScript raises 'End value is not greater than the start value in a for
+    // statement' when the end is BELOW the start, so `for i = 1 to 0` — an empty
+    // collection — is a run-time error, not an empty loop. Proved in Sibelius by
+    // a fixture with no bass bells at all.
+    if (list.Length < 2) {
+        return list;
+    }
+    for i = 1 to list.Length {
+        current = list[i];
+        j = i - 1;
+        placed = 0;
+        // Both operands are safe to evaluate at j = -1. The guide documents no
+        // short-circuiting for `and` — it says only 'both are true' — so the
+        // obvious `(j >= 0) and BellSortsAfter(list[j], current)` would index
+        // list[-1] on the last pass and hand a null to BellSortsAfter, and the
+        // guide is explicit that reading a property of null is a run-time error.
+        while ((j >= 0) and (placed = 0)) {
+            if (BellSortsAfter(list[j], current)) {
+                list[j + 1] = list[j];
+                j = j - 1;
+            } else {
+                placed = 1;
+            }
+        }
+        list[j + 1] = current;
+    }
+    return list;
+}"
+	BellSortsAfter "(a, b) {
+    if (a.pitch > b.pitch) {
+        return True;
+    }
+    if ((a.pitch = b.pitch) and (a.alter < b.alter)) {
+        return True;
+    }
+    return False;
+}"
+	BuildColumns "(entries) {
+    trebleStaff = FilterRegion(entries, 'trebleStaff');
+    trebleRow1 = FilterRegion(entries, 'trebleRow1');
+    trebleRow2 = FilterRegion(entries, 'trebleRow2');
+    bassStaff = FilterRegion(entries, 'bassStaff');
+    bassRow1 = FilterRegion(entries, 'bassRow1');
+    bassRow2 = FilterRegion(entries, 'bassRow2');
+
+    treble = AnchorColumns(trebleStaff,
+        CreateSparseArray(trebleRow1, trebleRow2),
+        CreateSparseArray(12, 24));
+
+    lowBlock = AnchorColumns(bassRow1,
+        CreateSparseArray(bassRow2),
+        CreateSparseArray(-12));
+
+    bass = lowBlock;
+    staffColumns = SingleColumns(bassStaff);
+    for i = 0 to staffColumns.Length {
+        bass.Push(staffColumns[i]);
+    }
+
+    longest = treble.Length;
+    if (bass.Length > longest) {
+        longest = bass.Length;
+    }
+
+    return CreateDictionary('treble', treble, 'bass', bass, 'length', longest);
+}"
+	FilterRegion "(entries, region) {
+    out = CreateSparseArray();
+    for i = 0 to entries.Length {
+        if (entries[i].region = region) {
+            out.Push(entries[i]);
+        }
+    }
+    return out;
+}"
+	SingleColumns "(list) {
+    out = CreateSparseArray();
+    for i = 0 to list.Length {
+        out.Push(CreateSparseArray(list[i]));
+    }
+    return out;
+}"
+	AnchorColumns "(anchors, attachmentLists, offsets) {
+    columns = CreateSparseArray();
+    index = CreateDictionary();
+
+    // Slots are stored one-based. ManuScript evaluates `0 = null` as TRUE, so a
+    // column stored at slot 0 reads back as absent and every attachment that
+    // belongs to it silently starts a column of its own instead. Proved in
+    // Sibelius: D6 sat alone while D7 and D8 formed a second column between
+    // them. Nothing here may store a plain 0 in a dictionary it later tests
+    // against null.
+    for i = 0 to anchors.Length {
+        key = anchors[i].pitch & ':' & anchors[i].diatonic;
+        index[key] = columns.Length + 1;
+        columns.Push(CreateDictionary(
+            'sortPitch', anchors[i].pitch,
+            'sortAlter', -anchors[i].alter,
+            'notes', CreateSparseArray(anchors[i])
+        ));
+    }
+
+    for a = 0 to attachmentLists.Length {
+        list = attachmentLists[a];
+        offset = offsets[a];
+        offsetDiatonic = RoundDown((offset / 12) * 7);
+
+        for j = 0 to list.Length {
+            entry = list[j];
+            anchorPitch = entry.pitch - offset;
+            anchorDiatonic = entry.diatonic - offsetDiatonic;
+            key = anchorPitch & ':' & anchorDiatonic;
+
+            slot = index[key];
+            if (slot = null) {
+                index[key] = columns.Length + 1;
+                columns.Push(CreateDictionary(
+                    'sortPitch', anchorPitch,
+                    'sortAlter', -entry.alter,
+                    'notes', CreateSparseArray(entry)
+                ));
+            } else {
+                column = columns[slot - 1];
+                column.notes.Push(entry);
+            }
+        }
+    }
+
+    SortColumns(columns);
+
+    out = CreateSparseArray();
+    for i = 0 to columns.Length {
+        SortNotesByPitch(columns[i].notes);
+        out.Push(columns[i].notes);
+    }
+    return out;
+}"
+	SortColumns "(columns) {
+    // ManuScript raises 'End value is not greater than the start value in a for
+    // statement' when the end is BELOW the start, so `for i = 1 to 0` — an empty
+    // collection — is a run-time error, not an empty loop. Proved in Sibelius by
+    // a fixture with no bass bells at all.
+    if (columns.Length < 2) {
+        return False;
+    }
+    for i = 1 to columns.Length {
+        current = columns[i];
+        j = i - 1;
+        // Both operands are safe at j = -1. ManuScript documents no
+        // short-circuiting for `and`, so the loop must never index at j = -1.
+        placed = 0;
+        while ((j >= 0) and (placed = 0)) {
+            if (ColumnSortsAfter(columns[j], current)) {
+                columns[j + 1] = columns[j];
+                j = j - 1;
+            } else {
+                placed = 1;
+            }
+        }
+        columns[j + 1] = current;
+    }
+}"
+	ColumnSortsAfter "(a, b) {
+    if (a.sortPitch > b.sortPitch) {
+        return True;
+    }
+    if ((a.sortPitch = b.sortPitch) and (a.sortAlter > b.sortAlter)) {
+        return True;
+    }
+    return False;
+}"
+	SortNotesByPitch "(notes) {
+    // ManuScript raises 'End value is not greater than the start value in a for
+    // statement' when the end is BELOW the start, so `for i = 1 to 0` — an empty
+    // collection — is a run-time error, not an empty loop. Proved in Sibelius by
+    // a fixture with no bass bells at all.
+    if (notes.Length < 2) {
+        return False;
+    }
+    for i = 1 to notes.Length {
+        current = notes[i];
+        j = i - 1;
+        // Both operands are safe at j = -1. ManuScript documents no
+        // short-circuiting for `and`, so the loop must never index at j = -1.
+        placed = 0;
+        while ((j >= 0) and (placed = 0)) {
+            if (notes[j].pitch > current.pitch) {
+                notes[j + 1] = notes[j];
+                j = j - 1;
+            } else {
+                placed = 1;
+            }
+        }
+        notes[j + 1] = current;
+    }
+}"
+	BuildPlan "(records, options) {
+    collected = CollectBells(records);
+    sections = CreateSparseArray();
+
+    if (collected.bells.Length > 0) {
+        sections.Push(MakeSection('bells', collected.bells,
+            options.bellLabel, 'Handbells Used'));
+    }
+    if (collected.chimes.Length > 0) {
+        sections.Push(MakeSection('chimes', collected.chimes,
+            options.chimeLabel, 'Handchimes Used'));
+    }
+
+    warnings = CreateSparseArray();
+    if (collected.unknown > 0) {
+        warnings.Push(CreateDictionary('type', 'unknown-notehead',
+            'count', collected.unknown, 'names', CreateSparseArray()));
+    }
+    if (collected.unreadable > 0) {
+        warnings.Push(CreateDictionary('type', 'unreadable-pitch',
+            'count', collected.unreadable, 'names', CreateSparseArray()));
+    }
+    if (collected.outOfRange.Length > 0) {
+        warnings.Push(CreateDictionary('type', 'out-of-range',
+            'count', collected.outOfRange.Length, 'names', collected.outOfRange));
+    }
+
+    return CreateDictionary('sections', sections, 'warnings', warnings);
+}"
+	MakeSection "(kind, entries, label, defaultLabel) {
+    built = BuildColumns(entries);
+    text = label;
+    if (text = '') {
+        text = defaultLabel & ': ' & DistinctPitches(entries);
+    }
+    return CreateDictionary(
+        'kind', kind,
+        'label', text,
+        'columns', built.length,
+        'treble', built.treble,
+        'bass', built.bass
+    );
+}"
+	DistinctPitches "(entries) {
+    seen = CreateDictionary();
+    total = 0;
+    for i = 0 to entries.Length {
+        // '' & keeps the key a string. The guide describes a dictionary as
+        // indexed by string, and every other lookup in this plugin builds a
+        // string key; a bare number here would be the only exception.
+        key = '' & entries[i].pitch;
+        if (seen[key] = null) {
+            seen[key] = 1;
+            total = total + 1;
+        }
+    }
+    return total;
+}"
+	MarkerEncode "(sections, totalStaves, columnsArray) {
+    text = ('' & MARKER_PREFIX) & '|' & ('' & MARKER_VERSION) & '|' & sections & '|' & totalStaves;
+    for i = 0 to columnsArray.Length {
+        text = text & '|' & columnsArray[i];
+    }
+    return text;
+}"
+	MarkerDecode "(text) {
+    if (text = null) {
+        return null;
+    }
+    parts = SplitOnPipe(text);
+    if (parts.Length < 5) {
+        return null;
+    }
+    if (parts[0] != ('' & MARKER_PREFIX)) {
+        return null;
+    }
+    if (parts[1] != ('' & MARKER_VERSION)) {
+        return null;
+    }
+
+    // utils.IsNumeric with the integer-only flag, rather than coercing with
+    // `+ 0`: coercion turns '2 charts' into 2 and garbage into 0, silently
+    // accepting a hand-edited marker as a real one.
+    if (not(utils.IsNumeric(parts[2], True))) {
+        return null;
+    }
+    if (not(utils.IsNumeric(parts[3], True))) {
+        return null;
+    }
+    sections = 0 + parts[2];
+    totalStaves = 0 + parts[3];
+    if (sections < 1) {
+        return null;
+    }
+    if (parts.Length != (4 + sections)) {
+        return null;
+    }
+
+    columns = CreateSparseArray();
+    for i = 0 to sections {
+        if (not(utils.IsNumeric(parts[4 + i], True))) {
+            return null;
+        }
+        value = 0 + parts[4 + i];
+        if (value < 1) {
+            return null;
+        }
+        columns.Push(value);
+    }
+
+    return CreateDictionary('sections', sections, 'totalStaves', totalStaves, 'columns', columns);
+}"
+	SplitOnPipe "(text) {
+    parts = CreateSparseArray();
+    current = '';
+    subject = '' & text;
+    for i = 0 to Length(subject) {
+        char = Substring(subject, i, 1);
+        if (char = '|') {
+            parts.Push(current);
+            current = '';
+        } else {
+            current = current & char;
+        }
+    }
+    parts.Push(current);
+    return parts;
+}"
+	MarkerFind "(score) {
+    n = 1;
+    while (n <= score.StaffCount) {
+        bar = score.NthStaff(n).NthBar(1);
+        for each Text t in bar {
+            if (MarkerDecode(t.Text) != null) {
+                return t;
+            }
+        }
+        n = n + 1;
+    }
+    return null;
+}"
+	MarkerWrite "(bar, sections, totalStaves, columnsArray) {
+    text = bar.AddText(0, MarkerEncode(sections, totalStaves, columnsArray), LabelTextStyle());
+    text.Hidden = True;
+    return text;
+}"
+	ReadScoreNotes "(score) {
+    records = CreateSparseArray();
+    selection = score.Selection;
+
+    if (selection.IsPassage) {
+        for each Bar bar in selection {
+            // H6: a selected default barline comes back as a Bar rather than a
+            // BarObject, and touching it crashes the plugin. IsObject is False
+            // for these.
+            if (IsObject(bar)) {
+                ReadBarNotes(bar, records);
+            }
+        }
+    } else {
+        n = 1;
+        while (n <= score.StaffCount) {
+            staff = score.NthStaff(n);
+            b = 1;
+            while (b <= staff.BarCount) {
+                ReadBarNotes(staff.NthBar(b), records);
+                b = b + 1;
+            }
+            n = n + 1;
+        }
+    }
+
+    return records;
+}"
+	ReadBarNotes "(bar, records) {
+    staff = bar.ParentStaff;
+
+    for each NoteRest nr in bar {
+        // H3: `for each Note n in nr` does not work. Notes inside a NoteRest
+        // must be iterated untyped.
+        for each n in nr {
+            bell = ToBellSpace(n.Pitch, n.DiatonicPitch, staff);
+            records.Push(CreateDictionary(
+                'pitch', bell.pitch,
+                'diatonic', bell.diatonic,
+                'head', NoteHeadKind(n)
+            ));
+        }
+    }
+    return True;
+}"
+	NoteHeadKind "(note) {
+    if (note.NoteStyle = NormalNoteStyle) {
+        return 'normal';
+    }
+    if (note.NoteStyle = DiamondNoteStyle) {
+        return 'diamond';
+    }
+    return 'other';
+}"
+	BuildChart "(score, plan, options) {
+    if (plan.sections.Length = 0) {
+        return CreateDictionary('ok', True, 'error', '');
+    }
+
+    sections = plan.sections;
+    pieceStaves = score.StaffCount;
+    metre = ReadInitialTimeSignature(score);
+
+    // 1. Bars first. A Sibelius bar spans every staff, so staves created
+    //    afterwards inherit the irregular lengths already set. And sizing must
+    //    precede the notes: until a bar declares its own length it still holds
+    //    the score's ordinary metre, and a chart with more columns than the
+    //    metre allows would spill into the piece's own bars.
+    // Whether the stemless diamond exists decides how long a chime column is,
+    // so it is settled before a single bar is sized.
+    chimeStyle = StemlessDiamondStyle(score);
+
+    barsBefore = score.NthStaff(1).BarCount;
+    columnsArray = CreateSparseArray();
+    for i = 0 to sections.Length {
+        columnsArray.Push(sections[i].columns);
+        tick = ColumnTick(sections[i].kind, chimeStyle);
+        score.InsertBars(1, i + 1, sections[i].columns * tick);
+    }
+    if (score.NthStaff(1).BarCount != (barsBefore + sections.Length)) {
+        return BuildFailure('Sibelius did not insert the chart bars.');
+    }
+
+    // Tempo marks and the like are anchored to the score's first bar, and the
+    // chart is now that bar, so a direction such as 'Allegro' would sit over
+    // the chart rather than over the music it describes. They move down to the
+    // first music bar. The title block is left exactly where it is: it belongs
+    // at the top of the page, which is above the chart.
+    RelocateSystemText(score, sections.Length, sections.Length + 1, True);
+
+    // 2. Instruments.
+    staffCountBefore = score.StaffCount;
+    trebleStaves = CreateSparseArray();
+    bassStaves = CreateSparseArray();
+    for i = 0 to sections.Length {
+        treble = score.CreateInstrumentAtBottomReturnStave(ChartInstrument());
+        if (treble = null) {
+            return BuildFailure('Sibelius could not create the chart instrument.');
+        }
+        // A non-null return is not proof the style ID was found: asking for an
+        // instrument that does not exist still adds an unnamed staff.
+        if (treble.InitialStyleId != ChartInstrument()) {
+            return BuildFailure('The chart instrument style ID was not recognised.');
+        }
+        bass = treble.AddStaffBelow(False);
+        if (bass = null) {
+            return BuildFailure('Sibelius could not add the chart bass staff.');
+        }
+        bass.NthBar(1).AddClef(0, 'clef.bass');
+        SilenceKeySignature(treble);
+        SilenceKeySignature(bass);
+        trebleStaves.Push(treble);
+        bassStaves.Push(bass);
+    }
+    if (score.StaffCount != (staffCountBefore + (sections.Length * 2))) {
+        return BuildFailure('Sibelius did not add the chart staves.');
+    }
+
+    // 3. Marker, at the first moment it has somewhere to go.
+    MarkerWrite(trebleStaves[0].NthBar(1), sections.Length, score.StaffCount, columnsArray);
+
+    // 4. Columns.
+    for i = 0 to sections.Length {
+        color = '';
+        if (sections[i].kind = 'chimes') {
+            color = options.chimeColor;
+        }
+        tick = ColumnTick(sections[i].kind, chimeStyle);
+        WriteColumns(trebleStaves[i], i + 1, sections[i].treble,
+            sections[i].kind, color, chimeStyle, tick);
+        WriteColumns(bassStaves[i], i + 1, sections[i].bass,
+            sections[i].kind, color, chimeStyle, tick);
+    }
+
+    // 5. Hide the structural furniture across every staff in the chart bars.
+    for b = 0 to sections.Length {
+        HideBarFurniture(score, b + 1);
+    }
+
+    // 6. Labels, breaks and staff size.
+    for i = 0 to sections.Length {
+        label = trebleStaves[i].NthBar(i + 1).AddText(0, sections[i].label, LabelTextStyle());
+        bar = score.NthStaff(1).NthBar(i + 1);
+        bar.BreakType = EndOfSystem;
+        trebleStaves[i].Small = True;
+        bassStaves[i].Small = True;
+    }
+    score.NthStaff(1).NthBar(sections.Length).SectionEnd = True;
+
+    NumberFromFirstMusicBar(score, sections.Length);
+
+    // 7. Hide empty staves, bar-scoped: the piece's staves vanish from the
+    //    chart's systems and the chart's staves vanish from the music. Each
+    //    side is empty exactly where the other needs it gone.
+    score.HideEmptyStaves(1, pieceStaves, 1, sections.Length);
+    score.HideEmptyStaves(pieceStaves + 1, score.StaffCount,
+        sections.Length + 1, score.NthStaff(1).BarCount);
+
+    // And each section's staves must vanish from the OTHER sections' bars. The
+    // two calls above only separate the piece from the chart; with two sections
+    // they leave the chimes' empty staves sitting inside the bells' system and
+    // the bells' inside the chimes', which is why a bells-only chart looked
+    // right and a bells-and-chimes chart showed two blank staves per section.
+    for i = 0 to sections.Length {
+        top = (pieceStaves + (i * 2)) + 1;
+        if (i > 0) {
+            score.HideEmptyStaves(top, top + 1, 1, i);
+        }
+        if ((i + 2) <= sections.Length) {
+            score.HideEmptyStaves(top, top + 1, i + 2, sections.Length);
+        }
+    }
+
+    RestoreTimeSignature(score, metre, sections.Length);
+
+    return CreateDictionary('ok', True, 'error', '');
+}"
+	BuildFailure "(message) {
+    return CreateDictionary('ok', False, 'error', message
+        & ' Delete the chart staves and their bars in Sibelius, then run this again.');
+}"
+	WriteColumns "(staff, barNumber, columns, kind, color, chimeStyle, tick) {
+    bar = staff.NthBar(barNumber);
+    for c = 0 to columns.Length {
+        notes = columns[c];
+        position = c * tick;
+        chord = null;
+
+        for n = 0 to notes.Length {
+            raw = FromBellSpace(notes[n].pitch, notes[n].diatonic, staff);
+            note = bar.AddNote(position, raw.pitch, tick, False, 1, raw.diatonic);
+            if (IsObject(note)) {
+                chord = note.ParentNoteRest;
+            }
+        }
+
+        if (IsObject(chord)) {
+            for each n in chord {
+                DressNote(n, kind, color, chimeStyle);
+            }
+        }
+    }
+}"
+	DressNote "(note, kind, color, chimeStyle) {
+    note.NoteStyle = StemlessNoteStyle;
+    if (kind = 'chimes') {
+        if (chimeStyle >= 0) {
+            note.NoteStyle = chimeStyle;
+        } else {
+            note.NoteStyle = DiamondNoteStyle;
+        }
+        if (color != '') {
+            note.ColorRed = HexByte(color, 1);
+            note.ColorGreen = HexByte(color, 3);
+            note.ColorBlue = HexByte(color, 5);
+        }
+    }
+    // A chart is an inventory of the bells a piece needs, so no natural sign
+    // belongs on one. Sibelius prints one whenever a plain letter follows an
+    // altered spelling of the same letter earlier in the bar, and a ringer
+    // reads that as a second, separate bell rather than the same one.
+    if (note.Accidental = Natural) {
+        note.AccidentalStyle = HiddenAcc;
+    }
+}"
+	StemlessDiamondStyle "(score) {
+    index = score.NoteStyleIndex(StemlessDiamondName());
+    // An absent style comes back as an empty string on some builds and as a
+    // negative index on others, so both are read as absent.
+    if (not(utils.IsNumeric('' & index, True))) {
+        return -1;
+    }
+    if (index < 0) {
+        return -1;
+    }
+    return index;
+}"
+	ColumnTick "(kind, chimeStyle) {
+    if (kind = 'chimes') {
+        if (chimeStyle < 0) {
+            return 1024;
+        }
+    }
+    return 256;
+}"
+	HexByte "(text, offset) {
+    high = HexDigit(Substring(text, offset, 1));
+    low = HexDigit(Substring(text, offset + 1, 1));
+    return (high * 16) + low;
+}"
+	HexDigit "(char) {
+    digits = '0123456789abcdef';
+    lower = LowerCase('' & char);
+    for i = 0 to 16 {
+        if (Substring(digits, i, 1) = lower) {
+            return i;
+        }
+    }
+    return 0;
+}"
+	HideBarFurniture "(score, barNumber) {
+    HideBarObjects(score.SystemStaff.NthBar(barNumber));
+
+    n = 1;
+    while (n <= score.StaffCount) {
+        bar = score.NthStaff(n).NthBar(barNumber);
+        for each BarRest r in bar {
+            r.Hidden = True;
+        }
+        for each NoteRest nr in bar {
+            if (nr.NoteCount = 0) {
+                nr.Hidden = True;
+            }
+        }
+        HideBarObjects(bar);
+        bar.AddSpecialBarline(SpecialBarlineInvisible);
+        n = n + 1;
+    }
+}"
+	HideBarObjects "(bar) {
+    for each TimeSignature ts in bar {
+        ts.Hidden = True;
+    }
+    for each KeySignature ks in bar {
+        ks.Hidden = True;
+    }
+    return True;
+}"
+	SilenceKeySignature "(staff) {
+    staff.NthBar(1).AddKeySignature(0, -8, True, False, True, True);
+    return True;
+}"
+	ReadInitialTimeSignature "(score) {
+    for each TimeSignature ts in score.NthStaff(1).NthBar(1) {
+        return CreateDictionary('numerator', ts.Numerator, 'denominator', ts.Denominator);
+    }
+    return null;
+}"
+	RestoreTimeSignature "(score, metre, chartBars) {
+    if (metre = null) {
+        return False;
+    }
+    bar = score.NthStaff(1).NthBar(chartBars + 1);
+    for each TimeSignature ts in bar {
+        return False;
+    }
+    bar.AddTimeSignature(metre.numerator, metre.denominator, False, False);
+    return True;
+}"
+	NumberFromFirstMusicBar "(score, chartBars) {
+    b = 1;
+    while (b <= chartBars) {
+        HideBarNumber(score.NthStaff(1).NthBar(b), 1, True);
+        b = b + 1;
+    }
+    HideBarNumber(score.NthStaff(1).NthBar(chartBars + 1), 1, False);
+    return True;
+}"
+	HideBarNumber "(bar, number, skipThisBar) {
+    marker = bar.AddBarNumber(number, BarNumberFormatNormal, '', False, skipThisBar);
+    if (IsObject(marker)) {
+        marker.Hidden = True;
+    }
+    return True;
+}"
+	IdentificationError "(reason) {
+    return reason & ' Delete the chart staves and their bars in Sibelius, then run this again.';
+}"
+	FindChart "(score) {
+    marker = MarkerFind(score);
+    if (marker = null) {
+        return CreateDictionary('found', False, 'sections', 0,
+            'firstStaff', 0, 'columns', CreateSparseArray(), 'error', '');
+    }
+
+    recorded = MarkerDecode(marker.Text);
+    unidentifiable = IdentificationError('This score records a Handbells Used chart, '
+        & 'but a staff or a bar has been added, removed or moved since, so the chart '
+        & 'can no longer be identified.');
+
+    if (recorded.totalStaves != score.StaffCount) {
+        return FindFailure(unidentifiable);
+    }
+
+    // Below 2, not below 1. A firstStaff of 1 leaves no piece behind the chart,
+    // and ShowEmptyStaves(1, 0, ...) would then be handed an inverted 1-based
+    // range that the reference does not define. BuildChart cannot produce it,
+    // so it only arrives from a hand-edited marker, which is exactly the case
+    // this branch exists to refuse.
+    firstStaff = (score.StaffCount - (recorded.sections * 2)) + 1;
+    if (firstStaff < 2) {
+        return FindFailure(unidentifiable);
+    }
+
+    n = firstStaff;
+    while (n <= score.StaffCount) {
+        staff = score.NthStaff(n);
+        if (staff.InitialStyleId != ChartInstrument()) {
+            return FindFailure(unidentifiable);
+        }
+        if (staff.NumStavesInSameInstrument != 2) {
+            return FindFailure(unidentifiable);
+        }
+        n = n + 1;
+    }
+
+    // The recorded bar lengths settle it. A chart bar was sized to its own
+    // column count and nothing else has reason to match.
+    for i = 0 to recorded.sections {
+        bar = score.NthStaff(1).NthBar(i + 1);
+        if (bar = null) {
+            return FindFailure(unidentifiable);
+        }
+        // Either tick is legitimate: a chimes section falls back to whole notes
+        // when the score has no stemless diamond, so the same column count can
+        // have been sized at 256 or at 1024. Accepting both is what keeps a
+        // chart identifiable on a machine whose notehead set differs from the
+        // one that built it.
+        columnTicks = recorded.columns[i];
+        if (bar.Length != (columnTicks * 256)) {
+            if (bar.Length != (columnTicks * 1024)) {
+                return FindFailure(unidentifiable);
+            }
+        }
+    }
+
+    return CreateDictionary('found', True, 'sections', recorded.sections,
+        'firstStaff', firstStaff, 'columns', recorded.columns, 'error', '');
+}"
+	FindFailure "(message) {
+    return CreateDictionary('found', False, 'sections', 0,
+        'firstStaff', 0, 'columns', CreateSparseArray(), 'error', message);
+}"
+	RemoveChart "(score) {
+    found = FindChart(score);
+    if (found.error != '') {
+        return CreateDictionary('removed', False, 'error', found.error);
+    }
+    if (not(found.found)) {
+        return CreateDictionary('removed', False, 'error', '');
+    }
+
+    // Staves the chart hid come back before the ranges stop meaning anything.
+    pieceStaves = found.firstStaff - 1;
+    score.ShowEmptyStaves(1, pieceStaves, 1, found.sections);
+    score.ShowEmptyStaves(found.firstStaff, score.StaffCount,
+        found.sections + 1, score.NthStaff(1).BarCount);
+
+    // Before any bar goes, rescue the title block it is carrying and drop the
+    // renumbering that only made sense while the chart was in front.
+    RelocateSystemText(score, found.sections, found.sections + 1, False);
+    ClearHiddenBarNumber(score.NthStaff(1).NthBar(found.sections + 1));
+
+    // Bars first: removing the staves renumbers everything underneath us. The
+    // marker goes with the bar that holds it.
+    barsBefore = score.NthStaff(1).BarCount;
+    for i = 0 to found.sections {
+        score.NthStaff(1).NthBar(1).Delete();
+    }
+    if (score.NthStaff(1).BarCount != (barsBefore - found.sections)) {
+        return CreateDictionary('removed', False, 'error', IdentificationError(
+            'This score records a Handbells Used chart, but Sibelius did not remove '
+            & 'the chart bars.'));
+    }
+
+    // Bottom-up, so deleting one staff does not renumber the ones still to go.
+    staffCountBefore = score.StaffCount;
+    n = score.StaffCount;
+    while (n >= found.firstStaff) {
+        utils.DeleteStaff(score, n, False);
+        n = n - 1;
+    }
+    if (score.StaffCount != (staffCountBefore - (found.sections * 2))) {
+        return CreateDictionary('removed', False, 'error', IdentificationError(
+            'This score records a Handbells Used chart, but Sibelius did not remove '
+            & 'the chart staves.'));
+    }
+
+    return CreateDictionary('removed', True, 'error', '');
+}"
+	RelocateSystemText "(score, fromBars, targetBarNum, musicalOnly) {
+    system = score.SystemStaff;
+    target = system.NthBar(targetBarNum);
+
+    b = 1;
+    while (b <= fromBars) {
+        bar = system.NthBar(b);
+
+        counter = 0;
+        for each item in bar {
+            if (item.Type = 'SystemTextItem') {
+                take = True;
+                if (musicalOnly) {
+                    if (StyleIsPageAligned(item.StyleId)) {
+                        take = False;
+                    }
+                }
+                if (take) {
+                    name = 'moved' & counter;
+                    @name = item;
+                    counter = counter + 1;
+                }
+            }
+        }
+
+        // Re-add before deleting: an item's properties are only readable while
+        // the item is still in the score.
+        i = 0;
+        while (i < counter) {
+            name = 'moved' & i;
+            item = @name;
+            copy = target.AddText(0, '' & item.Text, '' & item.StyleId);
+            if (IsObject(copy)) {
+                // Assigned again, because AddText flattens a line break: a
+                // composer field reading 'NAME' over 'Arranged by NAME' came
+                // back as one line. Text is read/write, so setting it on the
+                // finished object puts the break back.
+                copy.Text = '' & item.Text;
+                PlaceMovedText(copy, item);
+            }
+            i = i + 1;
+        }
+
+        while (counter > 0) {
+            counter = counter - 1;
+            name = 'moved' & counter;
+            item = @name;
+            item.Delete();
+        }
+
+        b = b + 1;
+    }
+    return True;
+}"
+	PlaceMovedText "(copy, item) {
+    // Before anything else. A full score hides the part-name and header items
+    // that only belong in the parts, and a recreated item defaults to visible,
+    // which is where a spurious 'Full Score' came from.
+    copy.Hidden = item.Hidden;
+
+    if (StyleIsPageAligned(item.StyleId)) {
+        copy.ResetPosition();
+        return True;
+    }
+    copy.Dy = item.Dy;
+    return True;
+}"
+	StyleIsPageAligned "(styleId) {
+    text = '' & styleId;
+    needle = 'page_aligned';
+    limit = Length(text) - Length(needle);
+    if (limit < 0) {
+        return False;
+    }
+    for i = 0 to limit + 1 {
+        if (Substring(text, i, Length(needle)) = needle) {
+            return True;
+        }
+    }
+    return False;
+}"
+	ClearHiddenBarNumber "(bar) {
+    counter = 0;
+    for each BarNumber bn in bar {
+        if (bn.Hidden) {
+            name = 'barnum' & counter;
+            @name = bn;
+            counter = counter + 1;
+        }
+    }
+
+    while (counter > 0) {
+        counter = counter - 1;
+        name = 'barnum' & counter;
+        bn = @name;
+        bn.Delete();
+    }
+    return True;
+}"
+	_SettingsDialog "Dialog"
+	{
+		Title "Create a Handbells/Handchimes Used Chart"
+		X "332"
+		Y "272"
+		Width "199"
+		Height "201"
+		Controls
+		{
+			Text
+			{
+				Title "Handbell Label"
+				X "23"
+				Y "15"
+				Width "52"
+				Height "14"
+				RightAlign "0"
+				ID "IDC_HANDBELL_LABEL_STATIC"
+				Value
+				Method
+				SetFocus "0"
+			}
+			Edit
+			{
+				Title "Handbells Used"
+				X "88"
+				Y "13"
+				Width "60"
+				Height "14"
+				ID "dlg_bellLabel"
+				Value
+				Method
+				SetFocus "0"
+			}
+			Text
+			{
+				Title "Handchime Label"
+				X "23"
+				Y "33"
+				Width "52"
+				Height "14"
+				RightAlign "0"
+				ID "IDC_HANDCHIME_LABEL_STATIC"
+				Value
+				Method
+				SetFocus "0"
+			}
+			Edit
+			{
+				Title "Handchimes Used"
+				X "87"
+				Y "29"
+				Width "60"
+				Height "14"
+				ID "dlg_chimeLabel"
+				Value
+				Method
+				SetFocus "0"
+			}
+			Text
+			{
+				Title "Handchime Color"
+				X "23"
+				Y "52"
+				Width "51"
+				Height "14"
+				RightAlign "0"
+				ID "IDC_HANDCHIME_COLOR_STATIC"
+				Value
+				Method
+				SetFocus "0"
+			}
+			Edit
+			{
+				Title
+				X "87"
+				Y "47"
+				Width "60"
+				Height "14"
+				ID "dlg_chimeColor"
+				Value
+				Method
+				SetFocus "0"
+			}
+			CheckBox
+			{
+				Title "Remove Existing Chart"
+				X "77"
+				Y "69"
+				Width "76"
+				Height "14"
+				ID "dlg_remove"
+				Value
+				Method
+				SetFocus "0"
+			}
+			Button
+			{
+				Title "OK"
+				X "97"
+				Y "91"
+				Width "50"
+				Height "14"
+				DefaultButton "0"
+				ID "IDC_OK_BUTTON"
+				Value
+				Method
+				SetFocus "0"
+				EndDialog "1"
+			}
+			Button
+			{
+				Title "Cancel"
+				X "28"
+				Y "91"
+				Width "50"
+				Height "14"
+				DefaultButton "0"
+				ID "IDC_CANCEL_BUTTON"
+				Value
+				Method
+				SetFocus "0"
+				EndDialog "0"
+			}
+		}
+	}
+	_PluginMenuName "Handbells Used Chart"
+	CHART_INSTRUMENT "instrument.other.trebleclef"
+	LABEL_TEXT_STYLE "text.staff.plain"
+	MARKER_PREFIX "HBUC"
+	MARKER_VERSION "1"
+	STEMLESS_DIAMOND "Diamond (stemless)"
+	dlg_bellLabel ""
+	dlg_chimeLabel ""
+	dlg_chimeColor ""
+	dlg_remove "0"
+	_ScoreError "Open a score with one or more staves and run the plug-in again."
+	_NoBellsFound "No handbells or handchimes were found in this score."
+	_ChartWasRemoved "The existing chart was removed."
+	_ChartWasReplaced "An existing chart was replaced."
+	_NoChartToRemove "This score carries no chart that this plug-in made."
+}

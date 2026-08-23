@@ -22,3 +22,9 @@ Thumbs.db
 
 # Node
 node_modules/
+
+# Release staging
+dist/
+
+# The test plug-in is a development tool, not a release artifact
+build/HandbellsUsedChartTests.plg

@@ -25,28 +25,23 @@ to Sibelius. The chart's behaviour is unchanged from that project:
 
 ## Status
 
-Not yet installable end to end. The engine — reading the score, planning the
-chart, drawing it, identifying and removing it again — is implemented and
-verified inside real Sibelius 2026: the in-Sibelius test suite passes 83 of
-83 assertions, including tests that read a real score, build a chart into it,
-and remove it again.
+Released and working. Verified inside real Sibelius Ultimate 2026 on macOS:
+the in-Sibelius test suite passes 109 of 109 assertions, including tests that
+read a real score, build a chart into it, and remove it again.
 
-What is missing is the settings dialog. Sibelius plugin dialogs are captured
-from Sibelius's own dialog editor rather than written as ManuScript source,
-and `src/Settings.msd` has not been captured yet. Until it exists, the main
-plugin will fail as soon as it tries to open its settings dialog, so it
-cannot be run.
+Two rough edges worth knowing before you run it on work you care about:
+
+- Removing a chart returns the score's title block to Sibelius's default
+  positions for those text styles. The content, styling and visibility all
+  survive; hand positioning does not. Building a chart never touches it.
+- The gap between the title block and the chart is whatever Sibelius's
+  automatic spacing gives it.
 
 ## Installation
 
-Requires Node.js 22 or later. There are no dependencies to install.
-
-```
-npm run build
-```
-
-This writes `build/HandbellsUsedChart.plg` and
-`build/HandbellsUsedChartTests.plg`. Copy the one you want into
+The simplest route is the [latest
+release](https://github.com/ThePrismSystem/handbells-used-chart-sibelius-plugin/releases/latest):
+download the zip, and copy `HandbellsUsedChart.plg` into
 
 ```
 ~/Library/Application Support/Avid/Sibelius/Plugins/Handbells/
@@ -55,9 +50,22 @@ This writes `build/HandbellsUsedChart.plg` and
 (creating the `Handbells` folder if it doesn't exist yet), then restart
 Sibelius so it picks up the new plugin.
 
-If you would rather not run Node locally, every pull request's CI run
-uploads the built `.plg` files as a downloadable `plugins` artifact — take
-one from there instead.
+### Building it yourself
+
+Requires Node.js 22 or later. There are no dependencies to install.
+
+```
+npm run build
+```
+
+This writes `build/HandbellsUsedChart.plg` and
+`build/HandbellsUsedChartTests.plg`, and `npm run package` assembles the
+release zip in `dist/` from the first of them. The test plug-in is a
+development tool — it builds a real chart on the open score and removes it
+again — so it is never part of a release.
+
+Every pull request's CI run also uploads the built `.plg` files as a
+downloadable `plugins` artifact.
 
 ## Settings
 
@@ -114,7 +122,7 @@ this project can be executed by a CI runner.
 The real tests are a second plugin, `HandbellsUsedChartTests.plg`, built
 from the same `src/` sources plus `test/*.mss`. It is run by hand inside
 Sibelius Ultimate 2026 on macOS, and reports pass/fail counts to the trace
-window. As of this writing it passes 83 of 83 assertions, covering bell
+window. As of this writing it passes 109 of 109 assertions, covering bell
 naming and region boundaries, collection and enharmonic handling, column
 anchoring and stacking, plan assembly, and score-level runs that build a
 chart into a real score and remove it again.
