@@ -18,7 +18,7 @@ const RULES = [
     // operands still truncate. Neither can be relied on, so force the result.
     // Skipped when the line already forces it — otherwise this rule fires on
     // `RoundDown(a / 7)`, the very idiom it exists to recommend.
-    [/[^\w]\/\s*\d+\s*[;)]/, null, divisionUnforced],
+    [null, null, divisionUnforced],
     // H1..H9. Each is a documented way to get a wrong answer, not a style rule.
     [/\b(and|or)\b/, null, andOrUnparenthesised],
     [/for\s+each\s+Note\s+\w+\s+in\b/, 'uses `for each Note n in ...`; inside a NoteRest this must be `for each n in nr`'],
