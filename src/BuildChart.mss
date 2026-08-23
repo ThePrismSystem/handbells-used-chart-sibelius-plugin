@@ -209,7 +209,7 @@ StemlessDiamondStyle(score) {
 
 // The fallback for a score with no stemless diamond: a semibreve carries no
 // stem at any notehead style, so the chimes lose their stems by being whole
-// notes instead. It costs the filled notehead — a semibreve head is hollow —
+// notes instead. It costs the filled notehead, because a semibreve head is hollow,
 // which is why the custom notehead is worth making. Bells never need this:
 // StemlessNoteStyle is a documented constant present in every score.
 ColumnTick(kind, chimeStyle) {
@@ -247,7 +247,8 @@ HexDigit(char) {
 // chart bar crosses the piece's staves as well as the chart's.
 // H4: AddSpecialBarline adds an object to the bar, so it must not run inside a
 // `for each` over that bar's contents. Setting Hidden on an object being
-// iterated is fine — that changes a property, it does not add or remove.
+// iterated is fine, because that changes a property rather than adding or
+// removing one.
 // The system staff is where the time signature actually lives. Walking
 // NthStaff(1) to StaffCount never reaches it, which is why hiding time
 // signatures by type appeared to do nothing: there was no TimeSignature on any
@@ -288,7 +289,7 @@ HideBarObjects(bar) {
 // Hiding a KeySignature only works on one that exists as an object in the bar.
 // A score's opening key is not one: it belongs to the staff, so a chart staff
 // inherits it with nothing in any bar to hide. The chart staves therefore get
-// an explicit key change of their own — atonal, so no accidentals print at any
+// an explicit key change of their own. Atonal, so no accidentals print at any
 // system start; hidden, so the change itself does not print; and one-staff-only,
 // so the piece's own staves keep the key they had.
 SilenceKeySignature(staff) {

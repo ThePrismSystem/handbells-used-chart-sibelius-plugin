@@ -126,9 +126,9 @@ function main() {
         const result = buildEntry(entry, io);
         if (result.status === 'skipped') {
             // A later task writes these sources. Say so loudly, and say just as
-            // loudly when a stale .plg from an earlier build gets removed —
-            // deploy.mjs copies whatever it finds in build/, so leaving it would
-            // let it reach Sibelius unnoticed.
+            // loudly when a stale .plg from an earlier build gets removed.
+            // deploy.mjs copies whatever it finds in build/, so leaving one there
+            // would let it reach Sibelius unnoticed.
             const staleNote = result.removedStale ? `; removed stale ${result.outputPath}` : '';
             console.log(`skipped ${result.outputPath} (not yet written: ${result.missing.join(', ')})${staleNote}`);
             continue;

@@ -88,8 +88,8 @@ CollectBells(records) {
 // are at most a few dozen entries and ManuScript has no sort of its own.
 SortBells(list) {
     // ManuScript raises 'End value is not greater than the start value in a for
-    // statement' when the end is BELOW the start, so `for i = 1 to 0` — an empty
-    // collection — is a run-time error, not an empty loop. Proved in Sibelius by
+    // statement' when the end is BELOW the start, so `for i = 1 to 0` (an empty
+    // collection) is a run-time error, not an empty loop. Proved in Sibelius by
     // a fixture with no bass bells at all.
     if (list.Length < 2) {
         return list;
@@ -99,7 +99,7 @@ SortBells(list) {
         j = i - 1;
         placed = 0;
         // Both operands are safe to evaluate at j = -1. The guide documents no
-        // short-circuiting for `and` — it says only 'both are true' — so the
+        // short-circuiting for `and`, only that 'both are true', so the
         // obvious `(j >= 0) and BellSortsAfter(list[j], current)` would index
         // list[-1] on the last pass and hand a null to BellSortsAfter, and the
         // guide is explicit that reading a property of null is a run-time error.

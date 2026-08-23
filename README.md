@@ -61,8 +61,8 @@ npm run build
 This writes `build/HandbellsUsedChart.plg` and
 `build/HandbellsUsedChartTests.plg`, and `npm run package` assembles the
 release zip in `dist/` from the first of them. The test plug-in is a
-development tool — it builds a real chart on the open score and removes it
-again — so it is never part of a release.
+development tool. It builds a real chart on the open score and removes it
+again, so it is never part of a release.
 
 Every pull request's CI run also uploads the built `.plg` files as a
 downloadable `plugins` artifact.
@@ -86,7 +86,7 @@ counted once.
 
 Chart notes carry no stems. Handbells use Sibelius' built-in `Stemless`
 notehead, which every score has. Handchimes need a stemless *diamond*, and
-Sibelius ships no such notehead — its diamond styles all carry stems, and
+Sibelius ships no such notehead. Its diamond styles all carry stems, and
 ManuScript cannot create a notehead style, so the plugin cannot make one for
 you.
 

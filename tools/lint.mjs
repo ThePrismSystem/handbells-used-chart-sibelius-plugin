@@ -19,12 +19,12 @@ const RULES = [
     // Left-to-right evaluation means 2+3*4 is 20. Any line mixing an additive
     // and a multiplicative operator without parentheses is a silent wrong answer.
     // An already-bracketed `(a + b) * c` cannot match, because the character
-    // after the additive operand is `)` rather than `*` — so this needs no
+    // after the additive operand is `)` rather than `*`, so this needs no
     // leading exclusion, and having one blinded it to `Foo(a + b * c)`.
     [/\b[\w.]+\s*[+\-]\s*[\w.]+\s*[*/%]/, 'mixes + or - with * / or % without parentheses; ManuScript has no operator precedence'],
     // The guide says / now yields floats; Zawalich's field notes say integer
     // operands still truncate. Neither can be relied on, so force the result.
-    // Skipped when the line already forces it — otherwise this rule fires on
+    // Skipped when the line already forces it, or the rule fires on
     // `RoundDown(a / 7)`, the very idiom it exists to recommend.
     [null, null, divisionUnforced],
     // H1..H9. Each is a documented way to get a wrong answer, not a style rule.
@@ -75,8 +75,8 @@ function divisionUnforced(code) {
 }
 
 // ManuScript resolves calls at run time against one flat namespace per .plg,
-// so a module left out of a plugins.json entry still builds and still loads —
-// it fails at the first call into the missing file, in front of the user. The
+// so a module left out of a plugins.json entry still builds and still loads.
+// It fails at the first call into the missing file, in front of the user. The
 // allow-list is deliberately only what this project uses: a genuinely new
 // built-in should fail this check once and be added on purpose.
 const BUILTINS = new Set([
@@ -88,7 +88,7 @@ const BUILTINS = new Set([
 
 const KEYWORDS = new Set(['if', 'while', 'for', 'switch', 'case', 'return', 'and', 'or']);
 
-// `sources` is [path, text] pairs — one manifest entry's whole source list,
+// `sources` is [path, text] pairs: one manifest entry's whole source list,
 // because that is the scope a .plg's namespace actually has.
 export function lintCalls(sources) {
     const defined = new Set();
