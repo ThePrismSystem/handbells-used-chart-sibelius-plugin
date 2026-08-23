@@ -30,3 +30,19 @@ MakeBell(pitch, diatonic, region) {
     bell._property:count = 1;
     return bell;
 }
+
+// The other half of AnchorColumns: an attachment whose anchor is not in the
+// score at all. G7 has no G6 on the treble staff, so it becomes its own column
+// — but it must still sort by the anchor it WOULD have had (91), not by its own
+// pitch (103), or a piece that uses a high bell without its staff-octave
+// partner prints that bell out of reading order.
+TestColumnsOrphan() {
+    a6 = MakeBell(93, 47, 'trebleStaff');
+    g7 = MakeBell(103, 53, 'trebleRow1');
+
+    built = BuildColumns(CreateSparseArray(a6, g7));
+
+    AssertEquals(built.treble.Length, 2, 'orphan attachment makes its own column');
+    AssertEquals(built.treble[0][0].pitch, 103, 'orphan sorts by its absent anchor');
+    AssertEquals(built.treble[1][0].pitch, 93, 'staff bell sorts after it');
+}
