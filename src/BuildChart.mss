@@ -32,7 +32,7 @@ BuildChart(score, plan, options) {
     // the chart rather than over the music it describes. They move down to the
     // first music bar. The title block is left exactly where it is: it belongs
     // at the top of the page, which is above the chart.
-    ApplyDeferredText(RelocateSystemText(score, sections.Length, sections.Length + 1, True));
+    RelocateSystemText(score, sections.Length, sections.Length + 1, True);
 
     // 2. Instruments.
     staffCountBefore = score.StaffCount;
