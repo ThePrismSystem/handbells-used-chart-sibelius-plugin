@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -42,6 +42,9 @@ export function buildPlugin(entry, read) {
     for (const path of entry.sources) {
         if (exclude.has(path)) continue;
         const source = read(path);
+        if (source === null) {
+            throw new Error(`Missing source ${path}`);
+        }
         for (const method of parseMethods(source)) {
             if (method.body.includes('"')) {
                 throw new Error(
@@ -75,7 +78,15 @@ export function buildPlugin(entry, read) {
 function main() {
     const manifest = JSON.parse(readFileSync(join(ROOT, 'tools/plugins.json'), 'utf8'));
     mkdirSync(join(ROOT, 'build'), { recursive: true });
+
     for (const entry of manifest.plugins) {
+        const missing = entry.sources.filter((p) => !existsSync(join(ROOT, p)));
+        if (missing.length > 0) {
+            // A later task writes these. Say so loudly: a silent skip here would
+            // let a stale .plg from an earlier build reach Sibelius unnoticed.
+            console.log(`skipped build/${entry.output} (not yet written: ${missing.join(', ')})`);
+            continue;
+        }
         const text = buildPlugin(entry, (p) => readFileSync(join(ROOT, p), 'utf8'));
         writeFileSync(join(ROOT, 'build', entry.output), text, 'utf8');
         console.log(`built build/${entry.output}`);

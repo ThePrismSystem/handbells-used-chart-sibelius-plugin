@@ -65,3 +65,12 @@ test('buildPlugin rejects a double quote in a data variable', () => {
     const files = { 'a.mss': 'Run() {\n}\n' };
     assert.throws(() => buildPlugin(entry, (p) => files[p]), /double quote/);
 });
+
+test('buildPlugin reports which source is missing', () => {
+    const entry = { output: 'X.plg', sources: ['a.mss', 'b.mss'] };
+    const files = { 'a.mss': 'Run() {\n}\n' };
+    assert.throws(
+        () => buildPlugin(entry, (p) => files[p] ?? null),
+        /b\.mss/
+    );
+});
