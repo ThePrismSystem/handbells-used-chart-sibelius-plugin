@@ -11,6 +11,7 @@ Run() {
     TestBellName();
     TestCollect();
     TestColumns();
+    TestPlan();
     Sibelius.MessageBox(AssertReport());
     trace(AssertReport());
 }
