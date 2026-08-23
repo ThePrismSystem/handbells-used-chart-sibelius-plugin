@@ -86,6 +86,8 @@ BuildChart(score, plan, options) {
     }
     score.NthStaff(1).NthBar(sections.Length).SectionEnd = True;
 
+    NumberFromFirstMusicBar(score, sections.Length);
+
     // 7. Hide empty staves, bar-scoped: the piece's staves vanish from the
     //    chart's systems and the chart's staves vanish from the music. Each
     //    side is empty exactly where the other needs it gone.
@@ -308,5 +310,34 @@ RestoreTimeSignature(score, metre, chartBars) {
         return False;
     }
     bar.AddTimeSignature(metre.numerator, metre.denominator, False, False);
+    return True;
+}
+
+// The chart is bars, so without this the piece's own bar 1 becomes bar N+1 and
+// every rehearsal reference in the score is wrong by the number of chart
+// sections. The chart bars also pick up numbers of their own, which is where
+// the stray number above a chart system comes from.
+//
+// Both are fixed with bar number changes rather than by counting: each chart
+// bar gets one that does not increment, so the chart contributes nothing to
+// the count, and the first music bar gets one that restarts at 1. Every change
+// is hidden - a chart bar shows no number at all, and a piece's bar 1 is not
+// numbered by convention either, while the bars after it number themselves 2,
+// 3, 4 from the change.
+NumberFromFirstMusicBar(score, chartBars) {
+    b = 1;
+    while (b <= chartBars) {
+        HideBarNumber(score.NthStaff(1).NthBar(b), 1, True);
+        b = b + 1;
+    }
+    HideBarNumber(score.NthStaff(1).NthBar(chartBars + 1), 1, False);
+    return True;
+}
+
+HideBarNumber(bar, number, skipThisBar) {
+    marker = bar.AddBarNumber(number, BarNumberFormatNormal, '', False, skipThisBar);
+    if (IsObject(marker)) {
+        marker.Hidden = True;
+    }
     return True;
 }

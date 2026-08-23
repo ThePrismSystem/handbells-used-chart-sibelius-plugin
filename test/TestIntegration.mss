@@ -57,6 +57,12 @@ TestBuildChart() {
     // The first chart bar is as long as its column count.
     expected = plan.sections[0].columns * 256;
     AssertEquals(score.NthStaff(1).NthBar(1).Length, expected, 'chart bar length');
+
+    // The chart contributes nothing to the piece's numbering, so the first
+    // music bar is still bar 1 however many sections sit in front of it.
+    firstMusic = score.NthStaff(1).NthBar(plan.sections.Length + 1);
+    AssertEquals('' & firstMusic.ExternalBarNumberString, '1',
+        'the piece still starts at bar 1');
 }
 
 TestRemoveChart() {

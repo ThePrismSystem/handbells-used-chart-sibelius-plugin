@@ -84,8 +84,10 @@ RemoveChart(score) {
     score.ShowEmptyStaves(found.firstStaff, score.StaffCount,
         found.sections + 1, score.NthStaff(1).BarCount);
 
-    // Before any bar goes, rescue the title block it is carrying.
+    // Before any bar goes, rescue the title block it is carrying and drop the
+    // renumbering that only made sense while the chart was in front.
     MoveSystemText(score, found.sections);
+    ClearHiddenBarNumber(score.NthStaff(1).NthBar(found.sections + 1));
 
     // Bars first: removing the staves renumbers everything underneath us. The
     // marker goes with the bar that holds it.
@@ -167,6 +169,33 @@ MoveSystemText(score, chartBars) {
         }
 
         b = b + 1;
+    }
+    return True;
+}
+
+// The other half of NumberFromFirstMusicBar. The chart bars' own number
+// changes go with the bars, but the one restarting the piece at 1 sits in a
+// bar that survives, and leaving it means the plugin did not put the score
+// back as it found it.
+//
+// Only hidden ones go. A visible bar number change in that bar is the user's,
+// not the plugin's, and a score that legitimately restarts its numbering there
+// must keep doing so. Same reverse-order delete the guide requires.
+ClearHiddenBarNumber(bar) {
+    counter = 0;
+    for each BarNumber bn in bar {
+        if (bn.Hidden) {
+            name = 'barnum' & counter;
+            @name = bn;
+            counter = counter + 1;
+        }
+    }
+
+    while (counter > 0) {
+        counter = counter - 1;
+        name = 'barnum' & counter;
+        bn = @name;
+        bn.Delete();
     }
     return True;
 }
