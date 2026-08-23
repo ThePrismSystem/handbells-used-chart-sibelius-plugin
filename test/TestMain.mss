@@ -6,6 +6,11 @@ Initialize() {
 }
 
 Run() {
+    // The integration tests build and remove a real chart on the open score.
+    // Removing a chart deletes its bars, and the score's title block lives in
+    // the bar the chart is built in front of, so it goes with them. Run these
+    // on a scratch copy, never on work you care about.
+    Sibelius.MessageBox('These tests modify the open score. Use a scratch copy.');
     Diagnose();
     AssertReset();
     TestPitch();

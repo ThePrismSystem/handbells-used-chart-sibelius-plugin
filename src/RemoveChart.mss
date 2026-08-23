@@ -47,8 +47,16 @@ FindChart(score) {
         if (bar = null) {
             return FindFailure(unidentifiable);
         }
-        if (bar.Length != (recorded.columns[i] * 256)) {
-            return FindFailure(unidentifiable);
+        // Either tick is legitimate: a chimes section falls back to whole notes
+        // when the score has no stemless diamond, so the same column count can
+        // have been sized at 256 or at 1024. Accepting both is what keeps a
+        // chart identifiable on a machine whose notehead set differs from the
+        // one that built it.
+        columnTicks = recorded.columns[i];
+        if (bar.Length != (columnTicks * 256)) {
+            if (bar.Length != (columnTicks * 1024)) {
+                return FindFailure(unidentifiable);
+            }
         }
     }
 
@@ -75,12 +83,6 @@ RemoveChart(score) {
     score.ShowEmptyStaves(1, pieceStaves, 1, found.sections);
     score.ShowEmptyStaves(found.firstStaff, score.StaffCount,
         found.sections + 1, score.NthStaff(1).BarCount);
-
-    // A chart built before the rescue existed still has the score's title and
-    // composer owned by a chart bar, and the deletion below would take them
-    // with it. Moving them out first costs nothing when there is nothing to
-    // move, which is the normal case now.
-    RescueSystemText(score, found.sections);
 
     // Bars first: removing the staves renumbers everything underneath us. The
     // marker goes with the bar that holds it.

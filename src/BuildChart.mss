@@ -26,7 +26,6 @@ BuildChart(score, plan, options) {
     if (score.NthStaff(1).BarCount != (barsBefore + sections.Length)) {
         return BuildFailure('Sibelius did not insert the chart bars.');
     }
-    RescueSystemText(score, sections.Length);
 
     // 2. Instruments.
     staffCountBefore = score.StaffCount;
@@ -285,48 +284,6 @@ HideBarObjects(bar) {
 // so the piece's own staves keep the key they had.
 SilenceKeySignature(staff) {
     staff.NthBar(1).AddKeySignature(0, -8, True, False, True, True);
-    return True;
-}
-
-// Title, composer and lyricist are system text attached to the score's first
-// bar. Inserting the chart in front of the music does not move them, so they
-// end up owned by a chart bar — and deleting that bar later takes the title
-// with it. That is the reported data loss, and it explains both halves of it:
-// removing a chart wiped the title, and so did re-running the plugin, because
-// a re-run removes its own chart first.
-//
-// So the text is moved to the first music bar the moment the chart bars exist.
-// H4: an object cannot be added to or removed from a bar being iterated, so
-// every item is read into a list first, then deleted, then re-added.
-RescueSystemText(score, chartBars) {
-    system = score.SystemStaff;
-    target = system.NthBar(chartBars + 1);
-
-    b = 1;
-    while (b <= chartBars) {
-        bar = system.NthBar(b);
-
-        found = CreateSparseArray();
-        items = CreateSparseArray();
-        for each item in bar {
-            if (item.Type = 'SystemTextItem') {
-                found.Push(CreateDictionary(
-                    'text', '' & item.Text, 'style', '' & item.StyleId));
-                items.Push(item);
-            }
-        }
-
-        for i = 0 to items.Length {
-            doomed = items[i];
-            doomed.Delete();
-        }
-        for i = 0 to found.Length {
-            entry = found[i];
-            target.AddText(0, entry.text, entry.style);
-        }
-
-        b = b + 1;
-    }
     return True;
 }
 

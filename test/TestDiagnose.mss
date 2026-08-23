@@ -66,4 +66,14 @@ TraceBarTypes(bar, label) {
         line = line & (' ' & item.Type);
     }
     trace(label & ':' & line);
+
+    // System text is the thing a chart bar must never take with it when it is
+    // deleted. Moving it needs its style and its offsets, so both are reported.
+    for each item in bar {
+        if (item.Type = 'SystemTextItem') {
+            trace('    text style=' & item.StyleId
+                & ' dx=' & item.Dx & ' dy=' & item.Dy
+                & ' [' & item.Text & ']');
+        }
+    }
 }
