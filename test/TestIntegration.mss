@@ -12,7 +12,13 @@ TestReadScore() {
     // unless the score really contains such a pitch.
     ok = True;
     for i = 0 to records.Length {
-        if ((records[i].pitch = null) or (records[i].diatonic = null)) {
+        // Not `= null`: ManuScript reads a real 0 as null, and a diatonic of 0
+        // is a legitimate value, so a null test would fail a valid record.
+        record = records[i];
+        if (not(utils.IsNumeric('' & record.pitch, True))) {
+            ok = False;
+        }
+        if (not(utils.IsNumeric('' & record.diatonic, True))) {
             ok = False;
         }
     }

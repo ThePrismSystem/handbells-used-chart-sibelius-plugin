@@ -12,9 +12,20 @@ CollectBells(records) {
     for i = 0 to records.Length {
         record = records[i];
 
-        if ((record.pitch = null) or (record.diatonic = null)) {
-            unreadable = unreadable + 1;
-        } else {
+        // H13 again, and this one bit: a record whose diatonic is legitimately 0
+        // was read as null and filed as unreadable, so the out-of-range bell C0
+        // never reached the chart's warnings. `= null` cannot be used on a
+        // field that may hold a real zero. IsNumeric separates them, because a
+        // null coerces to a string that is not a number while 0 coerces to '0'.
+        readable = 1;
+        if (not(utils.IsNumeric('' & record.pitch, True))) {
+            readable = 0;
+        }
+        if (not(utils.IsNumeric('' & record.diatonic, True))) {
+            readable = 0;
+        }
+
+        if (readable = 1) {
             kind = '';
             if (record.head = 'normal')  { kind = 'bells'; }
             if (record.head = 'diamond') { kind = 'chimes'; }
@@ -54,6 +65,8 @@ CollectBells(records) {
                     }
                 }
             }
+        } else {
+            unreadable = unreadable + 1;
         }
     }
 
