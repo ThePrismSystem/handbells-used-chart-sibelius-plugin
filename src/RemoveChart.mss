@@ -127,9 +127,13 @@ RemoveChart(score) {
 // iterator, which is why an earlier attempt at this left the originals in
 // place and added copies beside them, doubling the title block.
 //
-// Style, Dx and Dy all travel. The title block styles are page-aligned and
-// carry offsets of their own, so re-adding at the default position is what
-// scattered them across the chart last time.
+// Style travels; the offsets deliberately do not. Dx and Dy are measured
+// against the system the item was attached to, and that system is the one
+// about to be deleted, so carrying them over lands the title and subtitle off
+// the top of the page and drops two nudged texts on top of each other. Reset
+// Position puts each item where its own style says it belongs, which for a
+// title block is exactly right. The cost is that a manual nudge to system text
+// does not survive a removal.
 MoveSystemText(score, chartBars) {
     system = score.SystemStaff;
     target = system.NthBar(chartBars + 1);
@@ -155,8 +159,7 @@ MoveSystemText(score, chartBars) {
             item = @name;
             copy = target.AddText(0, '' & item.Text, '' & item.StyleId);
             if (IsObject(copy)) {
-                copy.Dx = item.Dx;
-                copy.Dy = item.Dy;
+                copy.ResetPosition();
             }
             i = i + 1;
         }
