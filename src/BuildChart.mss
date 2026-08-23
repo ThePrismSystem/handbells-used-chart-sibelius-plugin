@@ -21,6 +21,7 @@ BuildChart(score, plan, options) {
     if (score.NthStaff(1).BarCount != (barsBefore + sections.Length)) {
         return BuildFailure('Sibelius did not insert the chart bars.');
     }
+    RescueSystemText(score, sections.Length);
 
     // 2. Instruments.
     staffCountBefore = score.StaffCount;
@@ -83,6 +84,21 @@ BuildChart(score, plan, options) {
     score.HideEmptyStaves(pieceStaves + 1, score.StaffCount,
         sections.Length + 1, score.NthStaff(1).BarCount);
 
+    // And each section's staves must vanish from the OTHER sections' bars. The
+    // two calls above only separate the piece from the chart; with two sections
+    // they leave the chimes' empty staves sitting inside the bells' system and
+    // the bells' inside the chimes', which is why a bells-only chart looked
+    // right and a bells-and-chimes chart showed two blank staves per section.
+    for i = 0 to sections.Length {
+        top = (pieceStaves + (i * 2)) + 1;
+        if (i > 0) {
+            score.HideEmptyStaves(top, top + 1, 1, i);
+        }
+        if ((i + 2) <= sections.Length) {
+            score.HideEmptyStaves(top, top + 1, i + 2, sections.Length);
+        }
+    }
+
     RestoreTimeSignature(score, metre, sections.Length);
 
     return CreateDictionary('ok', True, 'error', '');
@@ -121,9 +137,15 @@ WriteColumns(staff, barNumber, columns, kind, color) {
     }
 }
 
+// ManuScript exposes no writable stem property: Stemweight and StemFlipped are
+// read-only, FlipStem only toggles direction, and stemlets are a different
+// thing entirely. In Sibelius stemlessness IS a notehead style, so it is set
+// here rather than on the NoteRest, and it is why bells and chimes cannot both
+// simply take their obvious style constant.
 DressNote(note, kind, color) {
+    note.NoteStyle = StemlessNoteStyle;
     if (kind = 'chimes') {
-        note.NoteStyle = DiamondNoteStyle;
+        note.NoteStyle = ChimeNoteStyle();
         if (color != '') {
             note.ColorRed = HexByte(color, 1);
             note.ColorGreen = HexByte(color, 3);
@@ -137,6 +159,25 @@ DressNote(note, kind, color) {
     if (note.Accidental = Natural) {
         note.AccidentalStyle = HiddenAcc;
     }
+}
+
+// There is no stemless-diamond constant: the 24 documented styles pair a head
+// shape with a stem setting, and only the plain head has a stemless variant.
+// Sibelius scores can carry styles beyond those 24, reachable by name, so the
+// name is looked up and the plain diamond is the fallback. The fallback keeps
+// its stem, which is visibly wrong but still a chart.
+ChimeNoteStyle() {
+    names = CreateSparseArray(
+        'Diamond (stemless)', 'Stemless diamond', 'Diamond no stem', 'Diamond without stem');
+    for i = 0 to names.Length {
+        index = Sibelius.NoteStyleIndex(names[i]);
+        if (utils.IsNumeric('' & index, True)) {
+            if (index >= 0) {
+                return index;
+            }
+        }
+    }
+    return DiamondNoteStyle;
 }
 
 // Reads two hex digits from a '#rrggbb' string. Anything unparseable yields 0,
@@ -181,9 +222,57 @@ HideBarFurniture(score, barNumber) {
         for each TimeSignature ts in bar {
             ts.Hidden = True;
         }
+        // A chart shows no key signature either: it is an inventory of bells,
+        // and every accidental on it is already spelled on the notehead.
+        // KeySignature derives from BarObject, so it hides the same way.
+        for each KeySignature ks in bar {
+            ks.Hidden = True;
+        }
         bar.AddSpecialBarline(SpecialBarlineInvisible);
         n = n + 1;
     }
+}
+
+// Title, composer and lyricist are system text attached to the score's first
+// bar. Inserting the chart in front of the music does not move them, so they
+// end up owned by a chart bar — and deleting that bar later takes the title
+// with it. That is the reported data loss, and it explains both halves of it:
+// removing a chart wiped the title, and so did re-running the plugin, because
+// a re-run removes its own chart first.
+//
+// So the text is moved to the first music bar the moment the chart bars exist.
+// H4: an object cannot be added to or removed from a bar being iterated, so
+// every item is read into a list first, then deleted, then re-added.
+RescueSystemText(score, chartBars) {
+    system = score.SystemStaff;
+    target = system.NthBar(chartBars + 1);
+
+    b = 1;
+    while (b <= chartBars) {
+        bar = system.NthBar(b);
+
+        found = CreateSparseArray();
+        items = CreateSparseArray();
+        for each item in bar {
+            if (item.Type = 'SystemTextItem') {
+                found.Push(CreateDictionary(
+                    'text', '' & item.Text, 'style', '' & item.StyleId));
+                items.Push(item);
+            }
+        }
+
+        for i = 0 to items.Length {
+            doomed = items[i];
+            doomed.Delete();
+        }
+        for i = 0 to found.Length {
+            entry = found[i];
+            target.AddText(0, entry.text, entry.style);
+        }
+
+        b = b + 1;
+    }
+    return True;
 }
 
 // Read before anything moves: this is the last point at which the piece's own

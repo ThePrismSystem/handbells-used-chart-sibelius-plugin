@@ -76,6 +76,12 @@ RemoveChart(score) {
     score.ShowEmptyStaves(found.firstStaff, score.StaffCount,
         found.sections + 1, score.NthStaff(1).BarCount);
 
+    // A chart built before the rescue existed still has the score's title and
+    // composer owned by a chart bar, and the deletion below would take them
+    // with it. Moving them out first costs nothing when there is nothing to
+    // move, which is the normal case now.
+    RescueSystemText(score, found.sections);
+
     // Bars first: removing the staves renumbers everything underneath us. The
     // marker goes with the bar that holds it.
     barsBefore = score.NthStaff(1).BarCount;

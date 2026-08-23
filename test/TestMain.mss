@@ -6,6 +6,7 @@ Initialize() {
 }
 
 Run() {
+    Diagnose();
     AssertReset();
     TestPitch();
     TestBellName();

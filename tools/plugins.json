@@ -63,6 +63,7 @@
         "test/TestMarker.mss",
         "test/TestOptions.mss",
         "test/TestReport.mss",
+        "test/TestDiagnose.mss",
         "test/TestIntegration.mss"
       ],
       "data": {
