@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { lintSource } from '../lint.mjs';
+import { lintSource, lintFiles } from '../lint.mjs';
 
 const messages = (src) => lintSource('a.mss', src).map((f) => f.message);
 
@@ -38,6 +38,26 @@ test('allows division whose result is already forced', () => {
     assert.deepEqual(lintSource('a.mss', 'A() {\n    x = (a * 1.0) / 7;\n}\n'), []);
 });
 
+test('flags division with variable divisor without forcing result', () => {
+    assert.match(messages('A() {\n    x = a / b;\n}\n')[0], /RoundDown/);
+});
+
+test('flags division without spaces around operator', () => {
+    assert.match(messages('A() {\n    total/7;\n}\n')[0], /RoundDown/);
+});
+
+test('allows division with RoundUp', () => {
+    assert.deepEqual(lintSource('a.mss', 'A() {\n    x = RoundUp(a / 7);\n}\n'), []);
+});
+
+test('allows division with Round', () => {
+    assert.deepEqual(lintSource('a.mss', 'A() {\n    x = Round(a / b);\n}\n'), []);
+});
+
+test('does not flag division in comments', () => {
+    assert.deepEqual(lintSource('a.mss', 'A() {\n    x = 1; // This is 1/2 comment\n    y = 2;\n}\n'), []);
+});
+
 test('does not read a word inside a string literal as a connective', () => {
     assert.deepEqual(lintSource('a.mss', "A() {\n    x = 'bells and chimes';\n}\n"), []);
 });
@@ -55,6 +75,14 @@ test('flags unparenthesised and/or', () => {
 
 test('allows parenthesised and/or', () => {
     assert.deepEqual(lintSource('a.mss', 'A() {\n    if ((x = 1) and (y = 2)) {\n    }\n}\n'), []);
+});
+
+test('flags mixed and/or where not all connectives are parenthesised', () => {
+    assert.match(messages('A() {\n    if ((a = 1) and (b = 2) or z = 3 and w = 4) {\n    }\n}\n')[0], /parenthes/);
+});
+
+test('allows multiple and/or when all are parenthesised', () => {
+    assert.deepEqual(lintSource('a.mss', 'A() {\n    if ((a = 1) and (b = 2) or (z = 3) and (w = 4)) {\n    }\n}\n'), []);
 });
 
 test('flags typed Note iteration inside a NoteRest', () => {
@@ -77,9 +105,28 @@ test('flags True or False stored into a sparse array', () => {
     assert.match(messages('A() {\n    arr.Push(True);\n}\n')[0], /Boolean/);
 });
 
-test('skips manifest paths that do not exist on disk', async (t) => {
-    const { execSync } = await import('node:child_process');
-    const output = execSync('npm run lint 2>&1', { encoding: 'utf8', cwd: process.cwd() });
-    assert.match(output, /skipped \(not yet written\):/);
-    assert.match(output, /lint clean/);
+test('skips manifest paths that do not exist on disk', () => {
+    const mockFs = {
+        'exists.mss': true,
+        'missing.mss': false
+    };
+    const mockRead = (path) => mockFs[path] ? 'A() {\n    x = 1;\n}\n' : null;
+    const results = lintFiles(['exists.mss', 'missing.mss'], mockRead);
+    // The real test is that it doesn't throw or report the missing file as a finding
+    assert.equal(results.findings.length, 0);
+    assert.equal(results.skipped.length, 1);
+    assert.equal(results.skipped[0], 'missing.mss');
+});
+
+test('reports linted files and skipped files accurately', () => {
+    const mockFs = {
+        'a.mss': true,
+        'b.mss': true,
+        'c.mss': false
+    };
+    const mockRead = (path) => mockFs[path] ? 'A() {\n    x += 1;\n}\n' : null;
+    const results = lintFiles(['a.mss', 'b.mss', 'c.mss'], mockRead);
+    // Two files linted (both have +=), one skipped
+    assert.equal(results.findings.length, 2);
+    assert.equal(results.skipped.length, 1);
 });

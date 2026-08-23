@@ -31,12 +31,17 @@ const RULES = [
 // both sides of every connective are already bracketed.
 function andOrUnparenthesised(code) {
     if (!/\b(and|or)\b/.test(code)) return false;
-    return !/\)\s*\b(and|or)\b\s*\(/.test(code);
+    // Replace all properly bracketed connectives; if any remain, flag it
+    let temp = code;
+    while (temp.match(/\)\s*\b(and|or)\b\s*\(/)) {
+        temp = temp.replace(/\)\s*\b(and|or)\b\s*\(/, '___');
+    }
+    return /\b(and|or)\b/.test(temp);
 }
 
 // A division is fine once the line commits to an integer or a float result.
 function divisionUnforced(code) {
-    if (!/[^\w]\/\s*\d+\s*[;)]/.test(code)) return false;
+    if (!/\/\s*[\w.]+\s*[;)]/.test(code)) return false;
     return !/\bRound(Down|Up)?\s*\(|\*\s*1\.0/.test(code);
 }
 
@@ -78,26 +83,49 @@ export function lintSource(path, source) {
     return findings;
 }
 
+export function lintFiles(paths, read) {
+    const findings = [];
+    const skipped = [];
+
+    for (const path of paths) {
+        const source = read(path);
+        if (source === null) {
+            skipped.push(path);
+            continue;
+        }
+        findings.push(...lintSource(path, source));
+    }
+
+    return { findings, skipped };
+}
+
 function main() {
     const manifest = JSON.parse(readFileSync(join(ROOT, 'tools/plugins.json'), 'utf8'));
     const paths = [...new Set(manifest.plugins.flatMap((p) => p.sources))];
-    let failed = 0;
-    for (const path of paths) {
+
+    const read = (path) => {
         const fullPath = join(ROOT, path);
-        if (!existsSync(fullPath)) {
-            console.log(`skipped (not yet written): ${path}`);
-            continue;
-        }
-        for (const finding of lintSource(path, readFileSync(fullPath, 'utf8'))) {
-            console.error(finding.message);
-            failed = failed + 1;
-        }
+        if (!existsSync(fullPath)) return null;
+        return readFileSync(fullPath, 'utf8');
+    };
+
+    const { findings, skipped } = lintFiles(paths, read);
+    const linted = paths.length - skipped.length;
+
+    for (const finding of findings) {
+        console.error(finding.message);
     }
-    if (failed > 0) {
-        console.error(`${failed} lint finding(s)`);
+
+    for (const path of skipped) {
+        console.log(`skipped (not yet written): ${path}`);
+    }
+
+    if (findings.length > 0) {
+        console.error(`${findings.length} lint finding(s)`);
         process.exit(1);
     }
-    console.log(`lint clean across ${paths.length} file(s)`);
+
+    console.log(`${linted} file(s) linted, ${skipped.length} skipped`);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) main();
