@@ -57,9 +57,15 @@ AnchorColumns(anchors, attachmentLists, offsets) {
     columns = CreateSparseArray();
     index = CreateDictionary();
 
+    // Slots are stored one-based. ManuScript evaluates `0 = null` as TRUE, so a
+    // column stored at slot 0 reads back as absent and every attachment that
+    // belongs to it silently starts a column of its own instead. Proved in
+    // Sibelius: D6 sat alone while D7 and D8 formed a second column between
+    // them. Nothing here may store a plain 0 in a dictionary it later tests
+    // against null.
     for i = 0 to anchors.Length {
         key = anchors[i].pitch & ':' & anchors[i].diatonic;
-        index[key] = columns.Length;
+        index[key] = columns.Length + 1;
         columns.Push(CreateDictionary(
             'sortPitch', anchors[i].pitch,
             'sortAlter', -anchors[i].alter,
@@ -78,15 +84,17 @@ AnchorColumns(anchors, attachmentLists, offsets) {
             anchorDiatonic = entry.diatonic - offsetDiatonic;
             key = anchorPitch & ':' & anchorDiatonic;
 
-            if (index[key] = null) {
-                index[key] = columns.Length;
+            slot = index[key];
+            if (slot = null) {
+                index[key] = columns.Length + 1;
                 columns.Push(CreateDictionary(
                     'sortPitch', anchorPitch,
                     'sortAlter', -entry.alter,
                     'notes', CreateSparseArray(entry)
                 ));
             } else {
-                columns[index[key]].notes.Push(entry);
+                column = columns[slot - 1];
+                column.notes.Push(entry);
             }
         }
     }
@@ -102,6 +110,13 @@ AnchorColumns(anchors, attachmentLists, offsets) {
 }
 
 SortColumns(columns) {
+    // ManuScript raises 'End value is not greater than the start value in a for
+    // statement' when the end is BELOW the start, so `for i = 1 to 0` — an empty
+    // collection — is a run-time error, not an empty loop. Proved in Sibelius by
+    // a fixture with no bass bells at all.
+    if (columns.Length < 2) {
+        return False;
+    }
     for i = 1 to columns.Length {
         current = columns[i];
         j = i - 1;
@@ -131,6 +146,13 @@ ColumnSortsAfter(a, b) {
 }
 
 SortNotesByPitch(notes) {
+    // ManuScript raises 'End value is not greater than the start value in a for
+    // statement' when the end is BELOW the start, so `for i = 1 to 0` — an empty
+    // collection — is a run-time error, not an empty loop. Proved in Sibelius by
+    // a fixture with no bass bells at all.
+    if (notes.Length < 2) {
+        return False;
+    }
     for i = 1 to notes.Length {
         current = notes[i];
         j = i - 1;

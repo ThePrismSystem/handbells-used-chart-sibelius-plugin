@@ -70,6 +70,13 @@ CollectBells(records) {
 // order published charts print enharmonic pairs in. Insertion sort: the lists
 // are at most a few dozen entries and ManuScript has no sort of its own.
 SortBells(list) {
+    // ManuScript raises 'End value is not greater than the start value in a for
+    // statement' when the end is BELOW the start, so `for i = 1 to 0` — an empty
+    // collection — is a run-time error, not an empty loop. Proved in Sibelius by
+    // a fixture with no bass bells at all.
+    if (list.Length < 2) {
+        return list;
+    }
     for i = 1 to list.Length {
         current = list[i];
         j = i - 1;
