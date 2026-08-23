@@ -40,19 +40,9 @@ ReadBarNotes(bar, records) {
             records.Push(CreateDictionary(
                 'pitch', bell.pitch,
                 'diatonic', bell.diatonic,
-                'head', NoteHeadKind(n)
+                'head', '' & n.NoteStyleName
             ));
         }
     }
     return True;
-}
-
-NoteHeadKind(note) {
-    if (note.NoteStyle = NormalNoteStyle) {
-        return 'normal';
-    }
-    if (note.NoteStyle = DiamondNoteStyle) {
-        return 'diamond';
-    }
-    return 'other';
 }

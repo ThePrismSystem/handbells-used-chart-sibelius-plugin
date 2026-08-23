@@ -5,6 +5,30 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Handbell and handchime noteheads are now chosen in the dialog, from the
+  noteheads the open score actually uses. Reported by a tester whose chimes
+  carried a notehead other than the diamond the plugin used to insist on,
+  and whose chimes therefore charted as nothing at all. Both dropdowns are
+  filled from the score each time the dialog opens, and both offer a
+  `(no notehead)` entry for a piece that has no such instrument in it.
+- The dialog opens on the score's plain notehead for handbells and its
+  diamond for handchimes, matching what the plugin assumed before, so a
+  score that charted correctly still charts correctly untouched. The
+  defaults are found by notehead index rather than by name, so a localised
+  Sibelius picks them out too.
+
+### Changed
+
+- The scan that fills the dropdowns skips an existing chart's own staves, so
+  re-running never offers the chart's noteheads back as if the music used
+  them.
+- Choosing the same notehead for both instruments is refused with an
+  explanation, before any existing chart is removed.
+
 ## [1.0.1] - 2026-08-23
 
 Documentation and comments. No behaviour change: the plug-in does exactly

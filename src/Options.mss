@@ -2,7 +2,16 @@
 // variables between runs. MuseScore read these from score properties instead
 // only because a dialog blocks a headless batch run; Sibelius has no headless
 // mode, so that constraint does not apply here.
-ReadOptions() {
+ReadOptions(score) {
+    // The two notehead dropdowns are filled from the open score, so this has
+    // to run before the dialog is shown rather than being fixed at build time.
+    choices = ScoreHeadChoices(score);
+    items = HeadChoiceItems(choices.names);
+    _BellHeadItems = items;
+    _ChimeHeadItems = items;
+    dlg_bellHead = PreferredHead(choices.names, '' & dlg_bellHead, choices.defaultBell);
+    dlg_chimeHead = PreferredHead(choices.names, '' & dlg_chimeHead, choices.defaultChime);
+
     if (not(Sibelius.ShowDialog(_SettingsDialog, self))) {
         return null;
     }
@@ -10,6 +19,8 @@ ReadOptions() {
         'bellLabel', Trim(dlg_bellLabel),
         'chimeLabel', Trim(dlg_chimeLabel),
         'chimeColor', UsableColor(dlg_chimeColor),
+        'bellHead', Trim(dlg_bellHead),
+        'chimeHead', Trim(dlg_chimeHead),
         'remove', ('' & dlg_remove) = '1'
     );
 }

@@ -43,7 +43,9 @@ TestBuildChart() {
     barCountBefore = score.NthStaff(1).BarCount;
 
     records = ReadScoreNotes(score);
-    options = CreateDictionary('bellLabel', '', 'chimeLabel', '', 'chimeColor', '');
+    choices = ScoreHeadChoices(score);
+    options = CreateDictionary('bellLabel', '', 'chimeLabel', '', 'chimeColor', '',
+        'bellHead', choices.defaultBell, 'chimeHead', choices.defaultChime);
     plan = BuildPlan(records, options);
     result = BuildChart(score, plan, options);
 
@@ -90,4 +92,52 @@ TestRemoveChart() {
     again = RemoveChart(score);
     AssertEquals(again.removed, False, 'second removal finds no chart');
     AssertEquals(again.error, '', 'no chart is not an error');
+}
+
+TestNoteHeadScan() {
+    score = Sibelius.ActiveScore;
+    if (score = null) {
+        AssertTrue(False, 'open a score before running the integration tests');
+        return False;
+    }
+
+    // The scan deliberately skips a chart's own staves, while ReadScoreNotes
+    // reads every staff there is. Comparing the two on a score that still
+    // carries a chart from an earlier run would fail on that difference rather
+    // than on anything the scan got wrong, so the chart goes first.
+    RemoveChart(score);
+
+    choices = ScoreHeadChoices(score);
+    AssertTrue(choices.names.Length > 0, 'the score offers at least one notehead');
+
+    // Every head a note really carries has to be offered, or the dropdown
+    // cannot name the notehead the user is looking at.
+    records = ReadScoreNotes(score);
+    offered = True;
+    for i = 0 to records.Length {
+        record = records[i];
+        if (HeadListed(choices.names, record.head) = 0) {
+            offered = False;
+        }
+    }
+    AssertTrue(offered, 'every head a note carries is offered');
+
+    seen = CreateDictionary();
+    unique = True;
+    for i = 0 to choices.names.Length {
+        name = choices.names[i];
+        if (seen[name] != null) {
+            unique = False;
+        }
+        seen[name] = 1;
+    }
+    AssertTrue(unique, 'the offered heads are distinct');
+
+    // The value the dialog opens on has to be one the dropdown can show, and
+    // the dropdown shows the no-notehead entry as well as the score's heads.
+    items = HeadChoiceItems(choices.names);
+    AssertEquals(HeadListed(items, PreferredHead(choices.names, '', choices.defaultBell)), 1,
+        'the bell default is one of the offered entries');
+    AssertEquals(HeadListed(items, PreferredHead(choices.names, '', choices.defaultChime)), 1,
+        'the chime default is one of the offered entries');
 }

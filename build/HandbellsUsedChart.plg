@@ -13,6 +13,9 @@
 	StemlessDiamondName "() {
     return '' & STEMLESS_DIAMOND;
 }"
+	NoNoteHead "() {
+    return '' & NO_NOTEHEAD;
+}"
 	Initialize "() {
     EnableStringSafety();
     // 2026 is the only version this targets. Registering on an older release
@@ -41,7 +44,7 @@
         return False;
     }
 
-    options = ReadOptions();
+    options = ReadOptions(score);
     if (options = null) {
         return False;
     }
@@ -67,6 +70,20 @@
     return message.ok;
 }"
 	ChartScore "(score, options) {
+    // Ahead of the removal, so a score that would chart nothing useful keeps
+    // the chart it has. One notehead cannot be both instruments, and charting
+    // every note twice is not a reading worth guessing at. Both boxes left on
+    // the no-notehead entry is not that case; it charts nothing and says so.
+    // A removal run never reads a note, so the choice cannot block it.
+    if (not(options.remove)) {
+        if (options.bellHead != NoNoteHead()) {
+            if (options.bellHead = options.chimeHead) {
+                return CreateDictionary('ok', False, 'kind', 'error',
+                    'text', '' & _SameNoteheadChosen);
+            }
+        }
+    }
+
     // Removal first, so a re-run replaces its own chart rather than reading it
     // back in and charting the chart.
     removal = RemoveChart(score);
@@ -124,7 +141,16 @@
 
     return CreateDictionary('ok', True, 'kind', 'info', 'text', summary);
 }"
-	ReadOptions "() {
+	ReadOptions "(score) {
+    // The two notehead dropdowns are filled from the open score, so this has
+    // to run before the dialog is shown rather than being fixed at build time.
+    choices = ScoreHeadChoices(score);
+    items = HeadChoiceItems(choices.names);
+    _BellHeadItems = items;
+    _ChimeHeadItems = items;
+    dlg_bellHead = PreferredHead(choices.names, '' & dlg_bellHead, choices.defaultBell);
+    dlg_chimeHead = PreferredHead(choices.names, '' & dlg_chimeHead, choices.defaultChime);
+
     if (not(Sibelius.ShowDialog(_SettingsDialog, self))) {
         return null;
     }
@@ -132,6 +158,8 @@
         'bellLabel', Trim(dlg_bellLabel),
         'chimeLabel', Trim(dlg_chimeLabel),
         'chimeColor', UsableColor(dlg_chimeColor),
+        'bellHead', Trim(dlg_bellHead),
+        'chimeHead', Trim(dlg_chimeHead),
         'remove', ('' & dlg_remove) = '1'
     );
 }"
@@ -302,7 +330,7 @@
     if ((bellDiatonic >= 57) and (bellDiatonic <= 63)) { return 'trebleRow2'; }
     return '';
 }"
-	CollectBells "(records) {
+	CollectBells "(records, options) {
     bells = CreateSparseArray();
     chimes = CreateSparseArray();
     seenBell = CreateDictionary();
@@ -311,6 +339,17 @@
     seenOutOfRange = CreateDictionary();
     unknown = 0;
     unreadable = 0;
+    // H2: coerced once here rather than at every comparison in the loop. The
+    // no-notehead entry is reduced to the empty choice, which matches nothing,
+    // so a score charted as bells only needs no special case below.
+    bellHead = '' & options.bellHead;
+    chimeHead = '' & options.chimeHead;
+    if (bellHead = NoNoteHead()) {
+        bellHead = '';
+    }
+    if (chimeHead = NoNoteHead()) {
+        chimeHead = '';
+    }
 
     for i = 0 to records.Length {
         record = records[i];
@@ -331,8 +370,15 @@
 
         if (readable = 1) {
             kind = '';
-            if (record.head = 'normal')  { kind = 'bells'; }
-            if (record.head = 'diamond') { kind = 'chimes'; }
+            // Guarded on the choice, not just on the head. A note whose
+            // NoteStyleName failed to read arrives with an empty head, and
+            // an empty choice would then match it and chart it as a bell.
+            if (bellHead != '') {
+                if (record.head = bellHead) { kind = 'bells'; }
+            }
+            if (chimeHead != '') {
+                if (record.head = chimeHead) { kind = 'chimes'; }
+            }
 
             if (kind = '') {
                 unknown = unknown + 1;
@@ -583,7 +629,7 @@
     }
 }"
 	BuildPlan "(records, options) {
-    collected = CollectBells(records);
+    collected = CollectBells(records, options);
     sections = CreateSparseArray();
 
     if (collected.bells.Length > 0) {
@@ -728,6 +774,106 @@
     text.Hidden = True;
     return text;
 }"
+	ScoreHeadChoices "(score) {
+    names = CreateSparseArray();
+    seen = CreateDictionary();
+    // Carried in a dictionary rather than returned from ScanBarHeads because
+    // ManuScript passes objects by reference and numbers by value; the scan
+    // has to write into something the caller still holds.
+    defaults = CreateDictionary('bell', '', 'chime', '');
+
+    lastStaff = score.StaffCount;
+    found = FindChart(score);
+    if (found.found) {
+        lastStaff = found.firstStaff - 1;
+    }
+
+    selection = score.Selection;
+    if (selection.IsPassage) {
+        for each Bar bar in selection {
+            // H6: a selected default barline comes back as a Bar rather than a
+            // BarObject, and touching it crashes the plugin.
+            if (IsObject(bar)) {
+                staff = bar.ParentStaff;
+                if (staff.StaffNum <= lastStaff) {
+                    ScanBarHeads(bar, names, seen, defaults);
+                }
+            }
+        }
+    } else {
+        n = 1;
+        while (n <= lastStaff) {
+            staff = score.NthStaff(n);
+            b = 1;
+            while (b <= staff.BarCount) {
+                ScanBarHeads(staff.NthBar(b), names, seen, defaults);
+                b = b + 1;
+            }
+            n = n + 1;
+        }
+    }
+
+    return CreateDictionary('names', names,
+        'defaultBell', defaults.bell, 'defaultChime', defaults.chime);
+}"
+	ScanBarHeads "(bar, names, seen, defaults) {
+    for each NoteRest nr in bar {
+        // H3: `for each Note n in nr` does not work. Notes inside a NoteRest
+        // must be iterated untyped.
+        for each n in nr {
+            name = '' & n.NoteStyleName;
+            if (name != '') {
+                if (seen[name] = null) {
+                    // 1, not True: H7 aside, a presence marker in a dictionary
+                    // has no reason to be a Boolean, and the lint rules read a
+                    // Boolean stored in a collection as a mistake.
+                    seen[name] = 1;
+                    names.Push(name);
+                }
+                // The display names of the built-in styles are not documented
+                // and a localised Sibelius spells them differently, so the two
+                // suggested defaults are found by index and reported by name.
+                // Written through _property:, which the guide says never
+                // raises at run time, rather than through plain dot
+                // assignment, which does when the property is not there yet.
+                if (n.NoteStyle = NormalNoteStyle) {
+                    defaults._property:bell = name;
+                }
+                if (n.NoteStyle = DiamondNoteStyle) {
+                    defaults._property:chime = name;
+                }
+            }
+        }
+    }
+    return True;
+}"
+	HeadListed "(names, name) {
+    if (name = '') {
+        return 0;
+    }
+    for i = 0 to names.Length {
+        if (names[i] = name) {
+            return 1;
+        }
+    }
+    return 0;
+}"
+	PreferredHead "(names, remembered, fallback) {
+    if (HeadListed(names, remembered) = 1) {
+        return remembered;
+    }
+    if (HeadListed(names, fallback) = 1) {
+        return fallback;
+    }
+    return NoNoteHead();
+}"
+	HeadChoiceItems "(names) {
+    items = CreateSparseArray(NoNoteHead());
+    for i = 0 to names.Length {
+        items.Push(names[i]);
+    }
+    return items;
+}"
 	ReadScoreNotes "(score) {
     records = CreateSparseArray();
     selection = score.Selection;
@@ -767,20 +913,11 @@
             records.Push(CreateDictionary(
                 'pitch', bell.pitch,
                 'diatonic', bell.diatonic,
-                'head', NoteHeadKind(n)
+                'head', '' & n.NoteStyleName
             ));
         }
     }
     return True;
-}"
-	NoteHeadKind "(note) {
-    if (note.NoteStyle = NormalNoteStyle) {
-        return 'normal';
-    }
-    if (note.NoteStyle = DiamondNoteStyle) {
-        return 'diamond';
-    }
-    return 'other';
 }"
 	BuildChart "(score, plan, options) {
     if (plan.sections.Length = 0) {
@@ -1399,13 +1536,23 @@
 	MARKER_PREFIX "HBUC"
 	MARKER_VERSION "1"
 	STEMLESS_DIAMOND "Diamond (stemless)"
+	NO_NOTEHEAD "(no notehead)"
 	dlg_bellLabel ""
 	dlg_chimeLabel ""
 	dlg_chimeColor ""
+	dlg_bellHead ""
+	dlg_chimeHead ""
+	_BellHeadItems
+	{
+	}
+	_ChimeHeadItems
+	{
+	}
 	dlg_remove "0"
 	_ScoreError "Open a score with one or more staves and run the plug-in again."
 	_NoBellsFound "No handbells or handchimes were found in this score."
 	_ChartWasRemoved "The existing chart was removed."
 	_ChartWasReplaced "An existing chart was replaced."
 	_NoChartToRemove "This score carries no chart that this plug-in made."
+	_SameNoteheadChosen "Handbells and handchimes cannot both use the same notehead. Choose a different notehead for one of them and run the plug-in again."
 }

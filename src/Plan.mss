@@ -1,5 +1,5 @@
 BuildPlan(records, options) {
-    collected = CollectBells(records);
+    collected = CollectBells(records, options);
     sections = CreateSparseArray();
 
     if (collected.bells.Length > 0) {

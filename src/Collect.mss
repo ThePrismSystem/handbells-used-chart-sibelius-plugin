@@ -1,5 +1,7 @@
 // Groups raw note records into the distinct bells and chimes a score uses.
-CollectBells(records) {
+// Which notehead means which is the user's to say: options.bellHead and
+// options.chimeHead hold NoteStyleName values picked from the open score.
+CollectBells(records, options) {
     bells = CreateSparseArray();
     chimes = CreateSparseArray();
     seenBell = CreateDictionary();
@@ -8,6 +10,17 @@ CollectBells(records) {
     seenOutOfRange = CreateDictionary();
     unknown = 0;
     unreadable = 0;
+    // H2: coerced once here rather than at every comparison in the loop. The
+    // no-notehead entry is reduced to the empty choice, which matches nothing,
+    // so a score charted as bells only needs no special case below.
+    bellHead = '' & options.bellHead;
+    chimeHead = '' & options.chimeHead;
+    if (bellHead = NoNoteHead()) {
+        bellHead = '';
+    }
+    if (chimeHead = NoNoteHead()) {
+        chimeHead = '';
+    }
 
     for i = 0 to records.Length {
         record = records[i];
@@ -28,8 +41,15 @@ CollectBells(records) {
 
         if (readable = 1) {
             kind = '';
-            if (record.head = 'normal')  { kind = 'bells'; }
-            if (record.head = 'diamond') { kind = 'chimes'; }
+            // Guarded on the choice, not just on the head. A note whose
+            // NoteStyleName failed to read arrives with an empty head, and
+            // an empty choice would then match it and chart it as a bell.
+            if (bellHead != '') {
+                if (record.head = bellHead) { kind = 'bells'; }
+            }
+            if (chimeHead != '') {
+                if (record.head = chimeHead) { kind = 'chimes'; }
+            }
 
             if (kind = '') {
                 unknown = unknown + 1;
