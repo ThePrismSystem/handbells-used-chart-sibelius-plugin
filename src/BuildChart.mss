@@ -27,6 +27,13 @@ BuildChart(score, plan, options) {
         return BuildFailure('Sibelius did not insert the chart bars.');
     }
 
+    // Tempo marks and the like are anchored to the score's first bar, and the
+    // chart is now that bar, so a direction such as 'Allegro' would sit over
+    // the chart rather than over the music it describes. They move down to the
+    // first music bar. The title block is left exactly where it is: it belongs
+    // at the top of the page, which is above the chart.
+    RelocateSystemText(score, sections.Length, sections.Length + 1, True);
+
     // 2. Instruments.
     staffCountBefore = score.StaffCount;
     trebleStaves = CreateSparseArray();

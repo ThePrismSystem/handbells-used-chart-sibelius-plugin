@@ -86,7 +86,7 @@ RemoveChart(score) {
 
     // Before any bar goes, rescue the title block it is carrying and drop the
     // renumbering that only made sense while the chart was in front.
-    MoveSystemText(score, found.sections);
+    RelocateSystemText(score, found.sections, found.sections + 1, False);
     ClearHiddenBarNumber(score.NthStaff(1).NthBar(found.sections + 1));
 
     // Bars first: removing the staves renumbers everything underneath us. The
@@ -117,37 +117,40 @@ RemoveChart(score) {
     return CreateDictionary('removed', True, 'error', '');
 }
 
-// The score's title block is system text anchored to the score's first bar,
-// and the chart is built in front of that bar, so the title block ends up
-// owned by a chart bar. Deleting the bar takes it with it. The text is moved
-// to the first music bar just before the bars go.
+// Both paths relocate system text out of the chart bars, for opposite reasons,
+// so they share one routine.
+//
+// `musicalOnly` decides whether the page-aligned title block travels. On a
+// build it must not: the title belongs at the top of the page, above the
+// chart, which is where Sibelius already leaves it. On a removal it must,
+// because the bar holding it is about to be deleted.
 //
 // The delete follows the guide's documented shape: collect every item first,
 // then delete in REVERSE order. Deleting forwards while iterating desyncs the
-// iterator, which is why an earlier attempt at this left the originals in
-// place and added copies beside them, doubling the title block.
-//
-// Style travels; the offsets deliberately do not. Dx and Dy are measured
-// against the system the item was attached to, and that system is the one
-// about to be deleted, so carrying them over lands the title and subtitle off
-// the top of the page and drops two nudged texts on top of each other. Reset
-// Position puts each item where its own style says it belongs, which for a
-// title block is exactly right. The cost is that a manual nudge to system text
-// does not survive a removal.
-MoveSystemText(score, chartBars) {
+// iterator, which is why an earlier attempt left the originals in place and
+// added copies beside them, doubling the title block.
+RelocateSystemText(score, fromBars, targetBarNum, musicalOnly) {
     system = score.SystemStaff;
-    target = system.NthBar(chartBars + 1);
+    target = system.NthBar(targetBarNum);
 
     b = 1;
-    while (b <= chartBars) {
+    while (b <= fromBars) {
         bar = system.NthBar(b);
 
         counter = 0;
         for each item in bar {
             if (item.Type = 'SystemTextItem') {
-                name = 'moved' & counter;
-                @name = item;
-                counter = counter + 1;
+                take = True;
+                if (musicalOnly) {
+                    if (StyleIsPageAligned(item.StyleId)) {
+                        take = False;
+                    }
+                }
+                if (take) {
+                    name = 'moved' & counter;
+                    @name = item;
+                    counter = counter + 1;
+                }
             }
         }
 
@@ -159,7 +162,7 @@ MoveSystemText(score, chartBars) {
             item = @name;
             copy = target.AddText(0, '' & item.Text, '' & item.StyleId);
             if (IsObject(copy)) {
-                copy.ResetPosition();
+                PlaceMovedText(copy, item);
             }
             i = i + 1;
         }
@@ -174,6 +177,42 @@ MoveSystemText(score, chartBars) {
         b = b + 1;
     }
     return True;
+}
+
+// A page-aligned item is positioned against the page, and its offsets were
+// measured from the system about to be deleted, so carrying them over put the
+// title and subtitle off the top of the page. Its own style knows better.
+//
+// Everything else is staff-relative, and a staff is a staff in either bar, so
+// the vertical nudge still means what it meant. It is worth keeping: two tempo
+// texts separated only by their Dy land on top of each other without it.
+// Horizontal is left at the default, which for a musical direction is the
+// start of the bar, and that is where it belongs.
+PlaceMovedText(copy, item) {
+    if (StyleIsPageAligned(item.StyleId)) {
+        copy.ResetPosition();
+        return True;
+    }
+    copy.Dy = item.Dy;
+    return True;
+}
+
+// ManuScript has no substring search, so this is a scan. The title block
+// styles are the `text.system.page_aligned.*` family: title, subtitle,
+// composer, copyright and the two instrument-name headers.
+StyleIsPageAligned(styleId) {
+    text = '' & styleId;
+    needle = 'page_aligned';
+    limit = Length(text) - Length(needle);
+    if (limit < 0) {
+        return False;
+    }
+    for i = 0 to limit + 1 {
+        if (Substring(text, i, Length(needle)) = needle) {
+            return True;
+        }
+    }
+    return False;
 }
 
 // The other half of NumberFromFirstMusicBar. The chart bars' own number
