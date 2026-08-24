@@ -20,7 +20,7 @@ BuildChart(score, plan, options) {
 
     // Nothing else in the run can tell the user this: the plan is built
     // without the score, so only here is it known that the SMB columns are
-    // about to be drawn with a head that is not square.
+    // about to be drawn hollow.
     warnings = CreateSparseArray();
     if (styles.smbs < 0) {
         if (PlanHasKind(sections, 'smbs') = 1) {
@@ -184,26 +184,14 @@ WriteColumns(staff, barNumber, columns, kind, color, styles, tick) {
 // here rather than on the NoteRest, and it is why bells and chimes cannot both
 // simply take their obvious style constant.
 DressNote(note, kind, color, styles) {
-    note.NoteStyle = StemlessNoteStyle;
-    if (kind = 'chimes') {
-        if (styles.chimes >= 0) {
-            note.NoteStyle = styles.chimes;
-        } else {
-            note.NoteStyle = DiamondNoteStyle;
-        }
+    custom = CustomStyle(kind, styles);
+    if (custom >= 0) {
+        note.NoteStyle = custom;
+    } else {
+        note.NoteStyle = FallbackStyle(kind);
     }
-    // Silver melody bells keep the plain stemless head when the score has no
-    // square one, because there is no built-in square to fall back to the way
-    // chimes fall back to a stemmed diamond. That also means an SMB column
-    // never needs the whole notes a chime column does: the head it falls back
-    // to carries no stem already.
-    if (kind = 'smbs') {
-        if (styles.smbs >= 0) {
-            note.NoteStyle = styles.smbs;
-        }
-    }
-    // Out of the chimes branch: every instrument that was given a colour field
-    // is coloured the same way, and one that was not is handed an empty colour.
+    // Every instrument that was given a colour field is coloured the same way,
+    // and one that was not is handed an empty colour.
     if (color != '') {
         note.ColorRed = HexByte(color, 1);
         note.ColorGreen = HexByte(color, 3);
@@ -242,16 +230,43 @@ NamedNoteStyle(score, name) {
     return index;
 }
 
-// The fallback for a score with no stemless diamond: a semibreve carries no
-// stem at any notehead style, so the chimes lose their stems by being whole
-// notes instead. It costs the filled notehead, because a semibreve head is hollow,
-// which is why the custom notehead is worth making. Bells never need this:
-// StemlessNoteStyle is a documented constant present in every score.
-ColumnTick(kind, styles) {
+// The hand-made stemless head for this instrument, or -1 when the score has
+// none. Handbells have no hand-made head at all: StemlessNoteStyle is a
+// documented constant present in every score, so they never miss one.
+CustomStyle(kind, styles) {
     if (kind = 'chimes') {
-        if (styles.chimes < 0) {
-            return 1024;
-        }
+        return styles.chimes;
+    }
+    if (kind = 'smbs') {
+        return styles.smbs;
+    }
+    return -1;
+}
+
+// The built-in shape an instrument falls back to. Sibelius has a square after
+// all - shaped note 6 is la in the seven-shape system - so SMBs fall back to a
+// real square the way chimes fall back to a real diamond.
+FallbackStyle(kind) {
+    if (kind = 'chimes') {
+        return DiamondNoteStyle;
+    }
+    if (kind = 'smbs') {
+        return ShapedNote6NoteStyle;
+    }
+    return StemlessNoteStyle;
+}
+
+// Both built-in fallbacks carry stems, and ManuScript cannot switch a stem
+// off: a semibreve carries none at any notehead style, so a column falling
+// back loses its stems by being whole notes instead. It costs the filled head,
+// because a semibreve head is hollow, which is why the hand-made noteheads are
+// worth making. Handbells never need this.
+ColumnTick(kind, styles) {
+    if (kind = 'bells') {
+        return 256;
+    }
+    if (CustomStyle(kind, styles) < 0) {
+        return 1024;
     }
     return 256;
 }

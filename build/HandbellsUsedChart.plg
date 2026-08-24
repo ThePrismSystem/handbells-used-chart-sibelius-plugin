@@ -285,7 +285,7 @@
         // whether the score carries the notehead an SMB column wants is not
         // knowable until the chart asks the score for it.
         if (warning.type = 'missing-notehead') {
-            line = 'SMBs were drawn with plain noteheads because this score has no '
+            line = 'SMBs were drawn as hollow whole notes because this score has no '
                 & JoinNames(warning.names) & ' notehead';
         }
         if (line != '') {
@@ -1033,7 +1033,7 @@
 
     // Nothing else in the run can tell the user this: the plan is built
     // without the score, so only here is it known that the SMB columns are
-    // about to be drawn with a head that is not square.
+    // about to be drawn hollow.
     warnings = CreateSparseArray();
     if (styles.smbs < 0) {
         if (PlanHasKind(sections, 'smbs') = 1) {
@@ -1180,26 +1180,14 @@
     }
 }"
 	DressNote "(note, kind, color, styles) {
-    note.NoteStyle = StemlessNoteStyle;
-    if (kind = 'chimes') {
-        if (styles.chimes >= 0) {
-            note.NoteStyle = styles.chimes;
-        } else {
-            note.NoteStyle = DiamondNoteStyle;
-        }
+    custom = CustomStyle(kind, styles);
+    if (custom >= 0) {
+        note.NoteStyle = custom;
+    } else {
+        note.NoteStyle = FallbackStyle(kind);
     }
-    // Silver melody bells keep the plain stemless head when the score has no
-    // square one, because there is no built-in square to fall back to the way
-    // chimes fall back to a stemmed diamond. That also means an SMB column
-    // never needs the whole notes a chime column does: the head it falls back
-    // to carries no stem already.
-    if (kind = 'smbs') {
-        if (styles.smbs >= 0) {
-            note.NoteStyle = styles.smbs;
-        }
-    }
-    // Out of the chimes branch: every instrument that was given a colour field
-    // is coloured the same way, and one that was not is handed an empty colour.
+    // Every instrument that was given a colour field is coloured the same way,
+    // and one that was not is handed an empty colour.
     if (color != '') {
         note.ColorRed = HexByte(color, 1);
         note.ColorGreen = HexByte(color, 3);
@@ -1225,11 +1213,30 @@
     }
     return index;
 }"
-	ColumnTick "(kind, styles) {
+	CustomStyle "(kind, styles) {
     if (kind = 'chimes') {
-        if (styles.chimes < 0) {
-            return 1024;
-        }
+        return styles.chimes;
+    }
+    if (kind = 'smbs') {
+        return styles.smbs;
+    }
+    return -1;
+}"
+	FallbackStyle "(kind) {
+    if (kind = 'chimes') {
+        return DiamondNoteStyle;
+    }
+    if (kind = 'smbs') {
+        return ShapedNote6NoteStyle;
+    }
+    return StemlessNoteStyle;
+}"
+	ColumnTick "(kind, styles) {
+    if (kind = 'bells') {
+        return 256;
+    }
+    if (CustomStyle(kind, styles) < 0) {
+        return 1024;
     }
     return 256;
 }"

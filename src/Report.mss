@@ -32,7 +32,7 @@ WarningLines(warnings) {
         // whether the score carries the notehead an SMB column wants is not
         // knowable until the chart asks the score for it.
         if (warning.type = 'missing-notehead') {
-            line = 'SMBs were drawn with plain noteheads because this score has no '
+            line = 'SMBs were drawn as hollow whole notes because this score has no '
                 & JoinNames(warning.names) & ' notehead';
         }
         if (line != '') {

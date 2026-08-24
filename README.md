@@ -137,26 +137,21 @@ them:
 3. Name the copy exactly **`Diamond (stemless)`**.
 4. Switch off **Stems** (and **Ledger lines**, if you prefer the published
    look), then click OK.
-5. For SMBs, click **New** again, name it exactly **`Square (stemless)`**,
-   pick a square notehead symbol for it, and switch **Stems** off the same
-   way.
+5. For SMBs, select **Shaped note 6** (the square) and click **New**, name
+   the copy exactly **`Square (stemless)`**, and switch **Stems** off the
+   same way.
 
 The plugin looks each notehead up by name and uses it when it is there. To
 use different names, change `STEMLESS_DIAMOND` and `SQUARE_STEMLESS` in
 `tools/plugins.json` and rebuild.
 
-Without them the plugin still produces a stemless chart, but the two
-instruments degrade differently:
-
-- **Handchimes** fall back to whole notes, which carry no stems at any
-  notehead style. The cost is that a whole note's head is hollow rather than
-  filled, so the chimes read as outlined diamonds.
-- **SMBs** fall back to the same plain stemless head handbells use, because
-  there is no built-in square to fall back to. They stay distinguishable by
-  their colour and their own labelled staff, and the run says so in a
-  warning naming the notehead to make.
-
-Handbells are unaffected either way.
+Without them the plugin still produces a stemless chart: those columns are
+written as whole notes instead, which carry no stems at any notehead style.
+Handchimes fall back to Sibelius' built-in **Diamond** and SMBs to **Shaped
+note 6**, which is the square. The cost is that a whole note's head is hollow
+rather than filled, so those sections read as outlined shapes, and a missing
+square is reported in a warning naming the notehead to make. Handbells are
+unaffected either way.
 
 ## Usage
 

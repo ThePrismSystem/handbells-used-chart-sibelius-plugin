@@ -14,11 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   after the handbells and handchimes. The dropdown opens on `(no notehead)`,
   because nothing in a score suggests which head means an SMB, so a score
   without them charts exactly as it did.
-- SMB columns are drawn with a `Square (stemless)` notehead. Sibelius ships
-  no square head at all, not even a stemmed one to copy, so it has to be
-  made by hand the way `Diamond (stemless)` does; the readme says how.
-  Without it the columns keep the plain stemless head and the run says so,
-  naming the notehead to make.
+- SMB columns are drawn with a `Square (stemless)` notehead, made by hand
+  the way `Diamond (stemless)` is; the readme says how. Without it they fall
+  back to shaped note 6, Sibelius' own square, written as whole notes to
+  lose the stems, exactly as handchimes fall back to the built-in diamond.
+  The run says so and names the notehead to make.
 
 ### Removed
 

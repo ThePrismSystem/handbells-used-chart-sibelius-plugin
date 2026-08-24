@@ -31,4 +31,27 @@ TestNoteHeads() {
     AssertEquals(items[1], 'Normal', 'the score heads follow in the order found');
     AssertEquals(HeadChoiceItems(CreateSparseArray()).Length, 1,
         'a score with no notes still offers the no-notehead entry');
+
+    // Which head a column is actually drawn with. Handbells never need a
+    // hand-made one, because StemlessNoteStyle is in every score.
+    made = CreateDictionary('chimes', 40, 'smbs', 41);
+    AssertEquals(CustomStyle('bells', made), -1, 'handbells have no hand-made head');
+    AssertEquals(CustomStyle('chimes', made), 40, 'handchimes take the hand-made diamond');
+    AssertEquals(CustomStyle('smbs', made), 41, 'SMBs take the hand-made square');
+
+    AssertEquals(FallbackStyle('bells'), StemlessNoteStyle,
+        'handbells fall back to the stemless head');
+    AssertEquals(FallbackStyle('chimes'), DiamondNoteStyle,
+        'handchimes fall back to the built-in diamond');
+    AssertEquals(FallbackStyle('smbs'), ShapedNote6NoteStyle,
+        'SMBs fall back to shaped note 6, which is the square');
+
+    // Both built-in fallbacks carry stems, so a column using one is written
+    // as whole notes to lose them. A hand-made head is stemless already.
+    none = CreateDictionary('chimes', -1, 'smbs', -1);
+    AssertEquals(ColumnTick('bells', none), 256, 'handbell columns are never whole notes');
+    AssertEquals(ColumnTick('chimes', none), 1024, 'a missing diamond means whole notes');
+    AssertEquals(ColumnTick('smbs', none), 1024, 'a missing square means whole notes');
+    AssertEquals(ColumnTick('chimes', made), 256, 'a hand-made diamond keeps quarter notes');
+    AssertEquals(ColumnTick('smbs', made), 256, 'a hand-made square keeps quarter notes');
 }

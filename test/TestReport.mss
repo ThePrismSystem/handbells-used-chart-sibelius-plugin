@@ -56,6 +56,6 @@ TestReport() {
             'names', CreateSparseArray('Square (stemless)'))
     );
     AssertEquals(WarningLines(missing),
-        'SMBs were drawn with plain noteheads because this score has no Square (stemless) notehead',
+        'SMBs were drawn as hollow whole notes because this score has no Square (stemless) notehead',
         'missing notehead line names the notehead to make');
 }
