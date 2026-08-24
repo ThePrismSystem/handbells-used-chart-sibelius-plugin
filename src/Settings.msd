@@ -1,133 +1,31 @@
 _SettingsDialog "Dialog"
 	{
-		Title "Create a Handbells/Handchimes Used Chart"
+		Title "Create a Handbells/Handchimes/SMBs Used Chart"
 		X "333"
 		Y "271"
 		Width "198"
-		Height "203"
+		Height "180"
 		Controls
 		{
 			Text
 			{
-				Title "Handbell Label"
-				X "23"
-				Y "15"
-				Width "52"
+				Title "Handbell Notehead Type"
+				X "22"
+				Y "16"
+				Width "74"
 				Height "14"
 				RightAlign "0"
-				ID "IDC_HANDBELL_LABEL_STATIC"
+				ID "IDC_BELLHEAD_STATIC"
 				Value
 				Method
 				SetFocus "0"
-			}
-			Edit
-			{
-				Title
-				X "99"
-				Y "13"
-				Width "84"
-				Height "14"
-				ID "dlg_bellLabel"
-				Value "dlg_bellLabel"
-				Method
-				SetFocus "0"
-			}
-			Text
-			{
-				Title "Handchime Label"
-				X "23"
-				Y "33"
-				Width "52"
-				Height "14"
-				RightAlign "0"
-				ID "IDC_HANDCHIME_LABEL_STATIC"
-				Value
-				Method
-				SetFocus "0"
-			}
-			Edit
-			{
-				Title
-				X "99"
-				Y "31"
-				Width "83"
-				Height "14"
-				ID "dlg_chimeLabel"
-				Value "dlg_chimeLabel"
-				Method
-				SetFocus "0"
-			}
-			Text
-			{
-				Title "Handchime Color"
-				X "23"
-				Y "52"
-				Width "51"
-				Height "14"
-				RightAlign "0"
-				ID "IDC_HANDCHIME_COLOR_STATIC"
-				Value
-				Method
-				SetFocus "0"
-			}
-			Edit
-			{
-				Title
-				X "99"
-				Y "48"
-				Width "83"
-				Height "14"
-				ID "dlg_chimeColor"
-				Value "dlg_chimeColor"
-				Method
-				SetFocus "0"
-			}
-			CheckBox
-			{
-				Title "Remove Existing Chart"
-				X "75"
-				Y "113"
-				Width "76"
-				Height "14"
-				ID "dlg_remove"
-				Value "dlg_remove"
-				Method
-				SetFocus "0"
-			}
-			Button
-			{
-				Title "OK"
-				X "97"
-				Y "133"
-				Width "50"
-				Height "14"
-				DefaultButton "0"
-				ID "IDC_OK_BUTTON"
-				Value
-				Method
-				SetFocus "0"
-				EndDialog "1"
-			}
-			Button
-			{
-				Title "Cancel"
-				X "28"
-				Y "133"
-				Width "50"
-				Height "14"
-				DefaultButton "0"
-				ID "IDC_CANCEL_BUTTON"
-				Value
-				Method
-				SetFocus "0"
-				EndDialog "0"
 			}
 			ComboBox
 			{
 				Title
-				X "95"
-				Y "66"
-				Width "95"
+				X "98"
+				Y "12"
+				Width "92"
 				Height "21"
 				ListVar "_BellHeadItems"
 				AllowMultipleSelections "0"
@@ -136,12 +34,25 @@ _SettingsDialog "Dialog"
 				Method
 				SetFocus "0"
 			}
+			Text
+			{
+				Title "Handchime Notehead Type"
+				X "22"
+				Y "38"
+				Width "74"
+				Height "14"
+				RightAlign "0"
+				ID "IDC_CHIMEHEAD_STATIC"
+				Value
+				Method
+				SetFocus "0"
+			}
 			ComboBox
 			{
 				Title
-				X "94"
-				Y "85"
-				Width "95"
+				X "98"
+				Y "34"
+				Width "92"
 				Height "21"
 				ListVar "_ChimeHeadItems"
 				AllowMultipleSelections "0"
@@ -152,29 +63,120 @@ _SettingsDialog "Dialog"
 			}
 			Text
 			{
-				Title "Handbell Notehead Type"
+				Title "SMBs Notehead Type"
 				X "22"
-				Y "70"
-				Width "67"
+				Y "60"
+				Width "74"
 				Height "14"
 				RightAlign "0"
-				ID "IDC_HANDBELL_NOTEHEAD_STATIC"
+				ID "IDC_SMBHEAD_STATIC"
 				Value
+				Method
+				SetFocus "0"
+			}
+			ComboBox
+			{
+				Title
+				X "98"
+				Y "56"
+				Width "92"
+				Height "21"
+				ListVar "_SmbHeadItems"
+				AllowMultipleSelections "0"
+				ID "dlg_smbHead"
+				Value "dlg_smbHead"
 				Method
 				SetFocus "0"
 			}
 			Text
 			{
-				Title "Handchime Notehead Type"
+				Title "Handchime Color"
 				X "22"
-				Y "90"
+				Y "86"
 				Width "74"
 				Height "14"
 				RightAlign "0"
-				ID "IDC_HANDCHIME_NOTEHEAD_STATIC"
+				ID "IDC_CHIMECOLOR_STATIC"
 				Value
 				Method
 				SetFocus "0"
+			}
+			Edit
+			{
+				Title
+				X "98"
+				Y "82"
+				Width "92"
+				Height "14"
+				ID "dlg_chimeColor"
+				Value "dlg_chimeColor"
+				Method
+				SetFocus "0"
+			}
+			Text
+			{
+				Title "SMBs Color"
+				X "22"
+				Y "106"
+				Width "74"
+				Height "14"
+				RightAlign "0"
+				ID "IDC_SMBCOLOR_STATIC"
+				Value
+				Method
+				SetFocus "0"
+			}
+			Edit
+			{
+				Title
+				X "98"
+				Y "102"
+				Width "92"
+				Height "14"
+				ID "dlg_smbColor"
+				Value "dlg_smbColor"
+				Method
+				SetFocus "0"
+			}
+			CheckBox
+			{
+				Title "Remove Existing Chart"
+				X "98"
+				Y "124"
+				Width "92"
+				Height "14"
+				ID "dlg_remove"
+				Value "dlg_remove"
+				Method
+				SetFocus "0"
+			}
+			Button
+			{
+				Title "Cancel"
+				X "84"
+				Y "146"
+				Width "50"
+				Height "14"
+				DefaultButton "0"
+				ID "IDC_CANCEL_BUTTON"
+				Value
+				Method
+				SetFocus "0"
+				EndDialog "0"
+			}
+			Button
+			{
+				Title "OK"
+				X "140"
+				Y "146"
+				Width "50"
+				Height "14"
+				DefaultButton "0"
+				ID "IDC_OK_BUTTON"
+				Value
+				Method
+				SetFocus "0"
+				EndDialog "1"
 			}
 		}
 	}

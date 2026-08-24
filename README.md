@@ -15,10 +15,10 @@ to Sibelius. The chart's behaviour is unchanged from that project:
 - No natural sign is ever drawn on the chart. A plain E a few columns along
   from an E flat would otherwise read as picking up a natural and be counted
   as a second, separate bell.
-- Handchimes get a chart of their own. Which notehead means chimes is
-  chosen in the dialog from the noteheads the score actually uses, so an
-  arrangement that marks its chimes some other way charts as readily as one
-  using diamonds.
+- Handchimes and silver melody bells get charts of their own. Which
+  notehead means which instrument is chosen in the dialog from the noteheads
+  the score actually uses, so an arrangement that marks them some other way
+  charts as readily as one using the conventional heads.
 - A bell that also appears an octave or two higher shares its column, so D6,
   D7 and D8 print as one stack rather than three.
 - Running the plugin again on a score that already carries a chart replaces
@@ -86,60 +86,77 @@ The plugin's dialog offers six controls:
 
 | Control | Effect |
 |---|---|
-| Handbell label | Replaces the generated "Handbells Used: *n*" |
-| Handchime label | Replaces the generated "Handchimes Used: *n*" |
-| Handbell notehead | Which notehead in the score counts as a handbell |
-| Handchime notehead | Which notehead in the score counts as a handchime |
+| Handbell notehead type | Which notehead in the score counts as a handbell |
+| Handchime notehead type | Which notehead in the score counts as a handchime |
+| SMBs notehead type | Which notehead in the score counts as a silver melody bell |
 | Handchime colour | Notehead colour for chimes, e.g. `#c00000`; left blank, chimes stay black |
+| SMBs colour | Notehead colour for SMBs, on the same terms |
 | Remove existing chart | Strips the chart instead of generating one |
 
-An unparseable colour leaves the chimes black rather than failing the run.
-Each label counts physical bells, so a bell appearing under two spellings is
-counted once.
+An unparseable colour leaves that section black rather than failing the run.
+
+Section labels are generated: "Handbells Used: *n*", "Handchimes Used: *n*",
+"SMBs Used: *n*". Each counts physical bells, so a bell appearing under two
+spellings is counted once. They are ordinary staff text once the chart is
+drawn, so retype them in the score if you want something else.
 
 ### Choosing the noteheads
 
-Both notehead dropdowns are filled from the open score each time the dialog
-opens: they list the notehead styles the music actually uses, by the name
+All three notehead dropdowns are filled from the open score each time the
+dialog opens: they list the notehead styles the music actually uses, by the name
 Sibelius knows them under, plus a `(no notehead)` entry meaning that
 instrument is not in this piece. An existing chart's own staves are left out
 of the scan, so re-running never offers the chart's noteheads back.
 
 The boxes open on the plain notehead for handbells and the diamond for
 handchimes wherever the score uses them, which is what the plugin assumed
-before these controls existed. Your last choice is remembered between runs
-and wins over that, but only while the score in front of you still uses it.
-A score using neither opens on `(no notehead)` rather than guessing.
+before these controls existed. The SMBs box has no such default, because
+nothing in a score suggests one, so it opens on `(no notehead)` until you
+pick. Your last choice is remembered between runs and wins over the
+defaults, but only while the score in front of you still uses it.
 
-Notes carrying a notehead that is neither choice are skipped and counted in
-the unrecognised-notehead warning, which is what catches a stray head. The
-two choices cannot be the same notehead; the plugin says so and charts
-nothing rather than reading every note as both instruments.
+Notes carrying a notehead none of the three boxes names are skipped and
+counted in the unrecognised-notehead warning, which names the heads it
+skipped so you can see which entry to pick. No two instruments may share a
+notehead: the plugin says which one clashes and charts nothing, rather than
+reading those notes as two instruments at once.
 
-## The handchime notehead
+## The handchime and SMB noteheads
 
 Chart notes carry no stems. Handbells use Sibelius' built-in `Stemless`
-notehead, which every score has. Handchimes need a stemless *diamond*, and
-Sibelius ships no such notehead. Its diamond styles all carry stems, and
-ManuScript cannot create a notehead style, so the plugin cannot make one for
-you.
+notehead, which every score has. Handchimes need a stemless *diamond* and
+SMBs a stemless *square*, and Sibelius ships neither. Its diamond styles all
+carry stems, it has no square notehead at all, and ManuScript cannot create a
+notehead style, so the plugin cannot make either one for you.
 
-Make it once, by hand, and every score you apply that house style to gets it:
+Make them once, by hand, and every score you apply that house style to gets
+them:
 
 1. **Notations → Noteheads → Edit Noteheads**.
 2. Select **Diamond** and click **New**, which starts a copy of it.
 3. Name the copy exactly **`Diamond (stemless)`**.
 4. Switch off **Stems** (and **Ledger lines**, if you prefer the published
    look), then click OK.
+5. For SMBs, click **New** again, name it exactly **`Square (stemless)`**,
+   pick a square notehead symbol for it, and switch **Stems** off the same
+   way.
 
-The plugin looks the notehead up by that name and uses it when it is there.
-To use a different name, change `STEMLESS_DIAMOND` in `tools/plugins.json`
-and rebuild.
+The plugin looks each notehead up by name and uses it when it is there. To
+use different names, change `STEMLESS_DIAMOND` and `SQUARE_STEMLESS` in
+`tools/plugins.json` and rebuild.
 
-Without it, the plugin still produces a stemless chart: chime columns are
-written as whole notes instead, which carry no stems at any notehead style.
-The cost is that a whole note's head is hollow rather than filled, so the
-chimes read as outlined diamonds. Handbells are unaffected either way.
+Without them the plugin still produces a stemless chart, but the two
+instruments degrade differently:
+
+- **Handchimes** fall back to whole notes, which carry no stems at any
+  notehead style. The cost is that a whole note's head is hollow rather than
+  filled, so the chimes read as outlined diamonds.
+- **SMBs** fall back to the same plain stemless head handbells use, because
+  there is no built-in square to fall back to. They stay distinguishable by
+  their colour and their own labelled staff, and the run says so in a
+  warning naming the notehead to make.
+
+Handbells are unaffected either way.
 
 ## Usage
 
@@ -173,10 +190,12 @@ chart into a real score and remove it again.
   macOS-only.
 - Handbells sound an octave above written pitch. Sibelius has no transposing
   handbell instrument, so the plugin applies that octave itself.
-- One notehead per instrument. A score marking its handchimes with two
-  different diamond styles has to be charted twice, or normalised first;
-  notes carrying the head that was not chosen are counted toward the
-  unrecognised-notehead warning.
+- One notehead per instrument, and three instruments at most. A score
+  marking its handchimes with two different diamond styles has to be charted
+  twice, or normalised first; notes carrying the head that was not chosen
+  are counted toward the unrecognised-notehead warning.
+- Handbells take no colour of their own. They are the reference the other
+  two sections are read against, so they are always black.
 - Bells outside C2-C9 are skipped and reported as a warning rather than
   charted.
 - ManuScript has no exception handling. If a run hits a hard error partway

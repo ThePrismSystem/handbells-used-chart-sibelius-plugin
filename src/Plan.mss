@@ -3,12 +3,13 @@ BuildPlan(records, options) {
     sections = CreateSparseArray();
 
     if (collected.bells.Length > 0) {
-        sections.Push(MakeSection('bells', collected.bells,
-            options.bellLabel, 'Handbells Used'));
+        sections.Push(MakeSection('bells', collected.bells, 'Handbells Used'));
     }
     if (collected.chimes.Length > 0) {
-        sections.Push(MakeSection('chimes', collected.chimes,
-            options.chimeLabel, 'Handchimes Used'));
+        sections.Push(MakeSection('chimes', collected.chimes, 'Handchimes Used'));
+    }
+    if (collected.smbs.Length > 0) {
+        sections.Push(MakeSection('smbs', collected.smbs, 'SMBs Used'));
     }
 
     warnings = CreateSparseArray();
@@ -28,19 +29,29 @@ BuildPlan(records, options) {
     return CreateDictionary('sections', sections, 'warnings', warnings);
 }
 
-MakeSection(kind, entries, label, defaultLabel) {
+// The label is generated and nothing overrides it. A dialog field for it was
+// one more thing to fill in for a string that is trivially retyped in the
+// score once the chart is there.
+MakeSection(kind, entries, label) {
     built = BuildColumns(entries);
-    text = label;
-    if (text = '') {
-        text = defaultLabel & ': ' & DistinctPitches(entries);
-    }
     return CreateDictionary(
         'kind', kind,
-        'label', text,
+        'label', label & ': ' & DistinctPitches(entries),
         'columns', built.length,
         'treble', built.treble,
         'bass', built.bass
     );
+}
+
+// 1 or 0 rather than a Boolean, like HeadListed: the result is compared with =
+// and the suite asserts on it.
+PlanHasKind(sections, kind) {
+    for i = 0 to sections.Length {
+        if (sections[i].kind = kind) {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 // The label counts physical bells, so two spellings of one pitch count once.

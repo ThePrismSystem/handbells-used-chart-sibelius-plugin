@@ -3,8 +3,8 @@
 // only because a dialog blocks a headless batch run; Sibelius has no headless
 // mode, so that constraint does not apply here.
 ReadOptions(score) {
-    // The two notehead dropdowns are filled from the open score, so this has
-    // to run before the dialog is shown rather than being fixed at build time.
+    // The notehead dropdowns are filled from the open score, so this has to
+    // run before the dialog is shown rather than being fixed at build time.
     choices = ScoreHeadChoices(score);
     items = HeadChoiceItems(choices.names);
 
@@ -16,31 +16,59 @@ ReadOptions(score) {
     // variable a fresh CreateArray, then subscript that variable directly.
     // Building the array first and assigning it afterwards is untested and not
     // what the example does, so it is not what this does either.
-    // Two arrays rather than one shared between the boxes, because these are
+    // One array per box rather than one shared between them, because these are
     // the plug-in's own global nodes and nothing documents what handing the
-    // same node to two controls means.
+    // same node to several controls means.
     _BellHeadItems = CreateArray();
     _ChimeHeadItems = CreateArray();
+    _SmbHeadItems = CreateArray();
     for i = 0 to items.Length {
         name = items[i];
         _BellHeadItems[i] = name;
         _ChimeHeadItems[i] = name;
+        _SmbHeadItems[i] = name;
     }
     dlg_bellHead = PreferredHead(choices.names, '' & dlg_bellHead, choices.defaultBell);
     dlg_chimeHead = PreferredHead(choices.names, '' & dlg_chimeHead, choices.defaultChime);
+    // No fallback of its own: nothing in a score says which notehead means a
+    // silver melody bell the way a plain head means a handbell, so an
+    // unremembered SMB box opens on no notehead rather than on a guess.
+    dlg_smbHead = PreferredHead(choices.names, '' & dlg_smbHead, '');
 
     if (not(Sibelius.ShowDialog(_SettingsDialog, self))) {
         return null;
     }
 
     return CreateDictionary(
-        'bellLabel', Trim(dlg_bellLabel),
-        'chimeLabel', Trim(dlg_chimeLabel),
         'chimeColor', UsableColor(dlg_chimeColor),
+        'smbColor', UsableColor(dlg_smbColor),
         'bellHead', Trim(dlg_bellHead),
         'chimeHead', Trim(dlg_chimeHead),
+        'smbHead', Trim(dlg_smbHead),
         'remove', ('' & dlg_remove) = '1'
     );
+}
+
+// The notehead two instruments share, or '' when they share none. Two
+// instruments cannot use one head: every note carrying it would belong to
+// both, and charting each of them twice is not a reading worth guessing at.
+// The no-notehead entry is exempt, because any number of instruments may be
+// absent from a piece.
+DuplicateHead(options) {
+    heads = CreateSparseArray(options.bellHead, options.chimeHead, options.smbHead);
+    for i = 0 to heads.Length {
+        head = '' & heads[i];
+        if (head != '') {
+            if (head != NoNoteHead()) {
+                for j = i + 1 to heads.Length {
+                    if (heads[j] = head) {
+                        return head;
+                    }
+                }
+            }
+        }
+    }
+    return '';
 }
 
 // Trimmed and given its '#' first. The value is whatever a user typed, so

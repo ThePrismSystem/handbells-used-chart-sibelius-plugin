@@ -44,12 +44,16 @@ TestBuildChart() {
 
     records = ReadScoreNotes(score);
     choices = ScoreHeadChoices(score);
-    options = CreateDictionary('bellLabel', '', 'chimeLabel', '', 'chimeColor', '',
-        'bellHead', choices.defaultBell, 'chimeHead', choices.defaultChime);
+    options = CreateDictionary('chimeColor', '', 'smbColor', '',
+        'bellHead', choices.defaultBell, 'chimeHead', choices.defaultChime,
+        'smbHead', NoNoteHead());
     plan = BuildPlan(records, options);
     result = BuildChart(score, plan, options);
 
     AssertTrue(result.ok, 'build reported success: ' & result.error);
+    // A score with no SMB section cannot want the square notehead, so nothing
+    // should be warning about one.
+    AssertEquals(result.warnings.Length, 0, 'a chart with no SMBs warns about nothing');
     AssertEquals(score.StaffCount, staffCountBefore + (plan.sections.Length * 2),
         'two staves added per section');
     AssertEquals(score.NthStaff(1).BarCount, barCountBefore + plan.sections.Length,

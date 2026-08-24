@@ -38,7 +38,8 @@ Diagnose() {
         }
         b = b + 1;
     }
-    trace('[stemless diamond] lookup = ' & StemlessDiamondStyle(score));
+    trace('[stemless diamond] lookup = ' & NamedNoteStyle(score, StemlessDiamondName()));
+    trace('[stemless square] lookup = ' & NamedNoteStyle(score, SquareStemlessName()));
 
     // Whether a moved item ended up on the page at all. A system text item that
     // survived removal but sits off the top has a large negative dy here.

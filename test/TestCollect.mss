@@ -16,7 +16,8 @@ TestCollect() {
         CreateDictionary('pitch', 74, 'diatonic', 36, 'head', 'Cross'),
         CreateDictionary('pitch', 12, 'diatonic', 0, 'head', 'Normal')
     );
-    options = CreateDictionary('bellHead', 'Normal', 'chimeHead', 'Diamond');
+    options = CreateDictionary('bellHead', 'Normal', 'chimeHead', 'Diamond',
+        'smbHead', NoNoteHead());
     got = CollectBells(records, options);
 
     AssertEquals(got.bells.Length, 3, 'three distinct bells');
@@ -40,14 +41,16 @@ TestCollect() {
         CreateDictionary('pitch', 72, 'diatonic', 35, 'head', 'Normal'),
         CreateDictionary('pitch', 74, 'diatonic', 36, 'head', 'Cross')
     );
-    chosen = CollectBells(custom, CreateDictionary('bellHead', 'Normal', 'chimeHead', 'Cross'));
+    chosen = CollectBells(custom, CreateDictionary('bellHead', 'Normal', 'chimeHead', 'Cross',
+        'smbHead', NoNoteHead()));
     AssertEquals(chosen.chimes.Length, 1, 'a chosen chime head is charted as chimes');
     AssertEquals(chosen.chimes[0].name, 'D5', 'chosen chime head name');
     AssertEquals(chosen.unknown, 0, 'a chosen chime head is not unrecognised');
 
     // Bells are chosen too, so a score whose bells are not the plain head
     // charts as well. The head that is no longer chosen becomes unrecognised.
-    swapped = CollectBells(custom, CreateDictionary('bellHead', 'Cross', 'chimeHead', 'Diamond'));
+    swapped = CollectBells(custom, CreateDictionary('bellHead', 'Cross', 'chimeHead', 'Diamond',
+        'smbHead', NoNoteHead()));
     AssertEquals(swapped.bells.Length, 1, 'a chosen bell head is charted as bells');
     AssertEquals(swapped.bells[0].name, 'D5', 'chosen bell head name');
     AssertEquals(swapped.unknown, 1, 'the unchosen head is now unrecognised');
@@ -60,7 +63,8 @@ TestCollect() {
         CreateDictionary('pitch', 74, 'diatonic', 36, 'head', 'Cross'),
         CreateDictionary('pitch', 76, 'diatonic', 37, 'head', 'Slashed')
     );
-    twice = CollectBells(repeated, CreateDictionary('bellHead', 'Normal', 'chimeHead', 'Diamond'));
+    twice = CollectBells(repeated, CreateDictionary('bellHead', 'Normal', 'chimeHead', 'Diamond',
+        'smbHead', NoNoteHead()));
     AssertEquals(twice.unknown, 3, 'every unrecognised note is counted');
     AssertEquals(twice.unknownNames.Length, 2, 'each unrecognised head is named once');
 
@@ -69,7 +73,7 @@ TestCollect() {
     blank = CreateSparseArray(
         CreateDictionary('pitch', 72, 'diatonic', 35, 'head', '')
     );
-    none = CollectBells(blank, CreateDictionary('bellHead', '', 'chimeHead', ''));
+    none = CollectBells(blank, CreateDictionary('bellHead', '', 'chimeHead', '', 'smbHead', ''));
     AssertEquals(none.bells.Length, 0, 'an empty bell choice matches nothing');
     AssertEquals(none.chimes.Length, 0, 'an empty chime choice matches nothing');
     AssertEquals(none.unknown, 1, 'an unmatched note is counted as unrecognised');
@@ -81,7 +85,25 @@ TestCollect() {
     // it opens with the chime box on the no-notehead entry, which has to chart
     // the bells and claim none of them as chimes.
     bellsOnly = CollectBells(custom,
-        CreateDictionary('bellHead', 'Normal', 'chimeHead', NoNoteHead()));
+        CreateDictionary('bellHead', 'Normal', 'chimeHead', NoNoteHead(), 'smbHead', NoNoteHead()));
     AssertEquals(bellsOnly.bells.Length, 1, 'no notehead chosen for chimes still charts bells');
     AssertEquals(bellsOnly.chimes.Length, 0, 'no notehead chosen for chimes charts no chimes');
+    AssertEquals(bellsOnly.smbs.Length, 0, 'no notehead chosen for SMBs charts no SMBs');
+
+    // Silver melody bells are a third instrument read the same way as the two
+    // before them: a head of their own, counted and sorted like the rest.
+    three = CreateSparseArray(
+        CreateDictionary('pitch', 72, 'diatonic', 35, 'head', 'Normal'),
+        CreateDictionary('pitch', 74, 'diatonic', 36, 'head', 'Diamond'),
+        CreateDictionary('pitch', 79, 'diatonic', 38, 'head', 'Cross'),
+        CreateDictionary('pitch', 76, 'diatonic', 37, 'head', 'Cross')
+    );
+    all3 = CollectBells(three, CreateDictionary('bellHead', 'Normal',
+        'chimeHead', 'Diamond', 'smbHead', 'Cross'));
+    AssertEquals(all3.bells.Length, 1, 'bells alongside two other instruments');
+    AssertEquals(all3.chimes.Length, 1, 'chimes alongside two other instruments');
+    AssertEquals(all3.smbs.Length, 2, 'two distinct SMBs');
+    AssertEquals(all3.smbs[0].name, 'E5', 'SMBs sort by pitch like the rest');
+    AssertEquals(all3.smbs[1].name, 'G5', 'SMBs sort by pitch like the rest');
+    AssertEquals(all3.unknown, 0, 'a third chosen head leaves nothing unrecognised');
 }

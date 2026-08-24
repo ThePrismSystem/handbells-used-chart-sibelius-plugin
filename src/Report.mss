@@ -7,10 +7,10 @@ ReportSay(kind, text) {
 // unrecognised as the out-of-range case: that shape reads names on a warning
 // that carries none, and a new type would take the whole run down inside the
 // code meant to explain a problem.
-WarningLines(plan) {
+WarningLines(warnings) {
     lines = '';
-    for i = 0 to plan.warnings.Length {
-        warning = plan.warnings[i];
+    for i = 0 to warnings.Length {
+        warning = warnings[i];
         line = '';
         if (warning.type = 'unknown-notehead') {
             line = warning.count & ' note(s) with an unrecognised notehead were skipped';
@@ -27,6 +27,13 @@ WarningLines(plan) {
         }
         if (warning.type = 'out-of-range') {
             line = 'Bells outside C2-C9 were skipped: ' & JoinNames(warning.names);
+        }
+        // The only warning raised while drawing rather than while planning:
+        // whether the score carries the notehead an SMB column wants is not
+        // knowable until the chart asks the score for it.
+        if (warning.type = 'missing-notehead') {
+            line = 'SMBs were drawn with plain noteheads because this score has no '
+                & JoinNames(warning.names) & ' notehead';
         }
         if (line != '') {
             if (lines != '') {

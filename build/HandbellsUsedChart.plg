@@ -13,6 +13,9 @@
 	StemlessDiamondName "() {
     return '' & STEMLESS_DIAMOND;
 }"
+	SquareStemlessName "() {
+    return '' & SQUARE_STEMLESS;
+}"
 	NoNoteHead "() {
     return '' & NO_NOTEHEAD;
 }"
@@ -71,16 +74,14 @@
 }"
 	ChartScore "(score, options) {
     // Ahead of the removal, so a score that would chart nothing useful keeps
-    // the chart it has. One notehead cannot be both instruments, and charting
-    // every note twice is not a reading worth guessing at. Both boxes left on
-    // the no-notehead entry is not that case; it charts nothing and says so.
-    // A removal run never reads a note, so the choice cannot block it.
+    // the chart it has. A removal run never reads a note, so the choice of
+    // noteheads cannot block one.
     if (not(options.remove)) {
-        if (options.bellHead != NoNoteHead()) {
-            if (options.bellHead = options.chimeHead) {
-                return CreateDictionary('ok', False, 'kind', 'error',
-                    'text', '' & _SameNoteheadChosen);
-            }
+        duplicate = DuplicateHead(options);
+        if (duplicate != '') {
+            return CreateDictionary('ok', False, 'kind', 'error',
+                'text', ('More than one instrument is set to the ' & duplicate)
+                    & (' notehead. ' & _SameNoteheadChosen));
         }
     }
 
@@ -107,15 +108,14 @@
     // not reported after it. A score whose only bells lie outside C2-C9 plans
     // no sections at all, and being told 'no handbells were found' is both
     // wrong and useless when the run knows exactly which bells it skipped.
-    warnings = WarningLines(plan);
-
     if (plan.sections.Length = 0) {
         text = '' & _NoBellsFound;
         if (removal.removed) {
             text = text & ('\n\n' & _ChartWasRemoved);
         }
-        if (warnings != '') {
-            text = (warnings & '\n\n') & text;
+        lines = WarningLines(plan.warnings);
+        if (lines != '') {
+            text = (lines & '\n\n') & text;
         }
         return CreateDictionary('ok', False, 'kind', 'warning', 'text', text);
     }
@@ -124,6 +124,15 @@
     if (not(result.ok)) {
         return CreateDictionary('ok', False, 'kind', 'error', 'text', result.error);
     }
+
+    // The chart's own warnings join the plan's. Whether the score carries the
+    // notehead an SMB column wants is only discovered while drawing, so a
+    // planning-time list alone would leave that one unreported.
+    warnings = plan.warnings;
+    for i = 0 to result.warnings.Length {
+        warnings.Push(result.warnings[i]);
+    }
+    lines = WarningLines(warnings);
 
     summary = '';
     for i = 0 to plan.sections.Length {
@@ -135,15 +144,15 @@
     if (removal.removed) {
         summary = summary & ('\n\n' & _ChartWasReplaced);
     }
-    if (warnings != '') {
-        summary = (warnings & '\n\n') & summary;
+    if (lines != '') {
+        summary = (lines & '\n\n') & summary;
     }
 
     return CreateDictionary('ok', True, 'kind', 'info', 'text', summary);
 }"
 	ReadOptions "(score) {
-    // The two notehead dropdowns are filled from the open score, so this has
-    // to run before the dialog is shown rather than being fixed at build time.
+    // The notehead dropdowns are filled from the open score, so this has to
+    // run before the dialog is shown rather than being fixed at build time.
     choices = ScoreHeadChoices(score);
     items = HeadChoiceItems(choices.names);
 
@@ -155,31 +164,53 @@
     // variable a fresh CreateArray, then subscript that variable directly.
     // Building the array first and assigning it afterwards is untested and not
     // what the example does, so it is not what this does either.
-    // Two arrays rather than one shared between the boxes, because these are
+    // One array per box rather than one shared between them, because these are
     // the plug-in's own global nodes and nothing documents what handing the
-    // same node to two controls means.
+    // same node to several controls means.
     _BellHeadItems = CreateArray();
     _ChimeHeadItems = CreateArray();
+    _SmbHeadItems = CreateArray();
     for i = 0 to items.Length {
         name = items[i];
         _BellHeadItems[i] = name;
         _ChimeHeadItems[i] = name;
+        _SmbHeadItems[i] = name;
     }
     dlg_bellHead = PreferredHead(choices.names, '' & dlg_bellHead, choices.defaultBell);
     dlg_chimeHead = PreferredHead(choices.names, '' & dlg_chimeHead, choices.defaultChime);
+    // No fallback of its own: nothing in a score says which notehead means a
+    // silver melody bell the way a plain head means a handbell, so an
+    // unremembered SMB box opens on no notehead rather than on a guess.
+    dlg_smbHead = PreferredHead(choices.names, '' & dlg_smbHead, '');
 
     if (not(Sibelius.ShowDialog(_SettingsDialog, self))) {
         return null;
     }
 
     return CreateDictionary(
-        'bellLabel', Trim(dlg_bellLabel),
-        'chimeLabel', Trim(dlg_chimeLabel),
         'chimeColor', UsableColor(dlg_chimeColor),
+        'smbColor', UsableColor(dlg_smbColor),
         'bellHead', Trim(dlg_bellHead),
         'chimeHead', Trim(dlg_chimeHead),
+        'smbHead', Trim(dlg_smbHead),
         'remove', ('' & dlg_remove) = '1'
     );
+}"
+	DuplicateHead "(options) {
+    heads = CreateSparseArray(options.bellHead, options.chimeHead, options.smbHead);
+    for i = 0 to heads.Length {
+        head = '' & heads[i];
+        if (head != '') {
+            if (head != NoNoteHead()) {
+                for j = i + 1 to heads.Length {
+                    if (heads[j] = head) {
+                        return head;
+                    }
+                }
+            }
+        }
+    }
+    return '';
 }"
 	UsableColor "(value) {
     text = Trim(value);
@@ -229,10 +260,10 @@
     trace('Handbells Used Chart [' & kind & '] ' & text);
     Sibelius.MessageBox(text);
 }"
-	WarningLines "(plan) {
+	WarningLines "(warnings) {
     lines = '';
-    for i = 0 to plan.warnings.Length {
-        warning = plan.warnings[i];
+    for i = 0 to warnings.Length {
+        warning = warnings[i];
         line = '';
         if (warning.type = 'unknown-notehead') {
             line = warning.count & ' note(s) with an unrecognised notehead were skipped';
@@ -249,6 +280,13 @@
         }
         if (warning.type = 'out-of-range') {
             line = 'Bells outside C2-C9 were skipped: ' & JoinNames(warning.names);
+        }
+        // The only warning raised while drawing rather than while planning:
+        // whether the score carries the notehead an SMB column wants is not
+        // knowable until the chart asks the score for it.
+        if (warning.type = 'missing-notehead') {
+            line = 'SMBs were drawn with plain noteheads because this score has no '
+                & JoinNames(warning.names) & ' notehead';
         }
         if (line != '') {
             if (lines != '') {
@@ -358,8 +396,10 @@
 	CollectBells "(records, options) {
     bells = CreateSparseArray();
     chimes = CreateSparseArray();
+    smbs = CreateSparseArray();
     seenBell = CreateDictionary();
     seenChime = CreateDictionary();
+    seenSmb = CreateDictionary();
     outOfRange = CreateSparseArray();
     seenOutOfRange = CreateDictionary();
     unknownNames = CreateSparseArray();
@@ -371,11 +411,15 @@
     // so a score charted as bells only needs no special case below.
     bellHead = '' & options.bellHead;
     chimeHead = '' & options.chimeHead;
+    smbHead = '' & options.smbHead;
     if (bellHead = NoNoteHead()) {
         bellHead = '';
     }
     if (chimeHead = NoNoteHead()) {
         chimeHead = '';
+    }
+    if (smbHead = NoNoteHead()) {
+        smbHead = '';
     }
 
     for i = 0 to records.Length {
@@ -406,6 +450,9 @@
             if (chimeHead != '') {
                 if (record.head = chimeHead) { kind = 'chimes'; }
             }
+            if (smbHead != '') {
+                if (record.head = smbHead) { kind = 'smbs'; }
+            }
 
             if (kind = '') {
                 unknown = unknown + 1;
@@ -435,23 +482,13 @@
                 } else {
                     key = record.pitch & ':' & record.diatonic;
                     if (kind = 'bells') {
-                        if (seenBell[key] = null) {
-                            bell._property:region = region;
-                            bell._property:count = 0;
-                            seenBell[key] = bell;
-                            bells.Push(bell);
-                        }
-                        found = seenBell[key];
-                        found.count = found.count + 1;
-                    } else {
-                        if (seenChime[key] = null) {
-                            bell._property:region = region;
-                            bell._property:count = 0;
-                            seenChime[key] = bell;
-                            chimes.Push(bell);
-                        }
-                        found = seenChime[key];
-                        found.count = found.count + 1;
+                        RecordBell(bells, seenBell, key, bell, region);
+                    }
+                    if (kind = 'chimes') {
+                        RecordBell(chimes, seenChime, key, bell, region);
+                    }
+                    if (kind = 'smbs') {
+                        RecordBell(smbs, seenSmb, key, bell, region);
                     }
                 }
             }
@@ -463,11 +500,23 @@
     return CreateDictionary(
         'bells', SortBells(bells),
         'chimes', SortBells(chimes),
+        'smbs', SortBells(smbs),
         'unknown', unknown,
         'unknownNames', unknownNames,
         'unreadable', unreadable,
         'outOfRange', outOfRange
     );
+}"
+	RecordBell "(list, seen, key, bell, region) {
+    if (seen[key] = null) {
+        bell._property:region = region;
+        bell._property:count = 0;
+        seen[key] = bell;
+        list.Push(bell);
+    }
+    found = seen[key];
+    found.count = found.count + 1;
+    return True;
 }"
 	SortBells "(list) {
     // ManuScript raises 'End value is not greater than the start value in a for
@@ -671,12 +720,13 @@
     sections = CreateSparseArray();
 
     if (collected.bells.Length > 0) {
-        sections.Push(MakeSection('bells', collected.bells,
-            options.bellLabel, 'Handbells Used'));
+        sections.Push(MakeSection('bells', collected.bells, 'Handbells Used'));
     }
     if (collected.chimes.Length > 0) {
-        sections.Push(MakeSection('chimes', collected.chimes,
-            options.chimeLabel, 'Handchimes Used'));
+        sections.Push(MakeSection('chimes', collected.chimes, 'Handchimes Used'));
+    }
+    if (collected.smbs.Length > 0) {
+        sections.Push(MakeSection('smbs', collected.smbs, 'SMBs Used'));
     }
 
     warnings = CreateSparseArray();
@@ -695,19 +745,23 @@
 
     return CreateDictionary('sections', sections, 'warnings', warnings);
 }"
-	MakeSection "(kind, entries, label, defaultLabel) {
+	MakeSection "(kind, entries, label) {
     built = BuildColumns(entries);
-    text = label;
-    if (text = '') {
-        text = defaultLabel & ': ' & DistinctPitches(entries);
-    }
     return CreateDictionary(
         'kind', kind,
-        'label', text,
+        'label', label & ': ' & DistinctPitches(entries),
         'columns', built.length,
         'treble', built.treble,
         'bass', built.bass
     );
+}"
+	PlanHasKind "(sections, kind) {
+    for i = 0 to sections.Length {
+        if (sections[i].kind = kind) {
+            return 1;
+        }
+    }
+    return 0;
 }"
 	DistinctPitches "(entries) {
     seen = CreateDictionary();
@@ -972,14 +1026,27 @@
     //    the score's ordinary metre, and a chart with more columns than the
     //    metre allows would spill into the piece's own bars.
     // Whether the stemless diamond exists decides how long a chime column is,
-    // so it is settled before a single bar is sized.
-    chimeStyle = StemlessDiamondStyle(score);
+    // so both hand-made noteheads are looked up before a single bar is sized.
+    styles = CreateDictionary(
+        'chimes', NamedNoteStyle(score, StemlessDiamondName()),
+        'smbs', NamedNoteStyle(score, SquareStemlessName()));
+
+    // Nothing else in the run can tell the user this: the plan is built
+    // without the score, so only here is it known that the SMB columns are
+    // about to be drawn with a head that is not square.
+    warnings = CreateSparseArray();
+    if (styles.smbs < 0) {
+        if (PlanHasKind(sections, 'smbs') = 1) {
+            warnings.Push(CreateDictionary('type', 'missing-notehead', 'count', 0,
+                'names', CreateSparseArray(SquareStemlessName())));
+        }
+    }
 
     barsBefore = score.NthStaff(1).BarCount;
     columnsArray = CreateSparseArray();
     for i = 0 to sections.Length {
         columnsArray.Push(sections[i].columns);
-        tick = ColumnTick(sections[i].kind, chimeStyle);
+        tick = ColumnTick(sections[i].kind, styles);
         score.InsertBars(1, i + 1, sections[i].columns * tick);
     }
     if (score.NthStaff(1).BarCount != (barsBefore + sections.Length)) {
@@ -1026,15 +1093,12 @@
 
     // 4. Columns.
     for i = 0 to sections.Length {
-        color = '';
-        if (sections[i].kind = 'chimes') {
-            color = options.chimeColor;
-        }
-        tick = ColumnTick(sections[i].kind, chimeStyle);
+        color = SectionColor(sections[i].kind, options);
+        tick = ColumnTick(sections[i].kind, styles);
         WriteColumns(trebleStaves[i], i + 1, sections[i].treble,
-            sections[i].kind, color, chimeStyle, tick);
+            sections[i].kind, color, styles, tick);
         WriteColumns(bassStaves[i], i + 1, sections[i].bass,
-            sections[i].kind, color, chimeStyle, tick);
+            sections[i].kind, color, styles, tick);
     }
 
     // 5. Hide the structural furniture across every staff in the chart bars.
@@ -1078,13 +1142,22 @@
 
     RestoreTimeSignature(score, metre, sections.Length);
 
-    return CreateDictionary('ok', True, 'error', '');
+    return CreateDictionary('ok', True, 'error', '', 'warnings', warnings);
+}"
+	SectionColor "(kind, options) {
+    if (kind = 'chimes') {
+        return '' & options.chimeColor;
+    }
+    if (kind = 'smbs') {
+        return '' & options.smbColor;
+    }
+    return '';
 }"
 	BuildFailure "(message) {
-    return CreateDictionary('ok', False, 'error', message
+    return CreateDictionary('ok', False, 'warnings', CreateSparseArray(), 'error', message
         & ' Delete the chart staves and their bars in Sibelius, then run this again.');
 }"
-	WriteColumns "(staff, barNumber, columns, kind, color, chimeStyle, tick) {
+	WriteColumns "(staff, barNumber, columns, kind, color, styles, tick) {
     bar = staff.NthBar(barNumber);
     for c = 0 to columns.Length {
         notes = columns[c];
@@ -1101,24 +1174,36 @@
 
         if (IsObject(chord)) {
             for each n in chord {
-                DressNote(n, kind, color, chimeStyle);
+                DressNote(n, kind, color, styles);
             }
         }
     }
 }"
-	DressNote "(note, kind, color, chimeStyle) {
+	DressNote "(note, kind, color, styles) {
     note.NoteStyle = StemlessNoteStyle;
     if (kind = 'chimes') {
-        if (chimeStyle >= 0) {
-            note.NoteStyle = chimeStyle;
+        if (styles.chimes >= 0) {
+            note.NoteStyle = styles.chimes;
         } else {
             note.NoteStyle = DiamondNoteStyle;
         }
-        if (color != '') {
-            note.ColorRed = HexByte(color, 1);
-            note.ColorGreen = HexByte(color, 3);
-            note.ColorBlue = HexByte(color, 5);
+    }
+    // Silver melody bells keep the plain stemless head when the score has no
+    // square one, because there is no built-in square to fall back to the way
+    // chimes fall back to a stemmed diamond. That also means an SMB column
+    // never needs the whole notes a chime column does: the head it falls back
+    // to carries no stem already.
+    if (kind = 'smbs') {
+        if (styles.smbs >= 0) {
+            note.NoteStyle = styles.smbs;
         }
+    }
+    // Out of the chimes branch: every instrument that was given a colour field
+    // is coloured the same way, and one that was not is handed an empty colour.
+    if (color != '') {
+        note.ColorRed = HexByte(color, 1);
+        note.ColorGreen = HexByte(color, 3);
+        note.ColorBlue = HexByte(color, 5);
     }
     // A chart is an inventory of the bells a piece needs, so no natural sign
     // belongs on one. Sibelius prints one whenever a plain letter follows an
@@ -1128,8 +1213,8 @@
         note.AccidentalStyle = HiddenAcc;
     }
 }"
-	StemlessDiamondStyle "(score) {
-    index = score.NoteStyleIndex(StemlessDiamondName());
+	NamedNoteStyle "(score, name) {
+    index = score.NoteStyleIndex(name);
     // An absent style comes back as an empty string on some builds and as a
     // negative index on others, so both are read as absent.
     if (not(utils.IsNumeric('' & index, True))) {
@@ -1140,9 +1225,9 @@
     }
     return index;
 }"
-	ColumnTick "(kind, chimeStyle) {
+	ColumnTick "(kind, styles) {
     if (kind = 'chimes') {
-        if (chimeStyle < 0) {
+        if (styles.chimes < 0) {
             return 1024;
         }
     }
@@ -1444,134 +1529,32 @@
 }"
 _SettingsDialog "Dialog"
 	{
-		Title "Create a Handbells/Handchimes Used Chart"
+		Title "Create a Handbells/Handchimes/SMBs Used Chart"
 		X "333"
 		Y "271"
 		Width "198"
-		Height "203"
+		Height "180"
 		Controls
 		{
 			Text
 			{
-				Title "Handbell Label"
-				X "23"
-				Y "15"
-				Width "52"
+				Title "Handbell Notehead Type"
+				X "22"
+				Y "16"
+				Width "74"
 				Height "14"
 				RightAlign "0"
-				ID "IDC_HANDBELL_LABEL_STATIC"
+				ID "IDC_BELLHEAD_STATIC"
 				Value
 				Method
 				SetFocus "0"
-			}
-			Edit
-			{
-				Title
-				X "99"
-				Y "13"
-				Width "84"
-				Height "14"
-				ID "dlg_bellLabel"
-				Value "dlg_bellLabel"
-				Method
-				SetFocus "0"
-			}
-			Text
-			{
-				Title "Handchime Label"
-				X "23"
-				Y "33"
-				Width "52"
-				Height "14"
-				RightAlign "0"
-				ID "IDC_HANDCHIME_LABEL_STATIC"
-				Value
-				Method
-				SetFocus "0"
-			}
-			Edit
-			{
-				Title
-				X "99"
-				Y "31"
-				Width "83"
-				Height "14"
-				ID "dlg_chimeLabel"
-				Value "dlg_chimeLabel"
-				Method
-				SetFocus "0"
-			}
-			Text
-			{
-				Title "Handchime Color"
-				X "23"
-				Y "52"
-				Width "51"
-				Height "14"
-				RightAlign "0"
-				ID "IDC_HANDCHIME_COLOR_STATIC"
-				Value
-				Method
-				SetFocus "0"
-			}
-			Edit
-			{
-				Title
-				X "99"
-				Y "48"
-				Width "83"
-				Height "14"
-				ID "dlg_chimeColor"
-				Value "dlg_chimeColor"
-				Method
-				SetFocus "0"
-			}
-			CheckBox
-			{
-				Title "Remove Existing Chart"
-				X "75"
-				Y "113"
-				Width "76"
-				Height "14"
-				ID "dlg_remove"
-				Value "dlg_remove"
-				Method
-				SetFocus "0"
-			}
-			Button
-			{
-				Title "OK"
-				X "97"
-				Y "133"
-				Width "50"
-				Height "14"
-				DefaultButton "0"
-				ID "IDC_OK_BUTTON"
-				Value
-				Method
-				SetFocus "0"
-				EndDialog "1"
-			}
-			Button
-			{
-				Title "Cancel"
-				X "28"
-				Y "133"
-				Width "50"
-				Height "14"
-				DefaultButton "0"
-				ID "IDC_CANCEL_BUTTON"
-				Value
-				Method
-				SetFocus "0"
-				EndDialog "0"
 			}
 			ComboBox
 			{
 				Title
-				X "95"
-				Y "66"
-				Width "95"
+				X "98"
+				Y "12"
+				Width "92"
 				Height "21"
 				ListVar "_BellHeadItems"
 				AllowMultipleSelections "0"
@@ -1580,12 +1563,25 @@ _SettingsDialog "Dialog"
 				Method
 				SetFocus "0"
 			}
+			Text
+			{
+				Title "Handchime Notehead Type"
+				X "22"
+				Y "38"
+				Width "74"
+				Height "14"
+				RightAlign "0"
+				ID "IDC_CHIMEHEAD_STATIC"
+				Value
+				Method
+				SetFocus "0"
+			}
 			ComboBox
 			{
 				Title
-				X "94"
-				Y "85"
-				Width "95"
+				X "98"
+				Y "34"
+				Width "92"
 				Height "21"
 				ListVar "_ChimeHeadItems"
 				AllowMultipleSelections "0"
@@ -1596,29 +1592,120 @@ _SettingsDialog "Dialog"
 			}
 			Text
 			{
-				Title "Handbell Notehead Type"
+				Title "SMBs Notehead Type"
 				X "22"
-				Y "70"
-				Width "67"
+				Y "60"
+				Width "74"
 				Height "14"
 				RightAlign "0"
-				ID "IDC_HANDBELL_NOTEHEAD_STATIC"
+				ID "IDC_SMBHEAD_STATIC"
 				Value
+				Method
+				SetFocus "0"
+			}
+			ComboBox
+			{
+				Title
+				X "98"
+				Y "56"
+				Width "92"
+				Height "21"
+				ListVar "_SmbHeadItems"
+				AllowMultipleSelections "0"
+				ID "dlg_smbHead"
+				Value "dlg_smbHead"
 				Method
 				SetFocus "0"
 			}
 			Text
 			{
-				Title "Handchime Notehead Type"
+				Title "Handchime Color"
 				X "22"
-				Y "90"
+				Y "86"
 				Width "74"
 				Height "14"
 				RightAlign "0"
-				ID "IDC_HANDCHIME_NOTEHEAD_STATIC"
+				ID "IDC_CHIMECOLOR_STATIC"
 				Value
 				Method
 				SetFocus "0"
+			}
+			Edit
+			{
+				Title
+				X "98"
+				Y "82"
+				Width "92"
+				Height "14"
+				ID "dlg_chimeColor"
+				Value "dlg_chimeColor"
+				Method
+				SetFocus "0"
+			}
+			Text
+			{
+				Title "SMBs Color"
+				X "22"
+				Y "106"
+				Width "74"
+				Height "14"
+				RightAlign "0"
+				ID "IDC_SMBCOLOR_STATIC"
+				Value
+				Method
+				SetFocus "0"
+			}
+			Edit
+			{
+				Title
+				X "98"
+				Y "102"
+				Width "92"
+				Height "14"
+				ID "dlg_smbColor"
+				Value "dlg_smbColor"
+				Method
+				SetFocus "0"
+			}
+			CheckBox
+			{
+				Title "Remove Existing Chart"
+				X "98"
+				Y "124"
+				Width "92"
+				Height "14"
+				ID "dlg_remove"
+				Value "dlg_remove"
+				Method
+				SetFocus "0"
+			}
+			Button
+			{
+				Title "Cancel"
+				X "84"
+				Y "146"
+				Width "50"
+				Height "14"
+				DefaultButton "0"
+				ID "IDC_CANCEL_BUTTON"
+				Value
+				Method
+				SetFocus "0"
+				EndDialog "0"
+			}
+			Button
+			{
+				Title "OK"
+				X "140"
+				Y "146"
+				Width "50"
+				Height "14"
+				DefaultButton "0"
+				ID "IDC_OK_BUTTON"
+				Value
+				Method
+				SetFocus "0"
+				EndDialog "1"
 			}
 		}
 	}
@@ -1628,16 +1715,20 @@ _SettingsDialog "Dialog"
 	MARKER_PREFIX "HBUC"
 	MARKER_VERSION "1"
 	STEMLESS_DIAMOND "Diamond (stemless)"
+	SQUARE_STEMLESS "Square (stemless)"
 	NO_NOTEHEAD "(no notehead)"
-	dlg_bellLabel ""
-	dlg_chimeLabel ""
 	dlg_chimeColor ""
+	dlg_smbColor ""
 	dlg_bellHead ""
 	dlg_chimeHead ""
+	dlg_smbHead ""
 	_BellHeadItems
 	{
 	}
 	_ChimeHeadItems
+	{
+	}
+	_SmbHeadItems
 	{
 	}
 	dlg_remove "0"
@@ -1646,5 +1737,5 @@ _SettingsDialog "Dialog"
 	_ChartWasRemoved "The existing chart was removed."
 	_ChartWasReplaced "An existing chart was replaced."
 	_NoChartToRemove "This score carries no chart that this plug-in made."
-	_SameNoteheadChosen "Handbells and handchimes cannot both use the same notehead. Choose a different notehead for one of them and run the plug-in again."
+	_SameNoteheadChosen "Choose a different notehead for one of them and run the plug-in again."
 }

@@ -6,8 +6,8 @@ TestPlan() {
         CreateDictionary('pitch', 74, 'diatonic', 36, 'head', 'Diamond'),
         CreateDictionary('pitch', 74, 'diatonic', 36, 'head', 'Cross')
     );
-    options = CreateDictionary('bellLabel', '', 'chimeLabel', '',
-        'bellHead', 'Normal', 'chimeHead', 'Diamond');
+    options = CreateDictionary('bellHead', 'Normal', 'chimeHead', 'Diamond',
+        'smbHead', NoNoteHead());
     plan = BuildPlan(records, options);
 
     AssertEquals(plan.sections.Length, 2, 'bells and chimes sections');
@@ -18,9 +18,18 @@ TestPlan() {
     AssertEquals(plan.warnings.Length, 1, 'one warning');
     AssertEquals(plan.warnings[0].type, 'unknown-notehead', 'warning type');
 
-    custom = CreateDictionary('bellLabel', 'Bells', 'chimeLabel', '',
-        'bellHead', 'Normal', 'chimeHead', 'Diamond');
-    AssertEquals(BuildPlan(records, custom).sections[0].label, 'Bells', 'custom label wins');
+    // Silver melody bells come third, after the two instruments that were
+    // there before them, and label themselves the same generated way.
+    withSmbs = BuildPlan(records, CreateDictionary('bellHead', 'Normal',
+        'chimeHead', 'Diamond', 'smbHead', 'Cross'));
+    AssertEquals(withSmbs.sections.Length, 3, 'three sections');
+    AssertEquals(withSmbs.sections[2].kind, 'smbs', 'SMBs come last');
+    AssertEquals(withSmbs.sections[2].label, 'SMBs Used: 1', 'SMB label');
+    AssertEquals(withSmbs.warnings.Length, 0, 'nothing unrecognised once every head is chosen');
+
+    AssertEquals(PlanHasKind(withSmbs.sections, 'smbs'), 1, 'a planned kind is found');
+    AssertEquals(PlanHasKind(plan.sections, 'smbs'), 0, 'an unplanned kind is not found');
+    AssertEquals(PlanHasKind(CreateSparseArray(), 'bells'), 0, 'no sections holds no kind');
 
     empty = BuildPlan(CreateSparseArray(), options);
     AssertEquals(empty.sections.Length, 0, 'no sections for no notes');

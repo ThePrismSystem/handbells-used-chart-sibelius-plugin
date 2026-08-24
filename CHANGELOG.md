@@ -5,6 +5,28 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Silver melody bells are charted as a third instrument, with their own
+  notehead dropdown, their own colour field and an `SMBs Used: n` section
+  after the handbells and handchimes. The dropdown opens on `(no notehead)`,
+  because nothing in a score suggests which head means an SMB, so a score
+  without them charts exactly as it did.
+- SMB columns are drawn with a `Square (stemless)` notehead. Sibelius ships
+  no square head at all, not even a stemmed one to copy, so it has to be
+  made by hand the way `Diamond (stemless)` does; the readme says how.
+  Without it the columns keep the plain stemless head and the run says so,
+  naming the notehead to make.
+
+### Removed
+
+- The handbell and handchime label fields. The labels are generated, and
+  they are ordinary staff text once the chart is drawn, so anyone wanting
+  different wording can retype it in the score rather than filling in a
+  dialog field on every run.
+
 ## [1.1.0] - 2026-08-23
 
 The noteheads that mean handbells and handchimes are now yours to choose,
