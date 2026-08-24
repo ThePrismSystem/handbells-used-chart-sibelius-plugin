@@ -28,6 +28,8 @@ TestCollect() {
     AssertEquals(got.chimes.Length, 1, 'one chime');
     AssertEquals(got.chimes[0].name, 'D5', 'chime name');
     AssertEquals(got.unknown, 1, 'unrecognised notehead counted');
+    AssertEquals(got.unknownNames.Length, 1, 'the unrecognised head is named');
+    AssertEquals(got.unknownNames[0], 'Cross', 'the unrecognised head name');
     AssertEquals(got.outOfRange.Length, 1, 'out of range recorded');
     AssertEquals(got.outOfRange[0], 'C0', 'out of range name');
 
@@ -49,6 +51,18 @@ TestCollect() {
     AssertEquals(swapped.bells.Length, 1, 'a chosen bell head is charted as bells');
     AssertEquals(swapped.bells[0].name, 'D5', 'chosen bell head name');
     AssertEquals(swapped.unknown, 1, 'the unchosen head is now unrecognised');
+    AssertEquals(swapped.unknownNames[0], 'Normal', 'the unchosen head is named');
+
+    // Repeats are named once, however many notes carry them: the warning is a
+    // list of heads to choose from, not a list of notes.
+    repeated = CreateSparseArray(
+        CreateDictionary('pitch', 72, 'diatonic', 35, 'head', 'Cross'),
+        CreateDictionary('pitch', 74, 'diatonic', 36, 'head', 'Cross'),
+        CreateDictionary('pitch', 76, 'diatonic', 37, 'head', 'Slashed')
+    );
+    twice = CollectBells(repeated, CreateDictionary('bellHead', 'Normal', 'chimeHead', 'Diamond'));
+    AssertEquals(twice.unknown, 3, 'every unrecognised note is counted');
+    AssertEquals(twice.unknownNames.Length, 2, 'each unrecognised head is named once');
 
     // An empty choice matches nothing rather than matching every note whose
     // style name failed to read.
@@ -59,6 +73,9 @@ TestCollect() {
     AssertEquals(none.bells.Length, 0, 'an empty bell choice matches nothing');
     AssertEquals(none.chimes.Length, 0, 'an empty chime choice matches nothing');
     AssertEquals(none.unknown, 1, 'an unmatched note is counted as unrecognised');
+    // A head whose name would not read is still counted, but there is no name
+    // to offer, so nothing goes in the list rather than a blank entry.
+    AssertEquals(none.unknownNames.Length, 0, 'an unnamed head contributes no name');
 
     // The common case the dropdowns must not break: a score with no chimes in
     // it opens with the chime box on the no-notehead entry, which has to chart

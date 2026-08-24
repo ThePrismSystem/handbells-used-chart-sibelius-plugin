@@ -32,6 +32,19 @@ ReadOptions(score) {
     if (not(Sibelius.ShowDialog(_SettingsDialog, self))) {
         return null;
     }
+
+    // Diagnostic, kept until a chosen chime head is confirmed charting. The
+    // dropdowns fill correctly and a chosen chime head still charted nothing,
+    // and the two explanations - a control that never wrote its selection back
+    // to its variable, and a selection that came back as something other than
+    // the bare string the dialog editor promises - cannot be told apart from
+    // the chart. The lengths are here because a value that looks right in a
+    // message box can still carry something that stops it comparing equal.
+    trace('[chosen heads] bell=[' & ('' & dlg_bellHead) & '] len='
+        & Length('' & dlg_bellHead));
+    trace('[chosen heads] chime=[' & ('' & dlg_chimeHead) & '] len='
+        & Length('' & dlg_chimeHead));
+
     return CreateDictionary(
         'bellLabel', Trim(dlg_bellLabel),
         'chimeLabel', Trim(dlg_chimeLabel),

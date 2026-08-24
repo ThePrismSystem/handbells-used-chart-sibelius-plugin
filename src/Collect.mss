@@ -8,6 +8,8 @@ CollectBells(records, options) {
     seenChime = CreateDictionary();
     outOfRange = CreateSparseArray();
     seenOutOfRange = CreateDictionary();
+    unknownNames = CreateSparseArray();
+    seenUnknown = CreateDictionary();
     unknown = 0;
     unreadable = 0;
     // H2: coerced once here rather than at every comparison in the loop. The
@@ -53,6 +55,16 @@ CollectBells(records, options) {
 
             if (kind = '') {
                 unknown = unknown + 1;
+                // Named, not just counted. The name printed here is the one to
+                // pick in the dropdown, which is the whole of what a user needs
+                // to know from this warning. Distinct, because it is a list of
+                // heads to choose from and not a list of notes.
+                if (record.head != '') {
+                    if (seenUnknown[record.head] = null) {
+                        seenUnknown[record.head] = 1;
+                        unknownNames.Push(record.head);
+                    }
+                }
             } else {
                 bell = BellNameOf(record.pitch, record.diatonic);
                 region = RegionOf(record.diatonic);
@@ -98,6 +110,7 @@ CollectBells(records, options) {
         'bells', SortBells(bells),
         'chimes', SortBells(chimes),
         'unknown', unknown,
+        'unknownNames', unknownNames,
         'unreadable', unreadable,
         'outOfRange', outOfRange
     );

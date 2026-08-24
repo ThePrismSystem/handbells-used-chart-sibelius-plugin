@@ -13,6 +13,17 @@ TestReport() {
         '3 note(s) with an unrecognised notehead were skipped',
         'unknown notehead line');
 
+    // Naming the heads that were skipped is the difference between a warning
+    // a user can act on and one that just says something went wrong: the name
+    // it prints is the one to pick in the dropdown.
+    named = CreateDictionary('warnings', CreateSparseArray(
+        CreateDictionary('type', 'unknown-notehead', 'count', 64,
+            'names', CreateSparseArray('Diamond', 'Cross'))
+    ));
+    AssertEquals(WarningLines(named),
+        '64 note(s) with an unrecognised notehead were skipped: Diamond, Cross',
+        'unknown notehead line names the heads it skipped');
+
     unreadable = CreateDictionary('warnings', CreateSparseArray(
         CreateDictionary('type', 'unreadable-pitch', 'count', 1, 'names', CreateSparseArray())
     ));

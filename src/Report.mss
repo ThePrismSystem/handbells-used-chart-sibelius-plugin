@@ -14,6 +14,13 @@ WarningLines(plan) {
         line = '';
         if (warning.type = 'unknown-notehead') {
             line = warning.count & ' note(s) with an unrecognised notehead were skipped';
+            // Named only when there is a name to give. A notehead whose style
+            // name will not read leaves the count to speak for itself rather
+            // than printing an empty list after a colon.
+            names = warning.names;
+            if (names.Length > 0) {
+                line = line & (': ' & JoinNames(names));
+            }
         }
         if (warning.type = 'unreadable-pitch') {
             line = warning.count & ' note(s) with an unreadable pitch were skipped';
