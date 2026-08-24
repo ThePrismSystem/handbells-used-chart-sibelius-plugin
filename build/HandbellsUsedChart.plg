@@ -282,11 +282,12 @@
             line = 'Bells outside C2-C9 were skipped: ' & JoinNames(warning.names);
         }
         // The only warning raised while drawing rather than while planning:
-        // whether the score carries the notehead an SMB column wants is not
-        // knowable until the chart asks the score for it.
+        // whether the score carries the notehead a section wants is not
+        // knowable until the chart asks the score for it. Either of the two
+        // instruments that use a hand-made head can raise it, so it says which.
         if (warning.type = 'missing-notehead') {
-            line = 'SMBs were drawn as hollow whole notes because this score has no '
-                & JoinNames(warning.names) & ' notehead';
+            line = (warning.instrument & ' were drawn as hollow whole notes because ')
+                & ('this score has no ' & JoinNames(warning.names)) & ' notehead';
         }
         if (line != '') {
             if (lines != '') {
@@ -753,13 +754,13 @@
     sections = CreateSparseArray();
 
     if (collected.bells.Length > 0) {
-        sections.Push(MakeSection('bells', collected.bells, 'Handbells Used'));
+        sections.Push(MakeSection('bells', collected.bells));
     }
     if (collected.chimes.Length > 0) {
-        sections.Push(MakeSection('chimes', collected.chimes, 'Handchimes Used'));
+        sections.Push(MakeSection('chimes', collected.chimes));
     }
     if (collected.smbs.Length > 0) {
-        sections.Push(MakeSection('smbs', collected.smbs, 'SMBs Used'));
+        sections.Push(MakeSection('smbs', collected.smbs));
     }
 
     warnings = CreateSparseArray();
@@ -778,23 +779,24 @@
 
     return CreateDictionary('sections', sections, 'warnings', warnings);
 }"
-	MakeSection "(kind, entries, label) {
+	MakeSection "(kind, entries) {
     built = BuildColumns(entries, UsesOneStaff(kind));
     return CreateDictionary(
         'kind', kind,
-        'label', label & ': ' & DistinctPitches(entries),
+        'label', (InstrumentName(kind) & ' Used: ') & DistinctPitches(entries),
         'columns', built.length,
         'treble', built.treble,
         'bass', built.bass
     );
 }"
-	PlanHasKind "(sections, kind) {
-    for i = 0 to sections.Length {
-        if (sections[i].kind = kind) {
-            return 1;
-        }
+	InstrumentName "(kind) {
+    if (kind = 'chimes') {
+        return 'Handchimes';
     }
-    return 0;
+    if (kind = 'smbs') {
+        return 'SMBs';
+    }
+    return 'Handbells';
 }"
 	DistinctPitches "(entries) {
     seen = CreateDictionary();
@@ -1065,15 +1067,9 @@
         'smbs', NamedNoteStyle(score, SquareStemlessName()));
 
     // Nothing else in the run can tell the user this: the plan is built
-    // without the score, so only here is it known that the SMB columns are
-    // about to be drawn hollow.
-    warnings = CreateSparseArray();
-    if (styles.smbs < 0) {
-        if (PlanHasKind(sections, 'smbs') = 1) {
-            warnings.Push(CreateDictionary('type', 'missing-notehead', 'count', 0,
-                'names', CreateSparseArray(SquareStemlessName())));
-        }
-    }
+    // without the score, so only here is it known that a section is about to
+    // be drawn hollow.
+    warnings = MissingHeadWarnings(sections, styles);
 
     barsBefore = score.NthStaff(1).BarCount;
     columnsArray = CreateSparseArray();
@@ -1253,6 +1249,30 @@
         return -1;
     }
     return index;
+}"
+	MissingHeadWarnings "(sections, styles) {
+    warnings = CreateSparseArray();
+    for i = 0 to sections.Length {
+        kind = sections[i].kind;
+        name = CustomStyleName(kind);
+        if (name != '') {
+            if (CustomStyle(kind, styles) < 0) {
+                warnings.Push(CreateDictionary('type', 'missing-notehead', 'count', 0,
+                    'names', CreateSparseArray(name),
+                    'instrument', InstrumentName(kind)));
+            }
+        }
+    }
+    return warnings;
+}"
+	CustomStyleName "(kind) {
+    if (kind = 'chimes') {
+        return StemlessDiamondName();
+    }
+    if (kind = 'smbs') {
+        return SquareStemlessName();
+    }
+    return '';
 }"
 	CustomStyle "(kind, styles) {
     if (kind = 'chimes') {

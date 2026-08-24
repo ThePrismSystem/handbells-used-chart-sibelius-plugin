@@ -50,12 +50,21 @@ TestReport() {
         'two known warnings join with a newline and an unknown type is dropped');
 
     // Raised while drawing rather than while planning: only the chart knows
-    // whether the score carries the notehead the SMB columns want.
+    // whether the score carries the notehead a section's columns want. It
+    // names the instrument, because either of two can raise it.
     missing = CreateSparseArray(
         CreateDictionary('type', 'missing-notehead', 'count', 0,
-            'names', CreateSparseArray('Square (stemless)'))
+            'names', CreateSparseArray('Square (stemless)'), 'instrument', 'SMBs')
     );
     AssertEquals(WarningLines(missing),
         'SMBs were drawn as hollow whole notes because this score has no Square (stemless) notehead',
         'missing notehead line names the notehead to make');
+
+    chimesMissing = CreateSparseArray(
+        CreateDictionary('type', 'missing-notehead', 'count', 0,
+            'names', CreateSparseArray('Diamond (stemless)'), 'instrument', 'Handchimes')
+    );
+    AssertEquals(WarningLines(chimesMissing),
+        'Handchimes were drawn as hollow whole notes because this score has no Diamond (stemless) notehead',
+        'handchimes raise the same warning as SMBs');
 }

@@ -46,6 +46,15 @@ TestNoteHeads() {
     AssertEquals(FallbackStyle('smbs'), ShapedNote6NoteStyle,
         'SMBs fall back to shaped note 6, which is the square');
 
+    // Which hand-made notehead a section wants, and '' for one that wants
+    // none. This is what decides whether a section can warn about a missing
+    // head at all, so handbells returning '' is the whole of their exemption.
+    AssertEquals(CustomStyleName('chimes'), StemlessDiamondName(),
+        'handchimes want the stemless diamond');
+    AssertEquals(CustomStyleName('smbs'), SquareStemlessName(),
+        'SMBs want the stemless square');
+    AssertEquals(CustomStyleName('bells'), '', 'handbells want no hand-made head');
+
     // Both built-in fallbacks carry stems, so a column using one is written
     // as whole notes to lose them. A hand-made head is stemless already.
     none = CreateDictionary('chimes', -1, 'smbs', -1);

@@ -29,11 +29,12 @@ WarningLines(warnings) {
             line = 'Bells outside C2-C9 were skipped: ' & JoinNames(warning.names);
         }
         // The only warning raised while drawing rather than while planning:
-        // whether the score carries the notehead an SMB column wants is not
-        // knowable until the chart asks the score for it.
+        // whether the score carries the notehead a section wants is not
+        // knowable until the chart asks the score for it. Either of the two
+        // instruments that use a hand-made head can raise it, so it says which.
         if (warning.type = 'missing-notehead') {
-            line = 'SMBs were drawn as hollow whole notes because this score has no '
-                & JoinNames(warning.names) & ' notehead';
+            line = (warning.instrument & ' were drawn as hollow whole notes because ')
+                & ('this score has no ' & JoinNames(warning.names)) & ' notehead';
         }
         if (line != '') {
             if (lines != '') {

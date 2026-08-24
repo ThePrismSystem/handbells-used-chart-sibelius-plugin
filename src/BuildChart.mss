@@ -19,15 +19,9 @@ BuildChart(score, plan, options) {
         'smbs', NamedNoteStyle(score, SquareStemlessName()));
 
     // Nothing else in the run can tell the user this: the plan is built
-    // without the score, so only here is it known that the SMB columns are
-    // about to be drawn hollow.
-    warnings = CreateSparseArray();
-    if (styles.smbs < 0) {
-        if (PlanHasKind(sections, 'smbs') = 1) {
-            warnings.Push(CreateDictionary('type', 'missing-notehead', 'count', 0,
-                'names', CreateSparseArray(SquareStemlessName())));
-        }
-    }
+    // without the score, so only here is it known that a section is about to
+    // be drawn hollow.
+    warnings = MissingHeadWarnings(sections, styles);
 
     barsBefore = score.NthStaff(1).BarCount;
     columnsArray = CreateSparseArray();
@@ -236,6 +230,38 @@ NamedNoteStyle(score, name) {
         return -1;
     }
     return index;
+}
+
+// One warning per section whose hand-made notehead the score turns out not to
+// have. Driven off the sections rather than off the two instruments, so it
+// cannot warn about an instrument the chart does not contain.
+MissingHeadWarnings(sections, styles) {
+    warnings = CreateSparseArray();
+    for i = 0 to sections.Length {
+        kind = sections[i].kind;
+        name = CustomStyleName(kind);
+        if (name != '') {
+            if (CustomStyle(kind, styles) < 0) {
+                warnings.Push(CreateDictionary('type', 'missing-notehead', 'count', 0,
+                    'names', CreateSparseArray(name),
+                    'instrument', InstrumentName(kind)));
+            }
+        }
+    }
+    return warnings;
+}
+
+// The hand-made notehead an instrument is drawn with, or '' for one that wants
+// none. Handbells want none: StemlessNoteStyle is in every score, so they are
+// the one instrument that can never be missing a head.
+CustomStyleName(kind) {
+    if (kind = 'chimes') {
+        return StemlessDiamondName();
+    }
+    if (kind = 'smbs') {
+        return SquareStemlessName();
+    }
+    return '';
 }
 
 // The hand-made stemless head for this instrument, or -1 when the score has

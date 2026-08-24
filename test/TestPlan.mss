@@ -32,9 +32,11 @@ TestPlan() {
     AssertEquals(smbSection.treble.Length, 1, 'the SMB bell is on the treble staff');
     AssertEquals(withSmbs.warnings.Length, 0, 'nothing unrecognised once every head is chosen');
 
-    AssertEquals(PlanHasKind(withSmbs.sections, 'smbs'), 1, 'a planned kind is found');
-    AssertEquals(PlanHasKind(plan.sections, 'smbs'), 0, 'an unplanned kind is not found');
-    AssertEquals(PlanHasKind(CreateSparseArray(), 'bells'), 0, 'no sections holds no kind');
+    // One name per instrument, used for the chart label and for any warning
+    // that has to say which instrument it is about.
+    AssertEquals(InstrumentName('bells'), 'Handbells', 'handbell name');
+    AssertEquals(InstrumentName('chimes'), 'Handchimes', 'handchime name');
+    AssertEquals(InstrumentName('smbs'), 'SMBs', 'SMB name');
 
     empty = BuildPlan(CreateSparseArray(), options);
     AssertEquals(empty.sections.Length, 0, 'no sections for no notes');

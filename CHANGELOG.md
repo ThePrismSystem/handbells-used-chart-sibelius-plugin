@@ -20,6 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lose the stems, exactly as handchimes fall back to the built-in diamond.
   The run says so and names the notehead to make.
 
+### Changed
+
+- A missing `Diamond (stemless)` is now reported the way a missing
+  `Square (stemless)` is. Handchimes have always fallen back to hollow whole
+  notes without saying so, which left the two instruments inconsistent and
+  the fallback easy to mistake for the intended look. The warning names the
+  instrument and the notehead to make.
+
 ### Removed
 
 - The handbell and handchime label fields. The labels are generated, and

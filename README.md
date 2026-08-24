@@ -93,16 +93,27 @@ The plugin's dialog offers six controls:
 | Handbell notehead type | Which notehead in the score counts as a handbell |
 | Handchime notehead type | Which notehead in the score counts as a handchime |
 | SMBs notehead type | Which notehead in the score counts as a silver melody bell |
-| Handchime colour | Notehead colour for chimes, e.g. `#c00000`; left blank, chimes stay black |
+| Handchime colour | Notehead colour for chimes, as a hex value; blank leaves them black |
 | SMBs colour | Notehead colour for SMBs, on the same terms |
 | Remove existing chart | Strips the chart instead of generating one |
-
-An unparseable colour leaves that section black rather than failing the run.
 
 Section labels are generated: "Handbells Used: *n*", "Handchimes Used: *n*",
 "SMBs Used: *n*". Each counts physical bells, so a bell appearing under two
 spellings is counted once. They are ordinary staff text once the chart is
 drawn, so retype them in the score if you want something else.
+
+### Colours
+
+The two colour fields take a **six-digit hex RGB value**, with or without the
+leading `#`, and surrounding spaces are ignored. All of `c00000`, `#c00000`
+and ` #C00000 ` set the same red. Leave a field blank to keep that section
+black, which is what handbells always are.
+
+Anything that is not six digits after the `#` counts as no colour at all, so
+that section stays black rather than the run failing. Within a six-digit
+value, a character that is not a hex digit reads as `0`: `zz0000` is accepted
+and comes out black rather than being refused, so blank is the clearer way to
+ask for black.
 
 ### Choosing the noteheads
 
@@ -153,9 +164,9 @@ Without them the plugin still produces a stemless chart: those columns are
 written as whole notes instead, which carry no stems at any notehead style.
 Handchimes fall back to Sibelius' built-in **Diamond** and SMBs to **Shaped
 note 6**, which is the square. The cost is that a whole note's head is hollow
-rather than filled, so those sections read as outlined shapes, and a missing
-square is reported in a warning naming the notehead to make. Handbells are
-unaffected either way.
+rather than filled, so those sections read as outlined shapes. Either missing
+notehead is reported in a warning naming the instrument and the notehead to
+make. Handbells are unaffected either way.
 
 ## Usage
 
