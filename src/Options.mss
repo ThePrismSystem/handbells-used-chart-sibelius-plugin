@@ -7,8 +7,25 @@ ReadOptions(score) {
     // to run before the dialog is shown rather than being fixed at build time.
     choices = ScoreHeadChoices(score);
     items = HeadChoiceItems(choices.names);
-    _BellHeadItems = items;
-    _ChimeHeadItems = items;
+
+    // A combo box lists the CHILDREN of the TreeNode its list variable holds,
+    // and a plug-in's global data is a TreeNode. A sparse array is a different
+    // type entirely - Javascript-style, with Length and Push and no children -
+    // so assigning one here left both boxes empty with nothing reported.
+    // The guide's own list-box example is the shape that works: give the Data
+    // variable a fresh CreateArray, then subscript that variable directly.
+    // Building the array first and assigning it afterwards is untested and not
+    // what the example does, so it is not what this does either.
+    // Two arrays rather than one shared between the boxes, because these are
+    // the plug-in's own global nodes and nothing documents what handing the
+    // same node to two controls means.
+    _BellHeadItems = CreateArray();
+    _ChimeHeadItems = CreateArray();
+    for i = 0 to items.Length {
+        name = items[i];
+        _BellHeadItems[i] = name;
+        _ChimeHeadItems[i] = name;
+    }
     dlg_bellHead = PreferredHead(choices.names, '' & dlg_bellHead, choices.defaultBell);
     dlg_chimeHead = PreferredHead(choices.names, '' & dlg_chimeHead, choices.defaultChime);
 

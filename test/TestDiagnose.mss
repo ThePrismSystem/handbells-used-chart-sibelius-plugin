@@ -44,6 +44,34 @@ Diagnose() {
     // survived removal but sits off the top has a large negative dy here.
     trace('[system text after any move]');
     TraceBarTypes(score.SystemStaff.NthBar(1), 'system bar1 recheck');
+
+    // 4. What a combo box's list variable actually holds. The dropdowns came
+    // up empty the first time because a sparse array was assigned to one, and
+    // a list variable is a TreeNode whose CHILDREN the box lists. NumChildren
+    // says which of the two a given assignment really made, so a box that is
+    // still empty can be told apart from a list that never got filled, without
+    // another round of guessing. NumChildren is a documented TreeNode
+    // variable; WriteToString is documented as a method and is left out rather
+    // than risk a run-time error inside the diagnostic itself.
+    trace('[list variable]');
+    // Bound to a local first: the codebase does not assume a property can be
+    // read straight off a call's result, and a diagnostic is the worst place
+    // to find out that it cannot.
+    choices = ScoreHeadChoices(score);
+    items = HeadChoiceItems(choices.names);
+    trace('items to offer = ' & items.Length);
+
+    _BellHeadItems = CreateArray();
+    for i = 0 to items.Length {
+        _BellHeadItems[i] = items[i];
+    }
+    trace('CreateArray then subscript: NumChildren = ' & _BellHeadItems.NumChildren);
+    trace('  first = [' & _BellHeadItems[0] & ']');
+
+    // The shape that failed, reported alongside it so the difference is on the
+    // screen rather than in a commit message.
+    _ChimeHeadItems = items;
+    trace('sparse array assigned: NumChildren = ' & _ChimeHeadItems.NumChildren);
     return True;
 }
 
