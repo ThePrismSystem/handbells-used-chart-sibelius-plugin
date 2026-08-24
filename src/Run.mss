@@ -43,16 +43,14 @@ Run() {
 // not touch Redraw or the selection; Run owns both.
 ChartScore(score, options) {
     // Ahead of the removal, so a score that would chart nothing useful keeps
-    // the chart it has. One notehead cannot be both instruments, and charting
-    // every note twice is not a reading worth guessing at. Both boxes left on
-    // the no-notehead entry is not that case; it charts nothing and says so.
-    // A removal run never reads a note, so the choice cannot block it.
+    // the chart it has. A removal run never reads a note, so the choice of
+    // noteheads cannot block one.
     if (not(options.remove)) {
-        if (options.bellHead != NoNoteHead()) {
-            if (options.bellHead = options.chimeHead) {
-                return CreateDictionary('ok', False, 'kind', 'error',
-                    'text', '' & _SameNoteheadChosen);
-            }
+        duplicate = DuplicateHead(options);
+        if (duplicate != '') {
+            return CreateDictionary('ok', False, 'kind', 'error',
+                'text', ('More than one instrument is set to the ' & duplicate)
+                    & (' notehead. ' & _SameNoteheadChosen));
         }
     }
 
@@ -79,15 +77,14 @@ ChartScore(score, options) {
     // not reported after it. A score whose only bells lie outside C2-C9 plans
     // no sections at all, and being told 'no handbells were found' is both
     // wrong and useless when the run knows exactly which bells it skipped.
-    warnings = WarningLines(plan);
-
     if (plan.sections.Length = 0) {
         text = '' & _NoBellsFound;
         if (removal.removed) {
             text = text & ('\n\n' & _ChartWasRemoved);
         }
-        if (warnings != '') {
-            text = (warnings & '\n\n') & text;
+        lines = WarningLines(plan.warnings);
+        if (lines != '') {
+            text = (lines & '\n\n') & text;
         }
         return CreateDictionary('ok', False, 'kind', 'warning', 'text', text);
     }
@@ -96,6 +93,15 @@ ChartScore(score, options) {
     if (not(result.ok)) {
         return CreateDictionary('ok', False, 'kind', 'error', 'text', result.error);
     }
+
+    // The chart's own warnings join the plan's. Whether the score carries the
+    // notehead an SMB column wants is only discovered while drawing, so a
+    // planning-time list alone would leave that one unreported.
+    warnings = plan.warnings;
+    for i = 0 to result.warnings.Length {
+        warnings.Push(result.warnings[i]);
+    }
+    lines = WarningLines(warnings);
 
     summary = '';
     for i = 0 to plan.sections.Length {
@@ -107,8 +113,8 @@ ChartScore(score, options) {
     if (removal.removed) {
         summary = summary & ('\n\n' & _ChartWasReplaced);
     }
-    if (warnings != '') {
-        summary = (warnings & '\n\n') & summary;
+    if (lines != '') {
+        summary = (lines & '\n\n') & summary;
     }
 
     return CreateDictionary('ok', True, 'kind', 'info', 'text', summary);

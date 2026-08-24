@@ -38,7 +38,8 @@ Diagnose() {
         }
         b = b + 1;
     }
-    trace('[stemless diamond] lookup = ' & StemlessDiamondStyle(score));
+    trace('[stemless diamond] lookup = ' & NamedNoteStyle(score, StemlessDiamondName()));
+    trace('[stemless square] lookup = ' & NamedNoteStyle(score, SquareStemlessName()));
 
     // Whether a moved item ended up on the page at all. A system text item that
     // survived removal but sits off the top has a large negative dy here.
@@ -72,6 +73,46 @@ Diagnose() {
     // screen rather than in a commit message.
     _ChimeHeadItems = items;
     trace('sparse array assigned: NumChildren = ' & _ChimeHeadItems.NumChildren);
+
+    // 5. Whether a colour write takes, and under what conditions. Setting the
+    // components on a fresh chart note did nothing at all and every coloured
+    // section came out black, with no error: writing a property Sibelius will
+    // not accept simply does not happen. The reference says a BarObject's
+    // colour can only be written while the object is selected and says nothing
+    // of the sort for a Note, so both are tried here and read back.
+    trace('[note colour]');
+    coloured = FirstNoteIn(score);
+    if (coloured = null) {
+        trace('no note found; open a score with at least one note');
+    } else {
+        chord = coloured.ParentNoteRest;
+        wasRed = chord.ColorRed;
+        wasGreen = chord.ColorGreen;
+        wasBlue = chord.ColorBlue;
+        wasAlpha = chord.ColorAlpha;
+        trace('before: red=' & wasRed & ' alpha=' & wasAlpha);
+
+        // What the plug-in used to do.
+        coloured.ColorRed = 200;
+        trace('note write while unselected: note red=' & coloured.ColorRed
+            & ' chord red=' & chord.ColorRed);
+
+        // What it does now.
+        chord.Select();
+        chord.ColorRed = 150;
+        chord.ColorAlpha = 255;
+        trace('chord write while selected: chord red=' & chord.ColorRed
+            & ' alpha=' & chord.ColorAlpha & ' note red=' & coloured.ColorRed);
+        chord.Deselect();
+
+        chord.Select();
+        chord.ColorRed = wasRed;
+        chord.ColorGreen = wasGreen;
+        chord.ColorBlue = wasBlue;
+        chord.ColorAlpha = wasAlpha;
+        chord.Deselect();
+        trace('restored: red=' & chord.ColorRed & ' alpha=' & chord.ColorAlpha);
+    }
     return True;
 }
 

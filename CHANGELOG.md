@@ -5,6 +5,50 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Silver melody bells are charted as a third instrument, with their own
+  notehead dropdown, their own colour field and an `SMBs Used: n` section
+  after the handbells and handchimes. The dropdown opens on `(no notehead)`,
+  because nothing in a score suggests which head means an SMB, so a score
+  without them charts exactly as it did.
+- SMB columns are drawn with a `Square (stemless)` notehead, made by hand
+  the way `Diamond (stemless)` is; the readme says how. Without it they fall
+  back to shaped note 6, Sibelius' own square, written as whole notes to
+  lose the stems, exactly as handchimes fall back to the built-in diamond.
+  The run says so and names the notehead to make.
+
+### Fixed
+
+- Handchime and SMB colours had no effect, leaving both sections black. The
+  colour components were written on each Note; a BarObject's colour can only
+  be written while the object is selected, and a freshly added chart note
+  never is, so the writes were silently discarded. Colour is now set on the
+  NoteRest while it is selected, alpha included.
+- Setting a handchime or SMB colour took the run down. `HexDigit` called a
+  bare `LowerCase`, and no global of that name exists: it is
+  `utils.LowerCase`. The colour path had never been exercised, so nothing
+  had run into it. Both `LowerCase` and `UpperCase` had been listed as
+  built-ins in the linter, which is what let the call ship; they are gone
+  from that list, and the colour conversion has tests of its own.
+
+### Changed
+
+- A missing `Diamond (stemless)` is now reported the way a missing
+  `Square (stemless)` is. Handchimes have always fallen back to hollow whole
+  notes without saying so, which left the two instruments inconsistent and
+  the fallback easy to mistake for the intended look. The warning names the
+  instrument and the notehead to make.
+
+### Removed
+
+- The handbell and handchime label fields. The labels are generated, and
+  they are ordinary staff text once the chart is drawn, so anyone wanting
+  different wording can retype it in the score rather than filling in a
+  dialog field on every run.
+
 ## [1.1.0] - 2026-08-23
 
 The noteheads that mean handbells and handchimes are now yours to choose,

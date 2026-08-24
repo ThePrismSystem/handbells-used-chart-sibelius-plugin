@@ -1,10 +1,24 @@
-BuildColumns(entries) {
+// singleStaff is 1 for an instrument charted on one treble staff. Everything
+// then anchors on that staff and nothing is routed to a bass staff that is
+// never drawn, which would silently lose it. C5 is the bell that makes this
+// necessary rather than tidy: it regions as bassStaff.
+BuildColumns(entries, singleStaff) {
     trebleStaff = FilterRegion(entries, 'trebleStaff');
     trebleRow1 = FilterRegion(entries, 'trebleRow1');
     trebleRow2 = FilterRegion(entries, 'trebleRow2');
     bassStaff = FilterRegion(entries, 'bassStaff');
     bassRow1 = FilterRegion(entries, 'bassRow1');
     bassRow2 = FilterRegion(entries, 'bassRow2');
+
+    if (singleStaff = 1) {
+        // The staff itself carries C4 through C7, and the rows above and below
+        // hang off it at their octaves, the way the two-staff layout hangs its
+        // treble rows off the treble staff. A bell with no anchor still gets a
+        // column of its own, so a set reaching further than expected prints
+        // with ledger lines rather than disappearing.
+        return SingleStaffColumns(Combine(bassStaff, trebleStaff),
+            trebleRow1, trebleRow2, bassRow1, bassRow2);
+    }
 
     treble = AnchorColumns(trebleStaff,
         CreateSparseArray(trebleRow1, trebleRow2),
@@ -26,6 +40,35 @@ BuildColumns(entries) {
     }
 
     return CreateDictionary('treble', treble, 'bass', bass, 'length', longest);
+}
+
+SingleStaffColumns(staff, above1, above2, below1, below2) {
+    treble = AnchorColumns(staff,
+        CreateSparseArray(above1, above2, below1, below2),
+        CreateSparseArray(12, 24, -12, -24));
+    return CreateDictionary('treble', treble, 'bass', CreateSparseArray(),
+        'length', treble.Length);
+}
+
+Combine(first, second) {
+    out = CreateSparseArray();
+    for i = 0 to first.Length {
+        out.Push(first[i]);
+    }
+    for i = 0 to second.Length {
+        out.Push(second[i]);
+    }
+    return out;
+}
+
+// 1 for an instrument charted on a single treble staff. Silver melody bells
+// are the only one: they are a treble set and a chart of them is conventionally
+// one staff, which also costs the page a staff less.
+UsesOneStaff(kind) {
+    if (kind = 'smbs') {
+        return 1;
+    }
+    return 0;
 }
 
 FilterRegion(entries, region) {

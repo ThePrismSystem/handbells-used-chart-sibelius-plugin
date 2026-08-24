@@ -18,6 +18,7 @@ Run() {
     TestCollect();
     TestColumns();
     TestColumnsOrphan();
+    TestColumnsSingleStaff();
     TestPlan();
     TestMarker();
     TestOptions();

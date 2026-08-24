@@ -1,11 +1,14 @@
 // Groups raw note records into the distinct bells and chimes a score uses.
-// Which notehead means which is the user's to say: options.bellHead and
-// options.chimeHead hold NoteStyleName values picked from the open score.
+// Which notehead means which is the user's to say: options.bellHead,
+// options.chimeHead and options.smbHead hold NoteStyleName values picked from
+// the open score.
 CollectBells(records, options) {
     bells = CreateSparseArray();
     chimes = CreateSparseArray();
+    smbs = CreateSparseArray();
     seenBell = CreateDictionary();
     seenChime = CreateDictionary();
+    seenSmb = CreateDictionary();
     outOfRange = CreateSparseArray();
     seenOutOfRange = CreateDictionary();
     unknownNames = CreateSparseArray();
@@ -17,11 +20,15 @@ CollectBells(records, options) {
     // so a score charted as bells only needs no special case below.
     bellHead = '' & options.bellHead;
     chimeHead = '' & options.chimeHead;
+    smbHead = '' & options.smbHead;
     if (bellHead = NoNoteHead()) {
         bellHead = '';
     }
     if (chimeHead = NoNoteHead()) {
         chimeHead = '';
+    }
+    if (smbHead = NoNoteHead()) {
+        smbHead = '';
     }
 
     for i = 0 to records.Length {
@@ -52,6 +59,9 @@ CollectBells(records, options) {
             if (chimeHead != '') {
                 if (record.head = chimeHead) { kind = 'chimes'; }
             }
+            if (smbHead != '') {
+                if (record.head = smbHead) { kind = 'smbs'; }
+            }
 
             if (kind = '') {
                 unknown = unknown + 1;
@@ -81,23 +91,13 @@ CollectBells(records, options) {
                 } else {
                     key = record.pitch & ':' & record.diatonic;
                     if (kind = 'bells') {
-                        if (seenBell[key] = null) {
-                            bell._property:region = region;
-                            bell._property:count = 0;
-                            seenBell[key] = bell;
-                            bells.Push(bell);
-                        }
-                        found = seenBell[key];
-                        found.count = found.count + 1;
-                    } else {
-                        if (seenChime[key] = null) {
-                            bell._property:region = region;
-                            bell._property:count = 0;
-                            seenChime[key] = bell;
-                            chimes.Push(bell);
-                        }
-                        found = seenChime[key];
-                        found.count = found.count + 1;
+                        RecordBell(bells, seenBell, key, bell, region);
+                    }
+                    if (kind = 'chimes') {
+                        RecordBell(chimes, seenChime, key, bell, region);
+                    }
+                    if (kind = 'smbs') {
+                        RecordBell(smbs, seenSmb, key, bell, region);
                     }
                 }
             }
@@ -109,11 +109,28 @@ CollectBells(records, options) {
     return CreateDictionary(
         'bells', SortBells(bells),
         'chimes', SortBells(chimes),
+        'smbs', SortBells(smbs),
         'unknown', unknown,
         'unknownNames', unknownNames,
         'unreadable', unreadable,
         'outOfRange', outOfRange
     );
+}
+
+// Files a bell under its instrument: added the first time that exact spelling
+// turns up, counted every time. Written once rather than once per instrument,
+// because a third instrument is the point at which three copies of it would
+// start drifting apart.
+RecordBell(list, seen, key, bell, region) {
+    if (seen[key] = null) {
+        bell._property:region = region;
+        bell._property:count = 0;
+        seen[key] = bell;
+        list.Push(bell);
+    }
+    found = seen[key];
+    found.count = found.count + 1;
+    return True;
 }
 
 // Ascending by pitch, then double-sharp through double-flat, matching the

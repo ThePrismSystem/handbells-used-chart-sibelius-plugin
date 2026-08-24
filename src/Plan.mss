@@ -3,12 +3,13 @@ BuildPlan(records, options) {
     sections = CreateSparseArray();
 
     if (collected.bells.Length > 0) {
-        sections.Push(MakeSection('bells', collected.bells,
-            options.bellLabel, 'Handbells Used'));
+        sections.Push(MakeSection('bells', collected.bells));
     }
     if (collected.chimes.Length > 0) {
-        sections.Push(MakeSection('chimes', collected.chimes,
-            options.chimeLabel, 'Handchimes Used'));
+        sections.Push(MakeSection('chimes', collected.chimes));
+    }
+    if (collected.smbs.Length > 0) {
+        sections.Push(MakeSection('smbs', collected.smbs));
     }
 
     warnings = CreateSparseArray();
@@ -28,19 +29,31 @@ BuildPlan(records, options) {
     return CreateDictionary('sections', sections, 'warnings', warnings);
 }
 
-MakeSection(kind, entries, label, defaultLabel) {
-    built = BuildColumns(entries);
-    text = label;
-    if (text = '') {
-        text = defaultLabel & ': ' & DistinctPitches(entries);
-    }
+// The label is generated and nothing overrides it. A dialog field for it was
+// one more thing to fill in for a string that is trivially retyped in the
+// score once the chart is there.
+MakeSection(kind, entries) {
+    built = BuildColumns(entries, UsesOneStaff(kind));
     return CreateDictionary(
         'kind', kind,
-        'label', text,
+        'label', (InstrumentName(kind) & ' Used: ') & DistinctPitches(entries),
         'columns', built.length,
         'treble', built.treble,
         'bass', built.bass
     );
+}
+
+// The plural name of an instrument, written once because it is wanted twice:
+// on the chart label, and in any warning that has to say which instrument it
+// is about.
+InstrumentName(kind) {
+    if (kind = 'chimes') {
+        return 'Handchimes';
+    }
+    if (kind = 'smbs') {
+        return 'SMBs';
+    }
+    return 'Handbells';
 }
 
 // The label counts physical bells, so two spellings of one pitch count once.
