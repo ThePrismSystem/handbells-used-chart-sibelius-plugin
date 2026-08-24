@@ -1,10 +1,10 @@
-	_SettingsDialog "Dialog"
+_SettingsDialog "Dialog"
 	{
 		Title "Create a Handbells/Handchimes Used Chart"
-		X "332"
-		Y "272"
-		Width "199"
-		Height "201"
+		X "333"
+		Y "271"
+		Width "198"
+		Height "203"
 		Controls
 		{
 			Text
@@ -22,13 +22,13 @@
 			}
 			Edit
 			{
-				Title "Handbells Used"
-				X "88"
+				Title
+				X "99"
 				Y "13"
-				Width "60"
+				Width "84"
 				Height "14"
 				ID "dlg_bellLabel"
-				Value
+				Value "dlg_bellLabel"
 				Method
 				SetFocus "0"
 			}
@@ -47,13 +47,13 @@
 			}
 			Edit
 			{
-				Title "Handchimes Used"
-				X "87"
-				Y "29"
-				Width "60"
+				Title
+				X "99"
+				Y "31"
+				Width "83"
 				Height "14"
 				ID "dlg_chimeLabel"
-				Value
+				Value "dlg_chimeLabel"
 				Method
 				SetFocus "0"
 			}
@@ -73,24 +73,24 @@
 			Edit
 			{
 				Title
-				X "87"
-				Y "47"
-				Width "60"
+				X "99"
+				Y "48"
+				Width "83"
 				Height "14"
 				ID "dlg_chimeColor"
-				Value
+				Value "dlg_chimeColor"
 				Method
 				SetFocus "0"
 			}
 			CheckBox
 			{
 				Title "Remove Existing Chart"
-				X "77"
-				Y "69"
+				X "75"
+				Y "113"
 				Width "76"
 				Height "14"
 				ID "dlg_remove"
-				Value
+				Value "dlg_remove"
 				Method
 				SetFocus "0"
 			}
@@ -98,7 +98,7 @@
 			{
 				Title "OK"
 				X "97"
-				Y "91"
+				Y "133"
 				Width "50"
 				Height "14"
 				DefaultButton "0"
@@ -112,7 +112,7 @@
 			{
 				Title "Cancel"
 				X "28"
-				Y "91"
+				Y "133"
 				Width "50"
 				Height "14"
 				DefaultButton "0"
@@ -121,6 +121,60 @@
 				Method
 				SetFocus "0"
 				EndDialog "0"
+			}
+			ComboBox
+			{
+				Title
+				X "95"
+				Y "66"
+				Width "95"
+				Height "21"
+				ListVar "_BellHeadItems"
+				AllowMultipleSelections "0"
+				ID "dlg_bellHead"
+				Value "dlg_bellHead"
+				Method
+				SetFocus "0"
+			}
+			ComboBox
+			{
+				Title
+				X "94"
+				Y "85"
+				Width "95"
+				Height "21"
+				ListVar "_ChimeHeadItems"
+				AllowMultipleSelections "0"
+				ID "dlg_chimeHead"
+				Value "dlg_chimeHead"
+				Method
+				SetFocus "0"
+			}
+			Text
+			{
+				Title "Handbell Notehead Type"
+				X "22"
+				Y "70"
+				Width "67"
+				Height "14"
+				RightAlign "0"
+				ID "IDC_HANDBELL_NOTEHEAD_STATIC"
+				Value
+				Method
+				SetFocus "0"
+			}
+			Text
+			{
+				Title "Handchime Notehead Type"
+				X "22"
+				Y "90"
+				Width "74"
+				Height "14"
+				RightAlign "0"
+				ID "IDC_HANDCHIME_NOTEHEAD_STATIC"
+				Value
+				Method
+				SetFocus "0"
 			}
 		}
 	}

@@ -13,7 +13,7 @@ Run() {
         return False;
     }
 
-    options = ReadOptions();
+    options = ReadOptions(score);
     if (options = null) {
         return False;
     }
@@ -42,6 +42,20 @@ Run() {
 // Returns Dictionary{ok, kind, text}. Does not report anything itself and does
 // not touch Redraw or the selection; Run owns both.
 ChartScore(score, options) {
+    // Ahead of the removal, so a score that would chart nothing useful keeps
+    // the chart it has. One notehead cannot be both instruments, and charting
+    // every note twice is not a reading worth guessing at. Both boxes left on
+    // the no-notehead entry is not that case; it charts nothing and says so.
+    // A removal run never reads a note, so the choice cannot block it.
+    if (not(options.remove)) {
+        if (options.bellHead != NoNoteHead()) {
+            if (options.bellHead = options.chimeHead) {
+                return CreateDictionary('ok', False, 'kind', 'error',
+                    'text', '' & _SameNoteheadChosen);
+            }
+        }
+    }
+
     // Removal first, so a re-run replaces its own chart rather than reading it
     // back in and charting the chart.
     removal = RemoveChart(score);

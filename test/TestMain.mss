@@ -22,7 +22,9 @@ Run() {
     TestMarker();
     TestOptions();
     TestReport();
+    TestNoteHeads();
     TestReadScore();
+    TestNoteHeadScan();
     TestBuildChart();
     TestRemoveChart();
     Sibelius.MessageBox(AssertReport());

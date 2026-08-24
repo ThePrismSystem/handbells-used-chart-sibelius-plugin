@@ -1,5 +1,5 @@
 BuildPlan(records, options) {
-    collected = CollectBells(records);
+    collected = CollectBells(records, options);
     sections = CreateSparseArray();
 
     if (collected.bells.Length > 0) {
@@ -14,7 +14,7 @@ BuildPlan(records, options) {
     warnings = CreateSparseArray();
     if (collected.unknown > 0) {
         warnings.Push(CreateDictionary('type', 'unknown-notehead',
-            'count', collected.unknown, 'names', CreateSparseArray()));
+            'count', collected.unknown, 'names', collected.unknownNames));
     }
     if (collected.unreadable > 0) {
         warnings.Push(CreateDictionary('type', 'unreadable-pitch',

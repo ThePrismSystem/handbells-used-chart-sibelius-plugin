@@ -78,6 +78,19 @@ export function buildPlugin(entry, read) {
         if (String(value).includes('"')) {
             throw new Error(`Data variable ${name} contains a double quote`);
         }
+        // A combo box takes its contents from a Data variable holding a list of
+        // strings, which the .plg spells as a braced block rather than a quoted
+        // value. The plugin fills those lists at run time from the open score,
+        // so what the manifest carries is an empty array and what this emits is
+        // the empty block that makes the variable exist as a list.
+        if (Array.isArray(value)) {
+            lines.push(`\t${name}`, '\t{');
+            for (const item of value) {
+                lines.push(`\t\t"${item}"`);
+            }
+            lines.push('\t}');
+            continue;
+        }
         lines.push(`\t${name} "${value}"`);
     }
 

@@ -22,3 +22,11 @@ EnableStringSafety() {
 StemlessDiamondName() {
     return '' & STEMLESS_DIAMOND;
 }
+
+// Both notehead dropdowns carry this ahead of the score's own heads, because
+// a score is entitled to have no chimes in it at all, and the alternative -
+// opening the chime dropdown on whichever head happened to be found first -
+// would chart a bells-only score's bells as chimes as well.
+NoNoteHead() {
+    return '' & NO_NOTEHEAD;
+}

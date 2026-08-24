@@ -1,12 +1,13 @@
 TestPlan() {
     records = CreateSparseArray(
-        CreateDictionary('pitch', 72, 'diatonic', 35, 'head', 'normal'),
-        CreateDictionary('pitch', 80, 'diatonic', 39, 'head', 'normal'),
-        CreateDictionary('pitch', 80, 'diatonic', 40, 'head', 'normal'),
-        CreateDictionary('pitch', 74, 'diatonic', 36, 'head', 'diamond'),
-        CreateDictionary('pitch', 74, 'diatonic', 36, 'head', 'square')
+        CreateDictionary('pitch', 72, 'diatonic', 35, 'head', 'Normal'),
+        CreateDictionary('pitch', 80, 'diatonic', 39, 'head', 'Normal'),
+        CreateDictionary('pitch', 80, 'diatonic', 40, 'head', 'Normal'),
+        CreateDictionary('pitch', 74, 'diatonic', 36, 'head', 'Diamond'),
+        CreateDictionary('pitch', 74, 'diatonic', 36, 'head', 'Cross')
     );
-    options = CreateDictionary('bellLabel', '', 'chimeLabel', '');
+    options = CreateDictionary('bellLabel', '', 'chimeLabel', '',
+        'bellHead', 'Normal', 'chimeHead', 'Diamond');
     plan = BuildPlan(records, options);
 
     AssertEquals(plan.sections.Length, 2, 'bells and chimes sections');
@@ -17,7 +18,8 @@ TestPlan() {
     AssertEquals(plan.warnings.Length, 1, 'one warning');
     AssertEquals(plan.warnings[0].type, 'unknown-notehead', 'warning type');
 
-    custom = CreateDictionary('bellLabel', 'Bells', 'chimeLabel', '');
+    custom = CreateDictionary('bellLabel', 'Bells', 'chimeLabel', '',
+        'bellHead', 'Normal', 'chimeHead', 'Diamond');
     AssertEquals(BuildPlan(records, custom).sections[0].label, 'Bells', 'custom label wins');
 
     empty = BuildPlan(CreateSparseArray(), options);

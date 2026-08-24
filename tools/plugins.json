@@ -14,6 +14,7 @@
         "src/Columns.mss",
         "src/Plan.mss",
         "src/Marker.mss",
+        "src/NoteHeads.mss",
         "src/ReadScore.mss",
         "src/BuildChart.mss",
         "src/RemoveChart.mss"
@@ -28,15 +29,21 @@
         "MARKER_PREFIX": "HBUC",
         "MARKER_VERSION": "1",
         "STEMLESS_DIAMOND": "Diamond (stemless)",
+        "NO_NOTEHEAD": "(no notehead)",
         "dlg_bellLabel": "",
         "dlg_chimeLabel": "",
         "dlg_chimeColor": "",
+        "dlg_bellHead": "",
+        "dlg_chimeHead": "",
+        "_BellHeadItems": [],
+        "_ChimeHeadItems": [],
         "dlg_remove": "0",
         "_ScoreError": "Open a score with one or more staves and run the plug-in again.",
         "_NoBellsFound": "No handbells or handchimes were found in this score.",
         "_ChartWasRemoved": "The existing chart was removed.",
         "_ChartWasReplaced": "An existing chart was replaced.",
-        "_NoChartToRemove": "This score carries no chart that this plug-in made."
+        "_NoChartToRemove": "This score carries no chart that this plug-in made.",
+        "_SameNoteheadChosen": "Handbells and handchimes cannot both use the same notehead. Choose a different notehead for one of them and run the plug-in again."
       }
     },
     {
@@ -49,6 +56,7 @@
         "src/Columns.mss",
         "src/Plan.mss",
         "src/Marker.mss",
+        "src/NoteHeads.mss",
         "src/ReadScore.mss",
         "src/Options.mss",
         "src/Report.mss",
@@ -64,6 +72,7 @@
         "test/TestMarker.mss",
         "test/TestOptions.mss",
         "test/TestReport.mss",
+        "test/TestNoteHeads.mss",
         "test/TestDiagnose.mss",
         "test/TestIntegration.mss"
       ],
@@ -77,11 +86,17 @@
         "MARKER_PREFIX": "HBUC",
         "MARKER_VERSION": "1",
         "STEMLESS_DIAMOND": "Diamond (stemless)",
+        "NO_NOTEHEAD": "(no notehead)",
         "dlg_bellLabel": "",
         "dlg_chimeLabel": "",
         "dlg_chimeColor": "",
+        "dlg_bellHead": "",
+        "dlg_chimeHead": "",
+        "_BellHeadItems": [],
+        "_ChimeHeadItems": [],
         "dlg_remove": "0",
-        "_SettingsDialog": ""
+        "_SettingsDialog": "",
+        "_SameNoteheadChosen": ""
       }
     }
   ]

@@ -5,6 +5,42 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Handbell and handchime noteheads are now chosen in the dialog, from the
+  noteheads the open score actually uses. Reported by a tester whose chimes
+  carried a notehead other than the diamond the plugin used to insist on,
+  and whose chimes therefore charted as nothing at all. Both dropdowns are
+  filled from the score each time the dialog opens, and both offer a
+  `(no notehead)` entry for a piece that has no such instrument in it.
+- The dialog opens on the score's plain notehead for handbells and its
+  diamond for handchimes, matching what the plugin assumed before, so a
+  score that charted correctly still charts correctly untouched. The
+  defaults are found by notehead index rather than by name, so a localised
+  Sibelius picks them out too.
+- The unrecognised-notehead warning names the heads it skipped, rather than
+  only counting the notes. The names it prints are the ones the dropdowns
+  offer, so the warning now says which entry to pick.
+
+### Fixed
+
+- None of the dialog's settings had ever taken effect. A control's ID and
+  the variable storing its value are two separate properties, and only the
+  ID was set, so every control read back whatever the plugin had written
+  before opening the dialog. The handbell label, handchime label, handchime
+  colour and remove-existing-chart checkbox have therefore done nothing
+  since 1.0.0; all six controls are now bound.
+
+### Changed
+
+- The scan that fills the dropdowns skips an existing chart's own staves, so
+  re-running never offers the chart's noteheads back as if the music used
+  them.
+- Choosing the same notehead for both instruments is refused with an
+  explanation, before any existing chart is removed.
+
 ## [1.0.1] - 2026-08-23
 
 Documentation and comments. No behaviour change: the plug-in does exactly

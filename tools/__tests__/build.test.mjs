@@ -167,3 +167,27 @@ test('buildEntry refuses an output name that escapes build/', () => {
     const entry = { output: '../../etc/passwd', sources: ['a.mss'] };
     assert.throws(() => buildEntry(entry, io), /must be a bare filename/);
 });
+
+// A combo box takes its contents from a Data variable holding a list of
+// strings, and the .plg spells that as a braced block rather than a quoted
+// value. The plugin fills these at run time, so what the build has to emit is
+// the empty block that makes the variable exist as a list.
+test('buildPlugin emits an array data variable as a braced block', () => {
+    const entry = { output: 'X.plg', sources: ['a.mss'], data: { _Items: ['one', 'two'] } };
+    const files = { 'a.mss': 'Run() {\n}\n' };
+    const out = buildPlugin(entry, (p) => files[p]);
+    assert.ok(out.includes('\t_Items\n\t{\n\t\t"one"\n\t\t"two"\n\t}\n'), out);
+});
+
+test('buildPlugin emits an empty array data variable as an empty block', () => {
+    const entry = { output: 'X.plg', sources: ['a.mss'], data: { _Items: [] } };
+    const files = { 'a.mss': 'Run() {\n}\n' };
+    const out = buildPlugin(entry, (p) => files[p]);
+    assert.ok(out.includes('\t_Items\n\t{\n\t}\n'), out);
+});
+
+test('buildPlugin rejects a double quote in an array data variable', () => {
+    const entry = { output: 'X.plg', sources: ['a.mss'], data: { _Items: ['va"lue'] } };
+    const files = { 'a.mss': 'Run() {\n}\n' };
+    assert.throws(() => buildPlugin(entry, (p) => files[p]), /double quote/);
+});
