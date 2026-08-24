@@ -20,6 +20,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   score that charted correctly still charts correctly untouched. The
   defaults are found by notehead index rather than by name, so a localised
   Sibelius picks them out too.
+- The unrecognised-notehead warning names the heads it skipped, rather than
+  only counting the notes. The names it prints are the ones the dropdowns
+  offer, so the warning now says which entry to pick.
+
+### Fixed
+
+- None of the dialog's settings had ever taken effect. A control's ID and
+  the variable storing its value are two separate properties, and only the
+  ID was set, so every control read back whatever the plugin had written
+  before opening the dialog. The handbell label, handchime label, handchime
+  colour and remove-existing-chart checkbox have therefore done nothing
+  since 1.0.0; all six controls are now bound.
 
 ### Changed
 

@@ -82,7 +82,7 @@ downloadable `plugins` artifact.
 
 ## Settings
 
-The plugin's dialog is meant to offer six controls:
+The plugin's dialog offers six controls:
 
 | Control | Effect |
 |---|---|
