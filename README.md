@@ -193,6 +193,12 @@ chart into a real score and remove it again.
   two sections are read against, so they are always black.
 - Bells outside C2-C9 are skipped and reported as a warning rather than
   charted.
+- The chart adds a system per section to the first page, which can push the
+  page over the threshold at which Sibelius draws system separators, the
+  double slash at the left margin between systems. That is an engraving
+  rule, not something the chart draws, and ManuScript exposes no way to set
+  it: turn it off in Engraving Rules, on the Instruments page, under System
+  separators.
 - ManuScript has no exception handling. If a run hits a hard error partway
   through, the score's redraw can stay disabled until Sibelius is
   restarted.
