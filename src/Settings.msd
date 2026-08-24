@@ -28,7 +28,7 @@ _SettingsDialog "Dialog"
 				Width "84"
 				Height "14"
 				ID "dlg_bellLabel"
-				Value
+				Value "dlg_bellLabel"
 				Method
 				SetFocus "0"
 			}
@@ -53,7 +53,7 @@ _SettingsDialog "Dialog"
 				Width "83"
 				Height "14"
 				ID "dlg_chimeLabel"
-				Value
+				Value "dlg_chimeLabel"
 				Method
 				SetFocus "0"
 			}
@@ -78,7 +78,7 @@ _SettingsDialog "Dialog"
 				Width "83"
 				Height "14"
 				ID "dlg_chimeColor"
-				Value
+				Value "dlg_chimeColor"
 				Method
 				SetFocus "0"
 			}
@@ -90,7 +90,7 @@ _SettingsDialog "Dialog"
 				Width "76"
 				Height "14"
 				ID "dlg_remove"
-				Value
+				Value "dlg_remove"
 				Method
 				SetFocus "0"
 			}
@@ -132,7 +132,7 @@ _SettingsDialog "Dialog"
 				ListVar "_BellHeadItems"
 				AllowMultipleSelections "0"
 				ID "dlg_bellHead"
-				Value
+				Value "dlg_bellHead"
 				Method
 				SetFocus "0"
 			}
@@ -146,7 +146,7 @@ _SettingsDialog "Dialog"
 				ListVar "_ChimeHeadItems"
 				AllowMultipleSelections "0"
 				ID "dlg_chimeHead"
-				Value
+				Value "dlg_chimeHead"
 				Method
 				SetFocus "0"
 			}

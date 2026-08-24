@@ -172,17 +172,17 @@
         return null;
     }
 
-    // Diagnostic, kept until a chosen chime head is confirmed charting. The
-    // dropdowns fill correctly and a chosen chime head still charted nothing,
-    // and the two explanations - a control that never wrote its selection back
-    // to its variable, and a selection that came back as something other than
-    // the bare string the dialog editor promises - cannot be told apart from
-    // the chart. The lengths are here because a value that looks right in a
-    // message box can still carry something that stops it comparing equal.
-    trace('[chosen heads] bell=[' & ('' & dlg_bellHead) & '] len='
-        & Length('' & dlg_bellHead));
-    trace('[chosen heads] chime=[' & ('' & dlg_chimeHead) & '] len='
-        & Length('' & dlg_chimeHead));
+    // Diagnostic, kept until every control is confirmed writing its value
+    // back. None of them were bound to a variable, so the plug-in had only
+    // ever read what it wrote itself before opening the dialog; the labels and
+    // the colour are traced alongside the two heads because they were unbound
+    // in exactly the same way and nothing has yet shown them working.
+    trace('[dialog] bellLabel=[' & ('' & dlg_bellLabel)
+        & '] chimeLabel=[' & ('' & dlg_chimeLabel)
+        & '] chimeColor=[' & ('' & dlg_chimeColor)
+        & '] remove=[' & ('' & dlg_remove) & ']');
+    trace('[dialog] bellHead=[' & ('' & dlg_bellHead)
+        & '] chimeHead=[' & ('' & dlg_chimeHead) & ']');
 
     return CreateDictionary(
         'bellLabel', Trim(dlg_bellLabel),
@@ -1484,7 +1484,7 @@ _SettingsDialog "Dialog"
 				Width "84"
 				Height "14"
 				ID "dlg_bellLabel"
-				Value
+				Value "dlg_bellLabel"
 				Method
 				SetFocus "0"
 			}
@@ -1509,7 +1509,7 @@ _SettingsDialog "Dialog"
 				Width "83"
 				Height "14"
 				ID "dlg_chimeLabel"
-				Value
+				Value "dlg_chimeLabel"
 				Method
 				SetFocus "0"
 			}
@@ -1534,7 +1534,7 @@ _SettingsDialog "Dialog"
 				Width "83"
 				Height "14"
 				ID "dlg_chimeColor"
-				Value
+				Value "dlg_chimeColor"
 				Method
 				SetFocus "0"
 			}
@@ -1546,7 +1546,7 @@ _SettingsDialog "Dialog"
 				Width "76"
 				Height "14"
 				ID "dlg_remove"
-				Value
+				Value "dlg_remove"
 				Method
 				SetFocus "0"
 			}
@@ -1588,7 +1588,7 @@ _SettingsDialog "Dialog"
 				ListVar "_BellHeadItems"
 				AllowMultipleSelections "0"
 				ID "dlg_bellHead"
-				Value
+				Value "dlg_bellHead"
 				Method
 				SetFocus "0"
 			}
@@ -1602,7 +1602,7 @@ _SettingsDialog "Dialog"
 				ListVar "_ChimeHeadItems"
 				AllowMultipleSelections "0"
 				ID "dlg_chimeHead"
-				Value
+				Value "dlg_chimeHead"
 				Method
 				SetFocus "0"
 			}

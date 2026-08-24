@@ -33,17 +33,17 @@ ReadOptions(score) {
         return null;
     }
 
-    // Diagnostic, kept until a chosen chime head is confirmed charting. The
-    // dropdowns fill correctly and a chosen chime head still charted nothing,
-    // and the two explanations - a control that never wrote its selection back
-    // to its variable, and a selection that came back as something other than
-    // the bare string the dialog editor promises - cannot be told apart from
-    // the chart. The lengths are here because a value that looks right in a
-    // message box can still carry something that stops it comparing equal.
-    trace('[chosen heads] bell=[' & ('' & dlg_bellHead) & '] len='
-        & Length('' & dlg_bellHead));
-    trace('[chosen heads] chime=[' & ('' & dlg_chimeHead) & '] len='
-        & Length('' & dlg_chimeHead));
+    // Diagnostic, kept until every control is confirmed writing its value
+    // back. None of them were bound to a variable, so the plug-in had only
+    // ever read what it wrote itself before opening the dialog; the labels and
+    // the colour are traced alongside the two heads because they were unbound
+    // in exactly the same way and nothing has yet shown them working.
+    trace('[dialog] bellLabel=[' & ('' & dlg_bellLabel)
+        & '] chimeLabel=[' & ('' & dlg_chimeLabel)
+        & '] chimeColor=[' & ('' & dlg_chimeColor)
+        & '] remove=[' & ('' & dlg_remove) & ']');
+    trace('[dialog] bellHead=[' & ('' & dlg_bellHead)
+        & '] chimeHead=[' & ('' & dlg_chimeHead) & ']');
 
     return CreateDictionary(
         'bellLabel', Trim(dlg_bellLabel),
