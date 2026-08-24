@@ -33,7 +33,7 @@ BuildPlan(records, options) {
 // one more thing to fill in for a string that is trivially retyped in the
 // score once the chart is there.
 MakeSection(kind, entries, label) {
-    built = BuildColumns(entries);
+    built = BuildColumns(entries, UsesOneStaff(kind));
     return CreateDictionary(
         'kind', kind,
         'label', label & ': ' & DistinctPitches(entries),

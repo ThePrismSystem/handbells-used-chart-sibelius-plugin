@@ -556,13 +556,23 @@
     }
     return False;
 }"
-	BuildColumns "(entries) {
+	BuildColumns "(entries, singleStaff) {
     trebleStaff = FilterRegion(entries, 'trebleStaff');
     trebleRow1 = FilterRegion(entries, 'trebleRow1');
     trebleRow2 = FilterRegion(entries, 'trebleRow2');
     bassStaff = FilterRegion(entries, 'bassStaff');
     bassRow1 = FilterRegion(entries, 'bassRow1');
     bassRow2 = FilterRegion(entries, 'bassRow2');
+
+    if (singleStaff = 1) {
+        // The staff itself carries C4 through C7, and the rows above and below
+        // hang off it at their octaves, the way the two-staff layout hangs its
+        // treble rows off the treble staff. A bell with no anchor still gets a
+        // column of its own, so a set reaching further than expected prints
+        // with ledger lines rather than disappearing.
+        return SingleStaffColumns(Combine(bassStaff, trebleStaff),
+            trebleRow1, trebleRow2, bassRow1, bassRow2);
+    }
 
     treble = AnchorColumns(trebleStaff,
         CreateSparseArray(trebleRow1, trebleRow2),
@@ -584,6 +594,29 @@
     }
 
     return CreateDictionary('treble', treble, 'bass', bass, 'length', longest);
+}"
+	SingleStaffColumns "(staff, above1, above2, below1, below2) {
+    treble = AnchorColumns(staff,
+        CreateSparseArray(above1, above2, below1, below2),
+        CreateSparseArray(12, 24, -12, -24));
+    return CreateDictionary('treble', treble, 'bass', CreateSparseArray(),
+        'length', treble.Length);
+}"
+	Combine "(first, second) {
+    out = CreateSparseArray();
+    for i = 0 to first.Length {
+        out.Push(first[i]);
+    }
+    for i = 0 to second.Length {
+        out.Push(second[i]);
+    }
+    return out;
+}"
+	UsesOneStaff "(kind) {
+    if (kind = 'smbs') {
+        return 1;
+    }
+    return 0;
 }"
 	FilterRegion "(entries, region) {
     out = CreateSparseArray();
@@ -746,7 +779,7 @@
     return CreateDictionary('sections', sections, 'warnings', warnings);
 }"
 	MakeSection "(kind, entries, label) {
-    built = BuildColumns(entries);
+    built = BuildColumns(entries, UsesOneStaff(kind));
     return CreateDictionary(
         'kind', kind,
         'label', label & ': ' & DistinctPitches(entries),
@@ -1137,6 +1170,14 @@
         }
         if ((i + 2) <= sections.Length) {
             score.HideEmptyStaves(top, top + 1, i + 2, sections.Length);
+        }
+        // A one-staff section's lower staff is empty in its own bar as well,
+        // because BuildColumns routed every bell to the treble side. Hiding it
+        // is what makes the section print as the single staff it is meant to
+        // be. The staff is still created, so the marker's staves-per-section
+        // arithmetic, and with it the removal path, is left alone.
+        if (UsesOneStaff(sections[i].kind) = 1) {
+            score.HideEmptyStaves(top + 1, top + 1, i + 1, i + 1);
         }
     }
 

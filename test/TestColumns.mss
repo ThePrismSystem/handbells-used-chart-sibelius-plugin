@@ -25,7 +25,7 @@ TestColumns() {
     TraceBell('d7', d7);
     TraceBell('a6', a6);
 
-    built = BuildColumns(CreateSparseArray(d6, d7, d8, a6, c3, c4));
+    built = BuildColumns(CreateSparseArray(d6, d7, d8, a6, c3, c4), 0);
 
     treble = built.treble;
     bass = built.bass;
@@ -41,6 +41,36 @@ TestColumns() {
     AssertEquals(ColumnPitch(bass, 0, 0), 48, 'low bell leftmost');
     AssertEquals(ColumnPitch(bass, 1, 0), 60, 'staff bell after it');
     AssertEquals(built.length, 2, 'length is the wider side');
+}
+
+// Silver melody bells are charted on one treble staff, so a section drawn
+// that way must route every bell to the treble columns. C5 is the case that
+// matters: it regions as bassStaff, which is right for a two-staff section
+// and would drop it off a chart whose bass staff is never drawn.
+TestColumnsSingleStaff() {
+    c3 = MakeBell(48, 21, 'bassRow1');
+    c5 = MakeBell(72, 35, 'bassStaff');
+    d5 = MakeBell(74, 36, 'trebleStaff');
+    d6 = MakeBell(86, 43, 'trebleStaff');
+    d7 = MakeBell(98, 50, 'trebleRow1');
+
+    built = BuildColumns(CreateSparseArray(c3, c5, d5, d6, d7), 1);
+    treble = built.treble;
+    bass = built.bass;
+    TraceColumns('single treble', treble);
+    TraceColumns('single bass', bass);
+
+    AssertEquals(bass.Length, 0, 'a one-staff section writes no bass columns');
+    AssertEquals(treble.Length, 4, 'every bell reaches the treble staff');
+    AssertEquals(ColumnPitch(treble, 1, 0), 72, 'C5 is on the treble staff');
+    AssertEquals(ColumnPitch(treble, 2, 0), 74, 'D5 after it');
+    // The octave stacking still works: D7 attaches to D6 twelve semitones down.
+    AssertEquals(ColumnLength(treble, 3), 2, 'D6 and D7 still share a column');
+    AssertEquals(ColumnPitch(treble, 3, 1), 98, 'the octave above sits on top');
+    // A bell below the staff keeps its place rather than vanishing with the
+    // bass staff that is not drawn.
+    AssertEquals(ColumnPitch(treble, 0, 0), 48, 'a low bell sorts leftmost, not lost');
+    AssertEquals(built.length, 4, 'length is the treble side');
 }
 
 MakeBell(pitch, diatonic, region) {
@@ -116,7 +146,7 @@ TestColumnsOrphan() {
     a6 = MakeBell(93, 47, 'trebleStaff');
     g7 = MakeBell(103, 53, 'trebleRow1');
 
-    built = BuildColumns(CreateSparseArray(a6, g7));
+    built = BuildColumns(CreateSparseArray(a6, g7), 0);
     treble = built.treble;
     TraceColumns('orphan treble', treble);
 

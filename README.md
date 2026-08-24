@@ -19,6 +19,10 @@ to Sibelius. The chart's behaviour is unchanged from that project:
   notehead means which instrument is chosen in the dialog from the noteheads
   the score actually uses, so an arrangement that marks them some other way
   charts as readily as one using the conventional heads.
+- Handbells and handchimes are charted on a treble and a bass staff. Silver
+  melody bells are a treble set, so they get a single treble staff, C5
+  included, which is how they are usually printed and one staff less on the
+  page.
 - A bell that also appears an octave or two higher shares its column, so D6,
   D7 and D8 print as one stack rather than three.
 - Running the plugin again on a score that already carries a chart replaces

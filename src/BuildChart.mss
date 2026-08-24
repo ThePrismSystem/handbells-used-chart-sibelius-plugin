@@ -125,6 +125,14 @@ BuildChart(score, plan, options) {
         if ((i + 2) <= sections.Length) {
             score.HideEmptyStaves(top, top + 1, i + 2, sections.Length);
         }
+        // A one-staff section's lower staff is empty in its own bar as well,
+        // because BuildColumns routed every bell to the treble side. Hiding it
+        // is what makes the section print as the single staff it is meant to
+        // be. The staff is still created, so the marker's staves-per-section
+        // arithmetic, and with it the removal path, is left alone.
+        if (UsesOneStaff(sections[i].kind) = 1) {
+            score.HideEmptyStaves(top + 1, top + 1, i + 1, i + 1);
+        }
     }
 
     RestoreTimeSignature(score, metre, sections.Length);

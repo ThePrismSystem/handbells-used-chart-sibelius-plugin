@@ -25,6 +25,11 @@ TestPlan() {
     AssertEquals(withSmbs.sections.Length, 3, 'three sections');
     AssertEquals(withSmbs.sections[2].kind, 'smbs', 'SMBs come last');
     AssertEquals(withSmbs.sections[2].label, 'SMBs Used: 1', 'SMB label');
+    // Bound to a local first: Sibelius will not parse .Length applied to a
+    // subscripted expression, and the suite keeps to that everywhere.
+    smbSection = withSmbs.sections[2];
+    AssertEquals(smbSection.bass.Length, 0, 'the SMB section writes no bass columns');
+    AssertEquals(smbSection.treble.Length, 1, 'the SMB bell is on the treble staff');
     AssertEquals(withSmbs.warnings.Length, 0, 'nothing unrecognised once every head is chosen');
 
     AssertEquals(PlanHasKind(withSmbs.sections, 'smbs'), 1, 'a planned kind is found');
