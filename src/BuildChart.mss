@@ -174,8 +174,9 @@ WriteColumns(staff, barNumber, columns, kind, color, styles, tick) {
 
         if (IsObject(chord)) {
             for each n in chord {
-                DressNote(n, kind, color, styles);
+                DressNote(n, kind, styles);
             }
+            ColorChord(chord, color);
         }
     }
 }
@@ -185,19 +186,12 @@ WriteColumns(staff, barNumber, columns, kind, color, styles, tick) {
 // thing entirely. In Sibelius stemlessness IS a notehead style, so it is set
 // here rather than on the NoteRest, and it is why bells and chimes cannot both
 // simply take their obvious style constant.
-DressNote(note, kind, color, styles) {
+DressNote(note, kind, styles) {
     custom = CustomStyle(kind, styles);
     if (custom >= 0) {
         note.NoteStyle = custom;
     } else {
         note.NoteStyle = FallbackStyle(kind);
-    }
-    // Every instrument that was given a colour field is coloured the same way,
-    // and one that was not is handed an empty colour.
-    if (color != '') {
-        note.ColorRed = HexByte(color, 1);
-        note.ColorGreen = HexByte(color, 3);
-        note.ColorBlue = HexByte(color, 5);
     }
     // A chart is an inventory of the bells a piece needs, so no natural sign
     // belongs on one. Sibelius prints one whenever a plain letter follows an
@@ -303,6 +297,33 @@ ColumnTick(kind, styles) {
         return 1024;
     }
     return 256;
+}
+
+// Colour is written on the NoteRest rather than on each Note, and only while
+// it is selected. The reference is explicit that a BarObject's colour
+// components can be written only when the object is selected, and a freshly
+// added chart note is never selected, which is why setting the components on
+// the notes did nothing whatever and every section came out black. Writing a
+// property Sibelius will not accept is not an error: it just does not happen.
+//
+// Nothing per-note is lost. Every note in a chart column belongs to one
+// instrument, so one colour per chord is all there ever is, and the reference
+// says a NoteRest's colour reaches its notes anyway.
+//
+// The alpha channel is set with them. It is a separate component from the
+// 24-bit colour, whose top bits the reference says are ignored, so a note that
+// has never been coloured has no reason to carry an opaque one.
+ColorChord(chord, color) {
+    if (color = '') {
+        return False;
+    }
+    chord.Select();
+    chord.ColorRed = HexByte(color, 1);
+    chord.ColorGreen = HexByte(color, 3);
+    chord.ColorBlue = HexByte(color, 5);
+    chord.ColorAlpha = 255;
+    chord.Deselect();
+    return True;
 }
 
 // Reads two hex digits from a '#rrggbb' string. Anything unparseable yields 0,

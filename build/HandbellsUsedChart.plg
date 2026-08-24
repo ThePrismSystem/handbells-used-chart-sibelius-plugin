@@ -1211,24 +1211,18 @@
 
         if (IsObject(chord)) {
             for each n in chord {
-                DressNote(n, kind, color, styles);
+                DressNote(n, kind, styles);
             }
+            ColorChord(chord, color);
         }
     }
 }"
-	DressNote "(note, kind, color, styles) {
+	DressNote "(note, kind, styles) {
     custom = CustomStyle(kind, styles);
     if (custom >= 0) {
         note.NoteStyle = custom;
     } else {
         note.NoteStyle = FallbackStyle(kind);
-    }
-    // Every instrument that was given a colour field is coloured the same way,
-    // and one that was not is handed an empty colour.
-    if (color != '') {
-        note.ColorRed = HexByte(color, 1);
-        note.ColorGreen = HexByte(color, 3);
-        note.ColorBlue = HexByte(color, 5);
     }
     // A chart is an inventory of the bells a piece needs, so no natural sign
     // belongs on one. Sibelius prints one whenever a plain letter follows an
@@ -1300,6 +1294,18 @@
         return 1024;
     }
     return 256;
+}"
+	ColorChord "(chord, color) {
+    if (color = '') {
+        return False;
+    }
+    chord.Select();
+    chord.ColorRed = HexByte(color, 1);
+    chord.ColorGreen = HexByte(color, 3);
+    chord.ColorBlue = HexByte(color, 5);
+    chord.ColorAlpha = 255;
+    chord.Deselect();
+    return True;
 }"
 	HexByte "(text, offset) {
     high = HexDigit(Substring(text, offset, 1));

@@ -95,7 +95,7 @@ TestCollect() {
     three = CreateSparseArray(
         CreateDictionary('pitch', 72, 'diatonic', 35, 'head', 'Normal'),
         CreateDictionary('pitch', 74, 'diatonic', 36, 'head', 'Diamond'),
-        CreateDictionary('pitch', 79, 'diatonic', 38, 'head', 'Cross'),
+        CreateDictionary('pitch', 79, 'diatonic', 39, 'head', 'Cross'),
         CreateDictionary('pitch', 76, 'diatonic', 37, 'head', 'Cross')
     );
     all3 = CollectBells(three, CreateDictionary('bellHead', 'Normal',

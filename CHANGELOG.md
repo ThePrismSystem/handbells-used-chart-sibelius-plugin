@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Handchime and SMB colours had no effect, leaving both sections black. The
+  colour components were written on each Note; a BarObject's colour can only
+  be written while the object is selected, and a freshly added chart note
+  never is, so the writes were silently discarded. Colour is now set on the
+  NoteRest while it is selected, alpha included.
 - Setting a handchime or SMB colour took the run down. `HexDigit` called a
   bare `LowerCase`, and no global of that name exists: it is
   `utils.LowerCase`. The colour path had never been exercised, so nothing
