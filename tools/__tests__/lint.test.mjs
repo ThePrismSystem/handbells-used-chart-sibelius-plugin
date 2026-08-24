@@ -217,3 +217,19 @@ test('accepts a method that assigns and reads dynamic variables together', () =>
         + '        got = @name;\n        got.Delete();\n    }\n}\n';
     assert.deepEqual(lintSource('a.mss', src), []);
 });
+
+// LowerCase and UpperCase are utils.LowerCase and utils.UpperCase; no global of
+// either name exists. Both had been added to the built-in allow-list, which is
+// what let a bare LowerCase call ship and take down the first run that set a
+// colour. The dotted forms stay fine, because the host resolves those.
+test('lintCalls flags a bare LowerCase, which is a utils method and not a built-in', () => {
+    const sources = [['a.mss', 'Run() {\n    x = LowerCase(y);\n}\n']];
+    const findings = lintCalls(sources);
+    assert.equal(findings.length, 1);
+    assert.match(findings[0].message, /calls LowerCase, which no source in this plug-in defines/);
+});
+
+test('lintCalls accepts the dotted utils forms', () => {
+    const sources = [['a.mss', 'Run() {\n    x = utils.LowerCase(y);\n    z = utils.UpperCase(y);\n}\n']];
+    assert.deepEqual(lintCalls(sources), []);
+});

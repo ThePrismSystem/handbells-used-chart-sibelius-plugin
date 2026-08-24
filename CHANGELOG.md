@@ -20,6 +20,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lose the stems, exactly as handchimes fall back to the built-in diamond.
   The run says so and names the notehead to make.
 
+### Fixed
+
+- Setting a handchime or SMB colour took the run down. `HexDigit` called a
+  bare `LowerCase`, and no global of that name exists: it is
+  `utils.LowerCase`. The colour path had never been exercised, so nothing
+  had run into it. Both `LowerCase` and `UpperCase` had been listed as
+  built-ins in the linter, which is what let the call ship; they are gone
+  from that list, and the colour conversion has tests of its own.
+
 ### Changed
 
 - A missing `Diamond (stemless)` is now reported the way a missing

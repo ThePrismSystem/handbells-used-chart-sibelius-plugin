@@ -20,6 +20,26 @@ TestOptions() {
     AssertEquals(UsableColor('#c000000'), '', 'a long value is refused');
     AssertEquals(UsableColor('#'), '', 'a lone hash is refused');
 
+    // The other half of a colour: UsableColor accepts the text, HexByte turns
+    // it into the three channels a note is coloured with. Untested until a
+    // bare LowerCase call in HexDigit took down the first run that set one.
+    AssertEquals(HexDigit('0'), 0, 'zero');
+    AssertEquals(HexDigit('9'), 9, 'nine');
+    AssertEquals(HexDigit('a'), 10, 'lower case a');
+    AssertEquals(HexDigit('f'), 15, 'lower case f');
+    AssertEquals(HexDigit('A'), 10, 'upper case A');
+    AssertEquals(HexDigit('F'), 15, 'upper case F');
+    AssertEquals(HexDigit('z'), 0, 'a non-digit reads as zero');
+
+    // Offsets are into '#rrggbb', so red starts at 1.
+    AssertEquals(HexByte('#ff0000', 1), 255, 'red channel of lower case red');
+    AssertEquals(HexByte('#ff0000', 3), 0, 'green channel of lower case red');
+    AssertEquals(HexByte('#ff0000', 5), 0, 'blue channel of lower case red');
+    AssertEquals(HexByte('#FF0000', 1), 255, 'upper case reads the same');
+    AssertEquals(HexByte('#66FF00', 1), 102, 'mixed value red channel');
+    AssertEquals(HexByte('#66FF00', 3), 255, 'mixed value green channel');
+    AssertEquals(HexByte('#66FF00', 5), 0, 'mixed value blue channel');
+
     // Three instruments means three pairs to keep apart, not one.
     distinct = CreateDictionary('bellHead', 'Normal', 'chimeHead', 'Diamond',
         'smbHead', 'Square');

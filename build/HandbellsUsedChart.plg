@@ -1308,7 +1308,7 @@
 }"
 	HexDigit "(char) {
     digits = '0123456789abcdef';
-    lower = LowerCase('' & char);
+    lower = utils.LowerCase('' & char);
     for i = 0 to 16 {
         if (Substring(digits, i, 1) = lower) {
             return i;

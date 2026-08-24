@@ -79,10 +79,15 @@ function divisionUnforced(code) {
 // It fails at the first call into the missing file, in front of the user. The
 // allow-list is deliberately only what this project uses: a genuinely new
 // built-in should fail this check once and be added on purpose.
+//
+// Which means a name that is NOT a built-in must never be added to shut the
+// check up. LowerCase and UpperCase were both listed here and neither exists:
+// they are utils.LowerCase and utils.UpperCase, and listing them is what let a
+// bare LowerCase call ship and crash the first run that set a colour.
 const BUILTINS = new Set([
     'AddToPluginsMenu', 'CreateArray', 'CreateDictionary', 'CreateHash',
     'CreateSparseArray', 'EnableStringSafety', 'IsObject', 'Length',
-    'LowerCase', 'UpperCase', 'RoundDown', 'RoundUp', 'Substring',
+    'RoundDown', 'RoundUp', 'Substring',
     'SetInterpreterOption', 'StrToNum', 'CharAt', 'Chr', 'Asc', 'not', 'trace'
 ]);
 

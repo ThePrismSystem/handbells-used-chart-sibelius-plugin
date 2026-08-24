@@ -307,6 +307,10 @@ ColumnTick(kind, styles) {
 
 // Reads two hex digits from a '#rrggbb' string. Anything unparseable yields 0,
 // which leaves that channel black rather than failing the run.
+//
+// Lower-casing is utils.LowerCase, not LowerCase: there is no global of that
+// name, so the bare call resolved against this plug-in's own namespace, found
+// nothing, and took the run down the first time anyone set a colour.
 HexByte(text, offset) {
     high = HexDigit(Substring(text, offset, 1));
     low = HexDigit(Substring(text, offset + 1, 1));
@@ -315,7 +319,7 @@ HexByte(text, offset) {
 
 HexDigit(char) {
     digits = '0123456789abcdef';
-    lower = LowerCase('' & char);
+    lower = utils.LowerCase('' & char);
     for i = 0 to 16 {
         if (Substring(digits, i, 1) = lower) {
             return i;
