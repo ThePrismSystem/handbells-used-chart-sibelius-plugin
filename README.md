@@ -9,12 +9,15 @@ It is a port of
 to Sibelius. The chart's behaviour is unchanged from that project:
 
 - Bells are listed in pitch order, spelled the way the score spells them. A
-  bell written as both G#5 and Ab5 in the piece appears under both spellings,
-  because a ringer reads the chart to plan position splits, and the spelling
-  tells the next position over whether it has to share a bell.
-- No natural sign is ever drawn on the chart. A plain E a few columns along
-  from an E flat would otherwise read as picking up a natural and be counted
-  as a second, separate bell.
+  bell the piece writes as both G#5 and Ab5 gets a column for each spelling,
+  each with its own accidental. That is deliberate, not a failure to
+  deduplicate: the two spellings are one physical bell, and they fall to
+  different positions, so the chart is how the F5-G5 ringer and the A5-B5
+  ringer see that they have to share it.
+- No natural sign is ever drawn on the chart. Sibelius adds one to a plain E
+  a few columns along from an E flat, where it reads as cancelling that flat
+  rather than naming a bell of its own. Which bells are charted is unaffected:
+  E flat and E are two separate bells and get a column each either way.
 - Handchimes and silver melody bells get charts of their own. Which
   notehead means which instrument is chosen in the dialog from the noteheads
   the score actually uses, so an arrangement that marks them some other way
@@ -99,8 +102,9 @@ The plugin's dialog offers six controls:
 
 Section labels are generated: "Handbells Used: *n*", "Handchimes Used: *n*",
 "SMBs Used: *n*". Each counts physical bells, so a bell appearing under two
-spellings is counted once. They are ordinary staff text once the chart is
-drawn, so retype them in the score if you want something else.
+spellings is counted once, although it is charted under both. They are
+ordinary staff text once the chart is drawn, so retype them in the score if
+you want something else.
 
 ### Colours
 
