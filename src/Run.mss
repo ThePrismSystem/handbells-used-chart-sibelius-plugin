@@ -13,8 +13,13 @@ Run() {
         return False;
     }
 
+    // Before the dialog, because filling it already reads the score: the
+    // instrument list and the existing chart are looked for in whichever part
+    // is current. The view the user was in comes back on every exit below.
+    was = EnterFullScore(score);
     options = ReadOptions(score);
     if (options = null) {
+        score.CurrentDynamicPart = was;
         return False;
     }
 
@@ -32,6 +37,7 @@ Run() {
 
     score.Redraw = True;
     selection.RestoreSelection();
+    score.CurrentDynamicPart = was;
 
     if (message.text != '') {
         ReportSay(message.kind, message.text);
@@ -52,6 +58,10 @@ ChartScore(score, options) {
                 'text', ('More than one instrument is set to the ' & duplicate)
                     & (' notehead. ' & _SameNoteheadChosen));
         }
+        if (options.instruments.Length = 0) {
+            return CreateDictionary('ok', False, 'kind', 'error',
+                'text', '' & _NoInstrumentSelected);
+        }
     }
 
     // Removal first, so a re-run replaces its own chart rather than reading it
@@ -71,7 +81,7 @@ ChartScore(score, options) {
         return CreateDictionary('ok', False, 'kind', 'warning', 'text', '' & _NoChartToRemove);
     }
 
-    plan = BuildPlan(ReadScoreNotes(score), options);
+    plan = BuildChartPlan(ReadScoreNotes(score), options);
 
     // Warnings are folded into the message ahead of the nothing-to-draw case,
     // not reported after it. A score whose only bells lie outside C2-C9 plans
@@ -109,6 +119,9 @@ ChartScore(score, options) {
             summary = summary & '\n';
         }
         summary = summary & plan.sections[i].label;
+    }
+    if (plan.emptyNames.Length > 0) {
+        summary = summary & ('\n' & ('Nothing to chart for: ' & JoinNames(plan.emptyNames)));
     }
     if (removal.removed) {
         summary = summary & ('\n\n' & _ChartWasReplaced);

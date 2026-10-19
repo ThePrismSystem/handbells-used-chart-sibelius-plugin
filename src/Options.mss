@@ -35,19 +35,21 @@ ReadOptions(score) {
     // unremembered SMB box opens on no notehead rather than on a guess.
     dlg_smbHead = PreferredHead(choices.names, '' & dlg_smbHead, '');
 
-    // Probe, until the parts checkpoint: the list box is new, its .msd block is
-    // written by hand to mirror ComboBox's undocumented shape, and nothing
-    // documents whether a multi-select box can open with items selected or
-    // what its variable holds afterwards. Charting ignores all three new
-    // controls until those answers are in.
-    names = InstrumentNames(ScoreInstruments(score));
+    // Filled the way the notehead boxes are, and for the same reason: the list
+    // comes from the open score. The selection it opens on is everything this
+    // score offers except what was left out last time.
+    instruments = ScoreInstruments(score);
+    offered = InstrumentNames(instruments);
+    excluded = PipeList(_ExcludedInstruments);
+    preselected = PreselectedNames(offered, excluded);
     _InstrumentItems = CreateArray();
-    dlg_instruments = CreateArray();
-    for i = 0 to names.Length {
-        _InstrumentItems[i] = names[i];
-        dlg_instruments[i] = names[i];
+    for i = 0 to offered.Length {
+        _InstrumentItems[i] = offered[i];
     }
-    trace('[dialog probe] items offered = ' & names.Length);
+    dlg_instruments = CreateArray();
+    for i = 0 to preselected.Length {
+        dlg_instruments[i] = preselected[i];
+    }
     _ChartModeItems = CreateArray();
     _ChartModeItems[0] = '' & CHART_MODE_COMBINED;
     _ChartModeItems[1] = '' & CHART_MODE_SEPARATE;
@@ -55,11 +57,17 @@ ReadOptions(score) {
         dlg_chartMode = '' & CHART_MODE_COMBINED;
     }
 
+    // Diagnostic, kept until the list box is confirmed in Sibelius. Its .msd
+    // block is written by hand to mirror ComboBox's undocumented shape, and
+    // nothing documents whether a multi-select box opens with items selected
+    // or what its variable holds afterwards. One statement per read, so a
+    // run-time error names the read that failed.
+    trace('[dialog probe] items offered = ' & offered.Length & ', preselected = ' & preselected.Length);
+
     if (not(Sibelius.ShowDialog(_SettingsDialog, self))) {
         return null;
     }
 
-    // One statement per read, so a run-time error names the read that failed.
     trace('[dialog probe] value = [' & ('' & dlg_instruments) & ']');
     trace('[dialog probe] NumChildren = ' & dlg_instruments.NumChildren);
     count = dlg_instruments.NumChildren;
@@ -67,24 +75,50 @@ ReadOptions(score) {
         trace('[dialog probe] item ' & i & ' = [' & dlg_instruments[i] & ']');
     }
 
+    selected = SelectedNames(dlg_instruments);
+    _ExcludedInstruments = JoinPipe(ExcludedAfterRun(excluded, offered, selected));
+
     return CreateDictionary(
         'chimeColor', UsableColor(dlg_chimeColor),
         'smbColor', UsableColor(dlg_smbColor),
         'bellHead', Trim(dlg_bellHead),
         'chimeHead', Trim(dlg_chimeHead),
         'smbHead', Trim(dlg_smbHead),
-        'remove', ('' & dlg_remove) = '1'
+        'remove', ('' & dlg_remove) = '1',
+        'instruments', InstrumentsNamed(instruments, selected),
+        'mode', ChartModeOf(dlg_chartMode),
+        'parts', ('' & dlg_parts) = '1'
     );
 }
 
-// Called by the list box on every click. A probe for now: whether the call
-// arrives while the dialog is open, whether the variable already holds the new
-// selection when it does, and whether the Charts box can be greyed out live.
+// Called by the list box on every click, and greys the Charts box out while
+// fewer than two instruments are selected, since charting one instrument apart
+// is the same as charting it combined. The trace is the diagnostic above.
 InstrumentsChanged() {
-    count = dlg_instruments.NumChildren;
-    trace('[dialog probe] changed: NumChildren = ' & count);
+    selected = SelectedNames(dlg_instruments);
+    count = selected.Length;
+    trace('[dialog probe] changed: selected = ' & count);
     Sibelius.EnableControlById(Self, _SettingsDialog, 'dlg_chartMode', count > 1);
     return True;
+}
+
+// A multi-select list box hands back an array of strings, which in a plug-in's
+// Data is a TreeNode: its entries are children, counted by NumChildren, the
+// same shape the list variables are filled in.
+SelectedNames(value) {
+    names = CreateSparseArray();
+    count = value.NumChildren;
+    for i = 0 to count {
+        names.Push('' & value[i]);
+    }
+    return names;
+}
+
+ChartModeOf(choice) {
+    if (('' & choice) = ('' & CHART_MODE_SEPARATE)) {
+        return 'separate';
+    }
+    return 'combined';
 }
 
 // The instrument selection is remembered as the names left out, not the names

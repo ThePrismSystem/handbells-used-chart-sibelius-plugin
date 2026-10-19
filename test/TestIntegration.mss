@@ -87,10 +87,13 @@ TestBuildChart() {
 
     records = ReadScoreNotes(score);
     choices = ScoreHeadChoices(score);
+    // Every instrument, combined: the defaults a first run opens on, and so
+    // the proof that they still draw exactly what v1.2.0 drew.
     options = CreateDictionary('chimeColor', '', 'smbColor', '',
         'bellHead', choices.defaultBell, 'chimeHead', choices.defaultChime,
-        'smbHead', NoNoteHead());
-    plan = BuildPlan(records, options);
+        'smbHead', NoNoteHead(),
+        'instruments', ScoreInstruments(score), 'mode', 'combined');
+    plan = BuildChartPlan(records, options);
     result = BuildChart(score, plan, options);
 
     AssertTrue(result.ok, 'build reported success: ' & result.error);
@@ -139,6 +142,73 @@ TestRemoveChart() {
     again = RemoveChart(score);
     AssertEquals(again.removed, False, 'second removal finds no chart');
     AssertEquals(again.error, '', 'no chart is not an error');
+}
+
+TestBuildSeparate() {
+    score = Sibelius.ActiveScore;
+    if (score = null) {
+        AssertTrue(False, 'open a score before running the integration tests');
+        return False;
+    }
+
+    RemoveChart(score);
+    instruments = ScoreInstruments(score);
+    if (instruments.Length < 2) {
+        AssertTrue(False, 'fixture: needs two instruments with notes');
+        return False;
+    }
+
+    staffCountBefore = score.StaffCount;
+    choices = ScoreHeadChoices(score);
+    options = CreateDictionary('chimeColor', '', 'smbColor', '',
+        'bellHead', choices.defaultBell, 'chimeHead', choices.defaultChime,
+        'smbHead', NoNoteHead(), 'instruments', instruments, 'mode', 'separate');
+    plan = BuildChartPlan(ReadScoreNotes(score), options);
+    AssertTrue(plan.sections.Length > 0, 'the fixture charts something');
+    if (plan.sections.Length = 0) {
+        return False;
+    }
+
+    result = BuildChart(score, plan, options);
+    AssertTrue(result.ok, 'separate build reported success: ' & result.error);
+    sections = plan.sections.Length;
+    AssertEquals(score.StaffCount, staffCountBefore + (sections * 2), 'two staves added per section, separately');
+
+    // The chart staves go at the bottom, so the first one follows the piece.
+    firstSection = plan.sections[0];
+    trebleBar = score.NthStaff(staffCountBefore + 1).NthBar(1);
+    labelled = False;
+    for each Text t in trebleBar {
+        if (('' & t.Text) = firstSection.label) {
+            labelled = True;
+        }
+    }
+    AssertTrue(labelled, 'the first chart is labelled with its instrument name');
+
+    removal = RemoveChart(score);
+    AssertTrue(removal.removed, 'separate chart removed: ' & removal.error);
+}
+
+TestEnterFullScore() {
+    score = Sibelius.ActiveScore;
+    if (score = null) {
+        AssertTrue(False, 'open a score before running the integration tests');
+        return False;
+    }
+
+    part = PartHoldingStaff(score, 1);
+    if (part = null) {
+        AssertTrue(False, 'fixture: staff 1 needs a part');
+        return False;
+    }
+
+    score.CurrentDynamicPart = part;
+    was = EnterFullScore(score);
+    current = score.CurrentDynamicPart;
+    AssertEquals(current.IsFullScore, True, 'charting happens in the full score');
+    AssertEquals(was.IsFullScore, False, 'the part view is what gets restored');
+    score.CurrentDynamicPart = was;
+    EnterFullScore(score);
 }
 
 TestNoteHeadScan() {

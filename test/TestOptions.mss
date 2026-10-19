@@ -84,4 +84,20 @@ TestOptions() {
         'Flute', 'selecting the piano again forgets it, and the flute is kept for a score that has one');
     AssertEquals(JoinNames(ExcludedAfterRun(CreateSparseArray('Flute'), offered, CreateSparseArray('Piano'))),
         'Flute, Handbells I, Handbells II', 'remembered names first, then this run in score order');
+
+    AssertEquals(ChartModeOf('' & CHART_MODE_SEPARATE), 'separate', 'the separate choice');
+    AssertEquals(ChartModeOf('' & CHART_MODE_COMBINED), 'combined', 'the combined choice');
+    AssertEquals(ChartModeOf(''), 'combined', 'no choice yet is combined, as v1.2.0');
+    AssertEquals(ChartModeOf('something else'), 'combined', 'an unknown choice is combined');
+
+    // The shape ReadOptions hands the list box. Whether the dialog hands back
+    // the same shape is for the hand-run session to show.
+    dlg_instruments = CreateArray();
+    dlg_instruments[0] = 'Handbells I';
+    dlg_instruments[1] = 'Piano';
+    AssertEquals(JoinNames(SelectedNames(dlg_instruments)), 'Handbells I, Piano',
+        'the list selection reads back as names');
+    dlg_instruments = CreateArray();
+    nothing = SelectedNames(dlg_instruments);
+    AssertEquals(nothing.Length, 0, 'an empty selection reads back as no names');
 }

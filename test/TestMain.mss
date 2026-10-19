@@ -37,6 +37,8 @@ Run() {
     TestNoteHeadScan();
     TestBuildChart();
     TestRemoveChart();
+    TestBuildSeparate();
+    TestEnterFullScore();
     Sibelius.MessageBox(AssertReport());
     trace(AssertReport());
 }

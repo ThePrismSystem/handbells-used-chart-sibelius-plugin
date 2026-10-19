@@ -18,6 +18,7 @@
         "src/ReadScore.mss",
         "src/Instruments.mss",
         "src/BuildChart.mss",
+        "src/Parts.mss",
         "src/RemoveChart.mss"
       ],
       "raw": [
@@ -55,7 +56,8 @@
         "_ChartWasRemoved": "The existing chart was removed.",
         "_ChartWasReplaced": "An existing chart was replaced.",
         "_NoChartToRemove": "This score carries no chart that this plug-in made.",
-        "_SameNoteheadChosen": "Choose a different notehead for one of them and run the plug-in again."
+        "_SameNoteheadChosen": "Choose a different notehead for one of them and run the plug-in again.",
+        "_NoInstrumentSelected": "Select at least one instrument to chart, then run the plug-in again."
       }
     },
     {
@@ -74,6 +76,7 @@
         "src/Options.mss",
         "src/Report.mss",
         "src/BuildChart.mss",
+        "src/Parts.mss",
         "src/RemoveChart.mss",
         "test/Assert.mss",
         "test/TestMain.mss",

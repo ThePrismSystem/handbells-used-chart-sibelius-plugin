@@ -50,8 +50,13 @@
         return False;
     }
 
+    // Before the dialog, because filling it already reads the score: the
+    // instrument list and the existing chart are looked for in whichever part
+    // is current. The view the user was in comes back on every exit below.
+    was = EnterFullScore(score);
     options = ReadOptions(score);
     if (options = null) {
+        score.CurrentDynamicPart = was;
         return False;
     }
 
@@ -69,6 +74,7 @@
 
     score.Redraw = True;
     selection.RestoreSelection();
+    score.CurrentDynamicPart = was;
 
     if (message.text != '') {
         ReportSay(message.kind, message.text);
@@ -85,6 +91,10 @@
             return CreateDictionary('ok', False, 'kind', 'error',
                 'text', ('More than one instrument is set to the ' & duplicate)
                     & (' notehead. ' & _SameNoteheadChosen));
+        }
+        if (options.instruments.Length = 0) {
+            return CreateDictionary('ok', False, 'kind', 'error',
+                'text', '' & _NoInstrumentSelected);
         }
     }
 
@@ -105,7 +115,7 @@
         return CreateDictionary('ok', False, 'kind', 'warning', 'text', '' & _NoChartToRemove);
     }
 
-    plan = BuildPlan(ReadScoreNotes(score), options);
+    plan = BuildChartPlan(ReadScoreNotes(score), options);
 
     // Warnings are folded into the message ahead of the nothing-to-draw case,
     // not reported after it. A score whose only bells lie outside C2-C9 plans
@@ -143,6 +153,9 @@
             summary = summary & '\n';
         }
         summary = summary & plan.sections[i].label;
+    }
+    if (plan.emptyNames.Length > 0) {
+        summary = summary & ('\n' & ('Nothing to chart for: ' & JoinNames(plan.emptyNames)));
     }
     if (removal.removed) {
         summary = summary & ('\n\n' & _ChartWasReplaced);
@@ -186,19 +199,21 @@
     // unremembered SMB box opens on no notehead rather than on a guess.
     dlg_smbHead = PreferredHead(choices.names, '' & dlg_smbHead, '');
 
-    // Probe, until the parts checkpoint: the list box is new, its .msd block is
-    // written by hand to mirror ComboBox's undocumented shape, and nothing
-    // documents whether a multi-select box can open with items selected or
-    // what its variable holds afterwards. Charting ignores all three new
-    // controls until those answers are in.
-    names = InstrumentNames(ScoreInstruments(score));
+    // Filled the way the notehead boxes are, and for the same reason: the list
+    // comes from the open score. The selection it opens on is everything this
+    // score offers except what was left out last time.
+    instruments = ScoreInstruments(score);
+    offered = InstrumentNames(instruments);
+    excluded = PipeList(_ExcludedInstruments);
+    preselected = PreselectedNames(offered, excluded);
     _InstrumentItems = CreateArray();
-    dlg_instruments = CreateArray();
-    for i = 0 to names.Length {
-        _InstrumentItems[i] = names[i];
-        dlg_instruments[i] = names[i];
+    for i = 0 to offered.Length {
+        _InstrumentItems[i] = offered[i];
     }
-    trace('[dialog probe] items offered = ' & names.Length);
+    dlg_instruments = CreateArray();
+    for i = 0 to preselected.Length {
+        dlg_instruments[i] = preselected[i];
+    }
     _ChartModeItems = CreateArray();
     _ChartModeItems[0] = '' & CHART_MODE_COMBINED;
     _ChartModeItems[1] = '' & CHART_MODE_SEPARATE;
@@ -206,11 +221,17 @@
         dlg_chartMode = '' & CHART_MODE_COMBINED;
     }
 
+    // Diagnostic, kept until the list box is confirmed in Sibelius. Its .msd
+    // block is written by hand to mirror ComboBox's undocumented shape, and
+    // nothing documents whether a multi-select box opens with items selected
+    // or what its variable holds afterwards. One statement per read, so a
+    // run-time error names the read that failed.
+    trace('[dialog probe] items offered = ' & offered.Length & ', preselected = ' & preselected.Length);
+
     if (not(Sibelius.ShowDialog(_SettingsDialog, self))) {
         return null;
     }
 
-    // One statement per read, so a run-time error names the read that failed.
     trace('[dialog probe] value = [' & ('' & dlg_instruments) & ']');
     trace('[dialog probe] NumChildren = ' & dlg_instruments.NumChildren);
     count = dlg_instruments.NumChildren;
@@ -218,20 +239,41 @@
         trace('[dialog probe] item ' & i & ' = [' & dlg_instruments[i] & ']');
     }
 
+    selected = SelectedNames(dlg_instruments);
+    _ExcludedInstruments = JoinPipe(ExcludedAfterRun(excluded, offered, selected));
+
     return CreateDictionary(
         'chimeColor', UsableColor(dlg_chimeColor),
         'smbColor', UsableColor(dlg_smbColor),
         'bellHead', Trim(dlg_bellHead),
         'chimeHead', Trim(dlg_chimeHead),
         'smbHead', Trim(dlg_smbHead),
-        'remove', ('' & dlg_remove) = '1'
+        'remove', ('' & dlg_remove) = '1',
+        'instruments', InstrumentsNamed(instruments, selected),
+        'mode', ChartModeOf(dlg_chartMode),
+        'parts', ('' & dlg_parts) = '1'
     );
 }"
 	InstrumentsChanged "() {
-    count = dlg_instruments.NumChildren;
-    trace('[dialog probe] changed: NumChildren = ' & count);
+    selected = SelectedNames(dlg_instruments);
+    count = selected.Length;
+    trace('[dialog probe] changed: selected = ' & count);
     Sibelius.EnableControlById(Self, _SettingsDialog, 'dlg_chartMode', count > 1);
     return True;
+}"
+	SelectedNames "(value) {
+    names = CreateSparseArray();
+    count = value.NumChildren;
+    for i = 0 to count {
+        names.Push('' & value[i]);
+    }
+    return names;
+}"
+	ChartModeOf "(choice) {
+    if (('' & choice) = ('' & CHART_MODE_SEPARATE)) {
+        return 'separate';
+    }
+    return 'combined';
 }"
 	PipeList "(text) {
     value = '' & text;
@@ -1611,6 +1653,12 @@
     }
     return True;
 }"
+	EnterFullScore "(score) {
+    was = score.CurrentDynamicPart;
+    parts = score.DynamicParts;
+    score.CurrentDynamicPart = parts[0];
+    return was;
+}"
 	IdentificationError "(reason) {
     return reason & ' Delete the chart staves and their bars in Sibelius, then run this again.';
 }"
@@ -2130,4 +2178,5 @@ _SettingsDialog "Dialog"
 	_ChartWasReplaced "An existing chart was replaced."
 	_NoChartToRemove "This score carries no chart that this plug-in made."
 	_SameNoteheadChosen "Choose a different notehead for one of them and run the plug-in again."
+	_NoInstrumentSelected "Select at least one instrument to chart, then run the plug-in again."
 }
