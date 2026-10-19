@@ -89,7 +89,17 @@ BuildChart(score, plan, options) {
 
     // 6. Labels, breaks and staff size.
     for i = 0 to sections.Length {
-        label = trebleStaves[i].NthBar(i + 1).AddText(0, sections[i].label, LabelTextStyle());
+        section = sections[i];
+        labelBar = trebleStaves[i].NthBar(i + 1);
+        label = labelBar.AddText(0, section.label, LabelTextStyle());
+        // The full score names the instrument and a one-choir part does not
+        // need to, but the staff is the same staff in both. So the section
+        // carries two labels, each shown in one of them. PlanParts decides.
+        if (section.splitLabel = 1) {
+            label.ShowInScore();
+            plain = labelBar.AddText(0, section.plainLabel, LabelTextStyle());
+            plain.ShowInParts();
+        }
         bar = score.NthStaff(1).NthBar(i + 1);
         bar.BreakType = EndOfSystem;
         trebleStaves[i].Small = True;

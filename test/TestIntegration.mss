@@ -211,6 +211,90 @@ TestEnterFullScore() {
     EnterFullScore(score);
 }
 
+TestBuildChartParts() {
+    score = Sibelius.ActiveScore;
+    if (score = null) {
+        AssertTrue(False, 'open a score before running the integration tests');
+        return False;
+    }
+
+    RemoveChart(score);
+    instruments = ScoreInstruments(score);
+    if (instruments.Length < 2) {
+        AssertTrue(False, 'fixture: needs two instruments with parts of their own');
+        return False;
+    }
+    first = instruments[0];
+    second = instruments[1];
+    partA = PartHoldingStaff(score, first.firstStaff);
+    partB = PartHoldingStaff(score, second.firstStaff);
+    if ((partA = null) or (partB = null)) {
+        AssertTrue(False, 'fixture: needs two instruments with parts of their own');
+        return False;
+    }
+    if (partA.IncludesStaff(score.NthStaff(second.firstStaff))) {
+        AssertTrue(False, 'fixture: the first two instruments need a part each, not one between them');
+        return False;
+    }
+
+    // Both plans from the clean score: once a chart is drawn, reading the
+    // score again would read the chart's own notes back in.
+    choices = ScoreHeadChoices(score);
+    records = ReadScoreNotes(score);
+    oldOptions = CreateDictionary('chimeColor', '', 'smbColor', '',
+        'bellHead', choices.defaultBell, 'chimeHead', choices.defaultChime,
+        'smbHead', NoNoteHead(), 'instruments', instruments, 'mode', 'combined', 'parts', False);
+    newOptions = CreateDictionary('chimeColor', '', 'smbColor', '',
+        'bellHead', choices.defaultBell, 'chimeHead', choices.defaultChime,
+        'smbHead', NoNoteHead(), 'instruments', instruments, 'mode', 'separate', 'parts', True);
+    oldShape = BuildChartPlan(records, oldOptions);
+    expected = BuildChartPlan(records, newOptions);
+
+    parts = score.DynamicParts;
+    partsBefore = parts.NumChildren;
+    stavesA = partA.StaveCount;
+    stavesB = partB.StaveCount;
+
+    // The shape v1.2.0 draws, then a re-run over it with every new option on.
+    built = DrawCharts(score, oldShape, oldOptions);
+    AssertTrue(built.ok, 'the combined chart is drawn: ' & built.error);
+    RemoveChart(score);
+    rebuilt = DrawCharts(score, expected, newOptions);
+    AssertTrue(rebuilt.ok, 'the separate chart with parts is drawn over it: ' & rebuilt.error);
+    found = FindChart(score);
+    AssertEquals(found.sections, expected.sections.Length, 'the re-run chart has every section');
+
+    onlyOwnA = True;
+    onlyOwnB = True;
+    for i = 0 to expected.sections.Length {
+        section = expected.sections[i];
+        treble = score.NthStaff(found.firstStaff + (i * 2));
+        inA = 0;
+        if (partA.IncludesStaff(treble)) {
+            inA = 1;
+        }
+        inB = 0;
+        if (partB.IncludesStaff(treble)) {
+            inB = 1;
+        }
+        if (inA != HeadListed(section.owners, first.name)) {
+            onlyOwnA = False;
+        }
+        if (inB != HeadListed(section.owners, second.name)) {
+            onlyOwnB = False;
+        }
+    }
+    AssertTrue(onlyOwnA, 'the first part carries its own charts and no others');
+    AssertTrue(onlyOwnB, 'the second part carries its own charts and no others');
+    AssertEquals(parts.NumChildren, partsBefore, 'no chart-only parts are left behind');
+
+    removal = RemoveChart(score);
+    AssertTrue(removal.removed, 'the chart with parts is removed: ' & removal.error);
+    AssertEquals(partA.StaveCount, stavesA, 'the chart staves leave the first part with the chart');
+    AssertEquals(partB.StaveCount, stavesB, 'the chart staves leave the second part with the chart');
+    AssertEquals(parts.NumChildren, partsBefore, 'removal leaves the parts as they were');
+}
+
 TestNoteHeadScan() {
     score = Sibelius.ActiveScore;
     if (score = null) {

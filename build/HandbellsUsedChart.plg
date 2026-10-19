@@ -133,7 +133,7 @@
         return CreateDictionary('ok', False, 'kind', 'warning', 'text', text);
     }
 
-    result = BuildChart(score, plan, options);
+    result = DrawCharts(score, plan, options);
     if (not(result.ok)) {
         return CreateDictionary('ok', False, 'kind', 'error', 'text', result.error);
     }
@@ -1403,7 +1403,17 @@
 
     // 6. Labels, breaks and staff size.
     for i = 0 to sections.Length {
-        label = trebleStaves[i].NthBar(i + 1).AddText(0, sections[i].label, LabelTextStyle());
+        section = sections[i];
+        labelBar = trebleStaves[i].NthBar(i + 1);
+        label = labelBar.AddText(0, section.label, LabelTextStyle());
+        // The full score names the instrument and a one-choir part does not
+        // need to, but the staff is the same staff in both. So the section
+        // carries two labels, each shown in one of them. PlanParts decides.
+        if (section.splitLabel = 1) {
+            label.ShowInScore();
+            plain = labelBar.AddText(0, section.plainLabel, LabelTextStyle());
+            plain.ShowInParts();
+        }
         bar = score.NthStaff(1).NthBar(i + 1);
         bar.BreakType = EndOfSystem;
         trebleStaves[i].Small = True;
@@ -1659,6 +1669,126 @@
     score.CurrentDynamicPart = parts[0];
     return was;
 }"
+	DrawCharts "(score, plan, options) {
+    partPlan = PlanParts(score, plan, options);
+    result = BuildChart(score, plan, options);
+    if (not(result.ok)) {
+        return result;
+    }
+    if (plan.sections.Length = 0) {
+        return result;
+    }
+    firstChartStaff = (score.StaffCount - (plan.sections.Length * 2)) + 1;
+    DeleteChartOnlyParts(score, firstChartStaff);
+    ApplyParts(score, plan, partPlan, firstChartStaff);
+    return result;
+}"
+	ApplyParts "(score, plan, partPlan, firstChartStaff) {
+    barCount = score.NthStaff(1).BarCount;
+
+    entries = partPlan.entries;
+    for e = 0 to entries.Length {
+        entry = entries[e];
+        part = entry.part;
+        carried = entry.sections;
+        for k = 0 to carried.Length {
+            index = carried[k];
+            treble = firstChartStaff + (index * 2);
+            part.AddStaffToPart(score.NthStaff(treble));
+            part.AddStaffToPart(score.NthStaff(treble + 1));
+        }
+    }
+
+    parts = score.DynamicParts;
+    for each part in parts {
+        if (not(part.IsFullScore)) {
+            if (part.StaveCount > 0) {
+                LayOutPart(score, part, plan.sections, firstChartStaff, barCount);
+            }
+        }
+    }
+    return True;
+}"
+	LayOutPart "(score, part, sections, firstChartStaff, barCount) {
+    chartBars = sections.Length;
+    carried = CreateSparseArray();
+    positions = CreateSparseArray();
+    for k = 0 to chartBars {
+        positions.Push(-1);
+        if (part.IncludesStaff(score.NthStaff(firstChartStaff + (k * 2)))) {
+            positions[k] = carried.Length;
+            carried.Push(k);
+        }
+    }
+    anchor = null;
+    for each staff in part {
+        if (anchor = null) {
+            anchor = staff;
+        }
+    }
+    pieceCount = part.StaveCount - (carried.Length * 2);
+
+    parts = score.DynamicParts;
+    score.CurrentDynamicPart = part;
+    for b = 1 to chartBars + 1 {
+        anchor.NthBar(b).BreakType = EndOfSystem;
+        position = positions[b - 1];
+        if (position < 0) {
+            score.HideEmptyStaves(1, part.StaveCount, b, b);
+        } else {
+            treble = (pieceCount + (position * 2)) + 1;
+            if (pieceCount > 0) {
+                score.HideEmptyStaves(1, pieceCount, b, b);
+            }
+            if (treble > (pieceCount + 1)) {
+                score.HideEmptyStaves(pieceCount + 1, treble - 1, b, b);
+            }
+            if ((treble + 1) < part.StaveCount) {
+                score.HideEmptyStaves(treble + 2, part.StaveCount, b, b);
+            }
+            section = sections[b - 1];
+            if (UsesOneStaff(section.kind) = 1) {
+                score.HideEmptyStaves(treble + 1, treble + 1, b, b);
+            }
+        }
+    }
+    if (carried.Length > 0) {
+        if (barCount > chartBars) {
+            score.HideEmptyStaves(pieceCount + 1, part.StaveCount, chartBars + 1, barCount);
+        }
+    }
+    score.CurrentDynamicPart = parts[0];
+    return True;
+}"
+	DeleteChartOnlyParts "(score, firstChartStaff) {
+    parts = score.DynamicParts;
+    counter = 0;
+    for each part in parts {
+        if (not(part.IsFullScore)) {
+            if (part.StaveCount > 0) {
+                chartOnly = 1;
+                for each staff in part {
+                    if (staff.StaffNum < firstChartStaff) {
+                        chartOnly = 0;
+                    }
+                }
+                if (chartOnly = 1) {
+                    name = 'chartpart' & counter;
+                    @name = part;
+                    counter = counter + 1;
+                }
+            }
+        }
+    }
+
+    while (counter > 0) {
+        counter = counter - 1;
+        name = 'chartpart' & counter;
+        part = @name;
+        parts.DeletePart(part);
+    }
+    return True;
+}"
 	PlanParts "(score, plan, options) {
     infos = CreateSparseArray();
     if (options.parts = True) {
@@ -1867,6 +1997,9 @@
             'This score records a Handbells Used chart, but Sibelius did not remove '
             & 'the chart bars.'));
     }
+
+    // While the chart staves still exist to say which parts are only theirs.
+    DeleteChartOnlyParts(score, found.firstStaff);
 
     // Bottom-up, so deleting one staff does not renumber the ones still to go.
     staffCountBefore = score.StaffCount;

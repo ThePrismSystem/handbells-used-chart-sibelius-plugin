@@ -101,6 +101,9 @@ RemoveChart(score) {
             & 'the chart bars.'));
     }
 
+    // While the chart staves still exist to say which parts are only theirs.
+    DeleteChartOnlyParts(score, found.firstStaff);
+
     // Bottom-up, so deleting one staff does not renumber the ones still to go.
     staffCountBefore = score.StaffCount;
     n = score.StaffCount;

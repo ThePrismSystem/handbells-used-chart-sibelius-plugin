@@ -40,6 +40,7 @@ Run() {
     TestRemoveChart();
     TestBuildSeparate();
     TestEnterFullScore();
+    TestBuildChartParts();
     Sibelius.MessageBox(AssertReport());
     trace(AssertReport());
 }

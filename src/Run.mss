@@ -99,7 +99,7 @@ ChartScore(score, options) {
         return CreateDictionary('ok', False, 'kind', 'warning', 'text', text);
     }
 
-    result = BuildChart(score, plan, options);
+    result = DrawCharts(score, plan, options);
     if (not(result.ok)) {
         return CreateDictionary('ok', False, 'kind', 'error', 'text', result.error);
     }

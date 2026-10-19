@@ -8,6 +8,161 @@ EnterFullScore(score) {
     return was;
 }
 
+// Everything a run draws: the full-score chart exactly as it has always been
+// drawn, then, when the parts box is ticked, those same chart staves added to
+// the parts that carry them, and every part laid out so it shows only its own.
+// Returns BuildChart's result.
+DrawCharts(score, plan, options) {
+    partPlan = PlanParts(score, plan, options);
+    result = BuildChart(score, plan, options);
+    if (not(result.ok)) {
+        return result;
+    }
+    if (plan.sections.Length = 0) {
+        return result;
+    }
+    firstChartStaff = (score.StaffCount - (plan.sections.Length * 2)) + 1;
+    DeleteChartOnlyParts(score, firstChartStaff);
+    ApplyParts(score, plan, partPlan, firstChartStaff);
+    return result;
+}
+
+// Staves first, layout after: a part is laid out once, with every chart staff
+// it will carry already in it. Every part is laid out, not only the ones that
+// carry a chart, because the chart bars are bars of the whole score and turn
+// up at the start of every part whether its staves were added or not.
+ApplyParts(score, plan, partPlan, firstChartStaff) {
+    barCount = score.NthStaff(1).BarCount;
+
+    entries = partPlan.entries;
+    for e = 0 to entries.Length {
+        entry = entries[e];
+        part = entry.part;
+        carried = entry.sections;
+        for k = 0 to carried.Length {
+            index = carried[k];
+            treble = firstChartStaff + (index * 2);
+            part.AddStaffToPart(score.NthStaff(treble));
+            part.AddStaffToPart(score.NthStaff(treble + 1));
+        }
+    }
+
+    parts = score.DynamicParts;
+    for each part in parts {
+        if (not(part.IsFullScore)) {
+            if (part.StaveCount > 0) {
+                LayOutPart(score, part, plan.sections, firstChartStaff, barCount);
+            }
+        }
+    }
+    return True;
+}
+
+// The same layout BuildChart gives the full score, done again in one part:
+// HideEmptyStaves numbers staves and bars within the current part, and hidden
+// staves and breaks belong to each part separately, so nothing carries over.
+//
+// Each chart bar is a system of its own. In a bar of one of this part's
+// charts, everything but that chart's two staves is hidden, and its lower
+// staff too for a one-staff instrument, exactly as in the full score. In a bar
+// of a chart the part does not carry, every staff is hidden. Through the
+// music, the part's chart staves are hidden and its own staves are left as the
+// user had them.
+//
+// The chart staves were added at the bottom of the part in section order, so
+// they follow its own staves, two per carried section. Which sections it
+// carries, and the staff the breaks go on, are read while the full score is
+// still current, where staff numbers mean what BuildChart meant by them. The
+// breaks go on a staff the part holds: the reference warns that editing a
+// staff a part does not hold creates overrides that stay invisible.
+LayOutPart(score, part, sections, firstChartStaff, barCount) {
+    chartBars = sections.Length;
+    carried = CreateSparseArray();
+    positions = CreateSparseArray();
+    for k = 0 to chartBars {
+        positions.Push(-1);
+        if (part.IncludesStaff(score.NthStaff(firstChartStaff + (k * 2)))) {
+            positions[k] = carried.Length;
+            carried.Push(k);
+        }
+    }
+    anchor = null;
+    for each staff in part {
+        if (anchor = null) {
+            anchor = staff;
+        }
+    }
+    pieceCount = part.StaveCount - (carried.Length * 2);
+
+    parts = score.DynamicParts;
+    score.CurrentDynamicPart = part;
+    for b = 1 to chartBars + 1 {
+        anchor.NthBar(b).BreakType = EndOfSystem;
+        position = positions[b - 1];
+        if (position < 0) {
+            score.HideEmptyStaves(1, part.StaveCount, b, b);
+        } else {
+            treble = (pieceCount + (position * 2)) + 1;
+            if (pieceCount > 0) {
+                score.HideEmptyStaves(1, pieceCount, b, b);
+            }
+            if (treble > (pieceCount + 1)) {
+                score.HideEmptyStaves(pieceCount + 1, treble - 1, b, b);
+            }
+            if ((treble + 1) < part.StaveCount) {
+                score.HideEmptyStaves(treble + 2, part.StaveCount, b, b);
+            }
+            section = sections[b - 1];
+            if (UsesOneStaff(section.kind) = 1) {
+                score.HideEmptyStaves(treble + 1, treble + 1, b, b);
+            }
+        }
+    }
+    if (carried.Length > 0) {
+        if (barCount > chartBars) {
+            score.HideEmptyStaves(pieceCount + 1, part.StaveCount, chartBars + 1, barCount);
+        }
+    }
+    score.CurrentDynamicPart = parts[0];
+    return True;
+}
+
+// Sibelius may give each instrument the plug-in adds a part of its own, the
+// way it does for an instrument added by hand, which would leave a part per
+// chart section that nobody asked for. A part holding nothing but chart staves
+// is one of those. A part the user made, holding a chart staff alongside their
+// own, is left alone. Collected first and deleted after, as the guide requires
+// of any collection being changed.
+DeleteChartOnlyParts(score, firstChartStaff) {
+    parts = score.DynamicParts;
+    counter = 0;
+    for each part in parts {
+        if (not(part.IsFullScore)) {
+            if (part.StaveCount > 0) {
+                chartOnly = 1;
+                for each staff in part {
+                    if (staff.StaffNum < firstChartStaff) {
+                        chartOnly = 0;
+                    }
+                }
+                if (chartOnly = 1) {
+                    name = 'chartpart' & counter;
+                    @name = part;
+                    counter = counter + 1;
+                }
+            }
+        }
+    }
+
+    while (counter > 0) {
+        counter = counter - 1;
+        name = 'chartpart' & counter;
+        part = @name;
+        parts.DeletePart(part);
+    }
+    return True;
+}
+
 // Which part carries which chart, worked out before anything is drawn, because
 // the labels a section gets depend on it. Returns Dictionary{entries}, one
 // entry per part that carries anything. With the parts box unticked no part is
