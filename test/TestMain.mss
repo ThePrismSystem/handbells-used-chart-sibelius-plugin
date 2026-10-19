@@ -26,6 +26,7 @@ Run() {
     TestColumnsOrphan();
     TestColumnsSingleStaff();
     TestPlan();
+    TestChartPlan();
     TestInstruments();
     TestMarker();
     TestOptions();

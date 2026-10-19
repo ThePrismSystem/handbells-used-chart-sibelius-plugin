@@ -5,6 +5,9 @@
 	LabelTextStyle "() {
     return '' & LABEL_TEXT_STYLE;
 }"
+	LabelDash "() {
+    return '' & LABEL_DASH;
+}"
 	EnableStringSafety "() {
     if (Sibelius.ProgramVersion > 20200600) {
         SetInterpreterOption(TreatSingleCharacterAsString);
@@ -812,6 +815,45 @@
     }
 
     return CreateDictionary('sections', sections, 'warnings', warnings);
+}"
+	BuildChartPlan "(records, options) {
+    instruments = options.instruments;
+    // Warnings are about notes, not instruments. Read once over everything
+    // selected, an unrecognised head is reported once rather than once for
+    // every instrument that happens to use it.
+    combined = BuildPlan(RecordsForInstruments(records, instruments), options);
+    emptyNames = CreateSparseArray();
+
+    if ((options.mode != 'separate') or (instruments.Length < 2)) {
+        owners = InstrumentNames(instruments);
+        for i = 0 to combined.sections.Length {
+            section = combined.sections[i];
+            section._property:plainLabel = section.label;
+            section._property:owners = owners;
+        }
+        return CreateDictionary('sections', combined.sections,
+            'warnings', combined.warnings, 'emptyNames', emptyNames);
+    }
+
+    sections = CreateSparseArray();
+    for i = 0 to instruments.Length {
+        instrument = instruments[i];
+        own = BuildPlan(RecordsForInstruments(records, CreateSparseArray(instrument)), options);
+        // Named rather than silently dropped: a choir the user asked for that
+        // charts nothing is usually a passage selection that missed it.
+        if (own.sections.Length = 0) {
+            emptyNames.Push(instrument.name);
+        }
+        for j = 0 to own.sections.Length {
+            section = own.sections[j];
+            section._property:plainLabel = section.label;
+            section.label = (instrument.name & LabelDash()) & section.label;
+            section._property:owners = CreateSparseArray(instrument.name);
+            sections.Push(section);
+        }
+    }
+    return CreateDictionary('sections', sections,
+        'warnings', combined.warnings, 'emptyNames', emptyNames);
 }"
 	MakeSection "(kind, entries) {
     built = BuildColumns(entries, UsesOneStaff(kind));
@@ -2007,6 +2049,7 @@ _SettingsDialog "Dialog"
 	_PluginMenuName "Handbells Used Chart"
 	CHART_INSTRUMENT "instrument.other.trebleclef"
 	LABEL_TEXT_STYLE "text.staff.plain"
+	LABEL_DASH " – "
 	MARKER_PREFIX "HBUC"
 	MARKER_VERSION "1"
 	STEMLESS_DIAMOND "Diamond (stemless)"

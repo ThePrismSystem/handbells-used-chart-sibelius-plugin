@@ -6,6 +6,13 @@ LabelTextStyle() {
     return '' & LABEL_TEXT_STYLE;
 }
 
+// What separates an instrument's name from the label of a chart drawn for it
+// alone, as in 'Handbells I - Handbells Used: 25' with an en dash. Kept in the
+// manifest with the other score-facing text.
+LabelDash() {
+    return '' & LABEL_DASH;
+}
+
 // H1: without this, every single-character literal in this plugin (the note
 // letters, the accidental signs, the marker separator) is a 16-bit character
 // value rather than a string, and concatenating one does arithmetic on its code
