@@ -35,8 +35,36 @@ ReadOptions(score) {
     // unremembered SMB box opens on no notehead rather than on a guess.
     dlg_smbHead = PreferredHead(choices.names, '' & dlg_smbHead, '');
 
+    // Probe, until the parts checkpoint: the list box is new, its .msd block is
+    // written by hand to mirror ComboBox's undocumented shape, and nothing
+    // documents whether a multi-select box can open with items selected or
+    // what its variable holds afterwards. Charting ignores all three new
+    // controls until those answers are in.
+    names = InstrumentNames(ScoreInstruments(score));
+    _InstrumentItems = CreateArray();
+    dlg_instruments = CreateArray();
+    for i = 0 to names.Length {
+        _InstrumentItems[i] = names[i];
+        dlg_instruments[i] = names[i];
+    }
+    trace('[dialog probe] items offered = ' & names.Length);
+    _ChartModeItems = CreateArray();
+    _ChartModeItems[0] = '' & CHART_MODE_COMBINED;
+    _ChartModeItems[1] = '' & CHART_MODE_SEPARATE;
+    if (('' & dlg_chartMode) = '') {
+        dlg_chartMode = '' & CHART_MODE_COMBINED;
+    }
+
     if (not(Sibelius.ShowDialog(_SettingsDialog, self))) {
         return null;
+    }
+
+    // One statement per read, so a run-time error names the read that failed.
+    trace('[dialog probe] value = [' & ('' & dlg_instruments) & ']');
+    trace('[dialog probe] NumChildren = ' & dlg_instruments.NumChildren);
+    count = dlg_instruments.NumChildren;
+    for i = 0 to count {
+        trace('[dialog probe] item ' & i & ' = [' & dlg_instruments[i] & ']');
     }
 
     return CreateDictionary(
@@ -47,6 +75,16 @@ ReadOptions(score) {
         'smbHead', Trim(dlg_smbHead),
         'remove', ('' & dlg_remove) = '1'
     );
+}
+
+// Called by the list box on every click. A probe for now: whether the call
+// arrives while the dialog is open, whether the variable already holds the new
+// selection when it does, and whether the Charts box can be greyed out live.
+InstrumentsChanged() {
+    count = dlg_instruments.NumChildren;
+    trace('[dialog probe] changed: NumChildren = ' & count);
+    Sibelius.EnableControlById(Self, _SettingsDialog, 'dlg_chartMode', count > 1);
+    return True;
 }
 
 // The notehead two instruments share, or '' when they share none. Two

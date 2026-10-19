@@ -4,14 +4,93 @@ _SettingsDialog "Dialog"
 		X "333"
 		Y "271"
 		Width "198"
-		Height "180"
+		Height "308"
 		Controls
 		{
 			Text
 			{
-				Title "Handbell Notehead Type"
+				Title "Instruments to Chart"
 				X "22"
 				Y "16"
+				Width "74"
+				Height "14"
+				RightAlign "0"
+				ID "IDC_INSTRUMENTS_STATIC"
+				Value
+				Method
+				SetFocus "0"
+			}
+			ListBox
+			{
+				Title
+				X "98"
+				Y "12"
+				Width "92"
+				Height "56"
+				ListVar "_InstrumentItems"
+				AllowMultipleSelections "1"
+				ID "dlg_instruments"
+				Value "dlg_instruments"
+				Method "InstrumentsChanged"
+				SetFocus "0"
+			}
+			Text
+			{
+				Title "Cmd-click (Ctrl-click on Windows) to pick more than one."
+				X "98"
+				Y "70"
+				Width "92"
+				Height "22"
+				RightAlign "0"
+				ID "IDC_INSTRUMENTS_HINT"
+				Value
+				Method
+				SetFocus "0"
+			}
+			Text
+			{
+				Title "Charts"
+				X "22"
+				Y "98"
+				Width "74"
+				Height "14"
+				RightAlign "0"
+				ID "IDC_CHARTMODE_STATIC"
+				Value
+				Method
+				SetFocus "0"
+			}
+			ComboBox
+			{
+				Title
+				X "98"
+				Y "94"
+				Width "92"
+				Height "21"
+				ListVar "_ChartModeItems"
+				AllowMultipleSelections "0"
+				ID "dlg_chartMode"
+				Value "dlg_chartMode"
+				Method
+				SetFocus "0"
+			}
+			CheckBox
+			{
+				Title "Also Add Charts to Parts"
+				X "98"
+				Y "118"
+				Width "92"
+				Height "14"
+				ID "dlg_parts"
+				Value "dlg_parts"
+				Method
+				SetFocus "0"
+			}
+			Text
+			{
+				Title "Handbell Notehead Type"
+				X "22"
+				Y "144"
 				Width "74"
 				Height "14"
 				RightAlign "0"
@@ -24,7 +103,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "98"
-				Y "12"
+				Y "140"
 				Width "92"
 				Height "21"
 				ListVar "_BellHeadItems"
@@ -38,7 +117,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "Handchime Notehead Type"
 				X "22"
-				Y "38"
+				Y "166"
 				Width "74"
 				Height "14"
 				RightAlign "0"
@@ -51,7 +130,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "98"
-				Y "34"
+				Y "162"
 				Width "92"
 				Height "21"
 				ListVar "_ChimeHeadItems"
@@ -65,7 +144,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "SMBs Notehead Type"
 				X "22"
-				Y "60"
+				Y "188"
 				Width "74"
 				Height "14"
 				RightAlign "0"
@@ -78,7 +157,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "98"
-				Y "56"
+				Y "184"
 				Width "92"
 				Height "21"
 				ListVar "_SmbHeadItems"
@@ -92,7 +171,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "Handchime Color"
 				X "22"
-				Y "86"
+				Y "214"
 				Width "74"
 				Height "14"
 				RightAlign "0"
@@ -105,7 +184,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "98"
-				Y "82"
+				Y "210"
 				Width "92"
 				Height "14"
 				ID "dlg_chimeColor"
@@ -117,7 +196,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "SMBs Color"
 				X "22"
-				Y "106"
+				Y "234"
 				Width "74"
 				Height "14"
 				RightAlign "0"
@@ -130,7 +209,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "98"
-				Y "102"
+				Y "230"
 				Width "92"
 				Height "14"
 				ID "dlg_smbColor"
@@ -142,7 +221,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "Remove Existing Chart"
 				X "98"
-				Y "124"
+				Y "252"
 				Width "92"
 				Height "14"
 				ID "dlg_remove"
@@ -154,7 +233,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "Cancel"
 				X "84"
-				Y "146"
+				Y "274"
 				Width "50"
 				Height "14"
 				DefaultButton "0"
@@ -168,7 +247,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "OK"
 				X "140"
-				Y "146"
+				Y "274"
 				Width "50"
 				Height "14"
 				DefaultButton "0"
