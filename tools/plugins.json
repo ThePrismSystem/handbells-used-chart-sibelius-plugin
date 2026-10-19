@@ -87,6 +87,7 @@
         "test/TestReport.mss",
         "test/TestNoteHeads.mss",
         "test/TestDiagnose.mss",
+        "test/TestProbeParts.mss",
         "test/TestIntegration.mss"
       ],
       "data": {
@@ -119,6 +120,7 @@
         "_ExcludedInstruments": "",
         "dlg_remove": "0",
         "_SettingsDialog": "",
+        "LABEL_DASH_PROBE": " – ",
         "_SameNoteheadChosen": ""
       }
     }
