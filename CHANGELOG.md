@@ -5,6 +5,39 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Scores with several handbell parts can chart each one separately, and put
+each chart into the Sibelius part that rings from it.
+
+### Added
+
+- An "Instruments to Chart" list in the dialog, filled from the open score,
+  chooses which instruments are read. A piano or other accompaniment written
+  with plain noteheads was charted as handbells; it can now be left out. The
+  instruments left out are remembered by name between runs, so one left out
+  of one score stays out of the next score that has it, and an instrument
+  the plug-in has not seen before starts selected.
+- A "Charts" choice between one combined chart, which is what earlier
+  versions drew, and a separate chart for each instrument. Separate charts
+  are stacked in the full score in score order, labelled with the
+  instrument's name: `Handbells I – Handbells Used: 25`. It applies once two
+  or more instruments are selected.
+- "Also Add Charts to Parts" puts each instrument's charts into the parts
+  that hold it, laid out so a part shows its own charts and nothing where
+  another instrument's sit. The full score always carries every chart. In a
+  part that carries one instrument's charts the labels are the plain
+  `Handbells Used: 25`; in a part holding several instruments they keep the
+  instrument names.
+- A run that picks up a selected instrument with nothing to chart says so.
+
+### Changed
+
+- The plug-in charts the full score even when it is run from a part, and
+  returns to that part afterwards.
+- Defaults are every instrument, one combined chart and no parts, so a
+  first run draws exactly what 1.2.0 drew.
+
 ## [1.2.0] - 2026-08-23
 
 Silver melody bells are charted as a third instrument, and the handchime

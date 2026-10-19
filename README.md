@@ -28,6 +28,10 @@ to Sibelius. The chart's behaviour is unchanged from that project:
   page.
 - A bell that also appears an octave or two higher shares its column, so D6,
   D7 and D8 print as one stack rather than three.
+- A score with several handbell parts can be charted one instrument at a
+  time, and each instrument's charts can go into its Sibelius part as well as
+  the full score. Instruments that are not handbells, such as a piano, can be
+  left out.
 - Running the plugin again on a score that already carries a chart replaces
   it rather than adding a second one.
 - If the plugin cannot positively identify an existing chart as its own, it
@@ -89,10 +93,13 @@ downloadable `plugins` artifact.
 
 ## Settings
 
-The plugin's dialog offers six controls:
+The plugin's dialog offers nine controls:
 
 | Control | Effect |
 |---|---|
+| Instruments to chart | Which of the score's instruments are read; Cmd-click (Ctrl-click on Windows) to pick more than one |
+| Charts | One combined chart, or a separate chart for each instrument |
+| Also add charts to parts | Puts each instrument's charts into its parts as well |
 | Handbell notehead type | Which notehead in the score counts as a handbell |
 | Handchime notehead type | Which notehead in the score counts as a handchime |
 | SMBs notehead type | Which notehead in the score counts as a silver melody bell |
@@ -105,6 +112,45 @@ Section labels are generated: "Handbells Used: *n*", "Handchimes Used: *n*",
 spellings is counted once, although it is charted under both. They are
 ordinary staff text once the chart is drawn, so retype them in the score if
 you want something else.
+
+### Choosing the instruments
+
+The list names every instrument in the score, by the name it carries there,
+leaving out an existing chart's own staves. Two instruments with the same name
+are told apart as `Handbells`, `Handbells (2)`. Only the selected instruments
+are read, so a piano or other accompaniment written with plain noteheads can
+be left out rather than charted as handbells. A passage selection still
+narrows that further to the bars and staves selected.
+
+The instruments you leave out are remembered by name, across scores: a piano
+left out of one score starts left out of the next score that has a piano. An
+instrument the plugin has not seen before starts selected, so on a first run
+everything is, which charts exactly what earlier versions did.
+
+With one combined chart, the selected instruments are pooled into one set of
+sections, as before. With a separate chart for each instrument, each one gets
+its own sections, stacked in the full score in score order and labelled with
+the instrument's name: "Handbells I – Handbells Used: 25". The choice only
+applies with two or more instruments selected. An instrument that turns out
+to have nothing to chart is named in the message at the end of the run.
+
+### Charts in parts
+
+With "Also add charts to parts" ticked, each chart also goes into the parts
+that hold the instrument it belongs to. A part holding two choirs gets both
+choirs' charts; an instrument with no part of its own appears only in the
+full score; a part holding no selected instrument gets no chart. The full
+score always carries every chart, because the chart bars are bars of the
+whole score.
+
+In a part that carries one instrument's charts, the labels are the plain
+"Handbells Used: 25", since the part's name already says whose they are. In a
+part holding several instruments they keep the instrument names. A chart
+staff is the same staff in the score and in every part that shows it, so a
+chart that sits in both kinds of part keeps its names in all of them.
+
+Each part is laid out to show its own charts, each on a system of its own,
+and nothing where another instrument's chart sits.
 
 ### Colours
 
@@ -175,8 +221,13 @@ make. Handbells are unaffected either way.
 ## Usage
 
 Running the plugin on a score that already carries a chart it made replaces
-that chart rather than adding a second one. Checking "Remove existing chart"
-in the dialog strips the chart instead of drawing one.
+that chart rather than adding a second one, in the parts as well as the full
+score. Checking "Remove existing chart" in the dialog strips the chart
+instead of drawing one, from the parts too; the instrument, chart and parts
+choices make no difference to a removal.
+
+The plugin works on the full score even when it is run while a part is open,
+and leaves that part open afterwards.
 
 ## Testing
 
@@ -204,7 +255,12 @@ chart into a real score and remove it again.
   macOS-only.
 - Handbells sound an octave above written pitch. Sibelius has no transposing
   handbell instrument, so the plugin applies that octave itself.
-- One notehead per instrument, and three instruments at most. A score
+- An instrument is recognised from the number of staves Sibelius gave it when
+  it was created. One given an extra staff by hand may be listed as two.
+- Many instruments make many charts: each chart section is a system of its
+  own before the music, so five instruments with bells and chimes put ten
+  systems ahead of bar 1, running onto later pages.
+- One notehead per kind of bell, and three kinds at most. A score
   marking its handchimes with two different diamond styles has to be charted
   twice, or normalised first; notes carrying the head that was not chosen
   are counted toward the unrecognised-notehead warning.
