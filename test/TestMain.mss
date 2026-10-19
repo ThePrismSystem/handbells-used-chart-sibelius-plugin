@@ -28,6 +28,7 @@ Run() {
     TestPlan();
     TestChartPlan();
     TestInstruments();
+    TestParts();
     TestMarker();
     TestOptions();
     TestReport();

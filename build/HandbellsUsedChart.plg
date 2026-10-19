@@ -1659,6 +1659,115 @@
     score.CurrentDynamicPart = parts[0];
     return was;
 }"
+	PlanParts "(score, plan, options) {
+    infos = CreateSparseArray();
+    if (options.parts = True) {
+        parts = score.DynamicParts;
+        for each part in parts {
+            if (not(part.IsFullScore)) {
+                if (part.StaveCount > 0) {
+                    infos.Push(CreateDictionary('part', part,
+                        'names', PartInstrumentNames(score, part, options.instruments)));
+                }
+            }
+        }
+    }
+    return CreateDictionary('entries', PlanPartEntries(plan.sections, infos));
+}"
+	PartInstrumentNames "(score, part, instruments) {
+    names = CreateSparseArray();
+    for i = 0 to instruments.Length {
+        instrument = instruments[i];
+        inside = 0;
+        n = instrument.firstStaff;
+        while (n <= instrument.lastStaff) {
+            if (part.IncludesStaff(score.NthStaff(n))) {
+                inside = 1;
+            }
+            n = n + 1;
+        }
+        if (inside = 1) {
+            names.Push(instrument.name);
+        }
+    }
+    return names;
+}"
+	PlanPartEntries "(sections, partInfos) {
+    inPart = CreateSparseArray();
+    named = CreateSparseArray();
+    for i = 0 to sections.Length {
+        inPart.Push(0);
+        named.Push(0);
+    }
+
+    entries = CreateSparseArray();
+    for p = 0 to partInfos.Length {
+        info = partInfos[p];
+        carried = PartSections(sections, info.names);
+        if (carried.Length > 0) {
+            entries.Push(CreateDictionary('part', info.part, 'sections', carried));
+            several = 0;
+            if (DistinctOwnerCount(sections, carried) > 1) {
+                several = 1;
+            }
+            for k = 0 to carried.Length {
+                index = carried[k];
+                inPart[index] = 1;
+                if (several = 1) {
+                    named[index] = 1;
+                }
+            }
+        }
+    }
+
+    for i = 0 to sections.Length {
+        section = sections[i];
+        split = 0;
+        if (inPart[i] = 1) {
+            if (named[i] = 0) {
+                if (section.label != section.plainLabel) {
+                    split = 1;
+                }
+            }
+        }
+        section._property:splitLabel = split;
+    }
+    return entries;
+}"
+	PartSections "(sections, partNames) {
+    carried = CreateSparseArray();
+    for i = 0 to sections.Length {
+        section = sections[i];
+        owners = section.owners;
+        hit = 0;
+        for j = 0 to owners.Length {
+            if (HeadListed(partNames, owners[j]) = 1) {
+                hit = 1;
+            }
+        }
+        if (hit = 1) {
+            carried.Push(i);
+        }
+    }
+    return carried;
+}"
+	DistinctOwnerCount "(sections, indexes) {
+    seen = CreateDictionary();
+    count = 0;
+    for k = 0 to indexes.Length {
+        index = indexes[k];
+        section = sections[index];
+        owners = section.owners;
+        for j = 0 to owners.Length {
+            name = '' & owners[j];
+            if (seen[name] = null) {
+                seen[name] = 1;
+                count = count + 1;
+            }
+        }
+    }
+    return count;
+}"
 	IdentificationError "(reason) {
     return reason & ' Delete the chart staves and their bars in Sibelius, then run this again.';
 }"

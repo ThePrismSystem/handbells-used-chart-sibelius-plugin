@@ -86,6 +86,7 @@
         "test/TestColumns.mss",
         "test/TestPlan.mss",
         "test/TestInstruments.mss",
+        "test/TestParts.mss",
         "test/TestMarker.mss",
         "test/TestOptions.mss",
         "test/TestReport.mss",
