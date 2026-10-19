@@ -20,11 +20,13 @@ Run() {
     TestColumnsOrphan();
     TestColumnsSingleStaff();
     TestPlan();
+    TestInstruments();
     TestMarker();
     TestOptions();
     TestReport();
     TestNoteHeads();
     TestReadScore();
+    TestScoreInstruments();
     TestNoteHeadScan();
     TestBuildChart();
     TestRemoveChart();

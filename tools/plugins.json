@@ -16,6 +16,7 @@
         "src/Marker.mss",
         "src/NoteHeads.mss",
         "src/ReadScore.mss",
+        "src/Instruments.mss",
         "src/BuildChart.mss",
         "src/RemoveChart.mss"
       ],
@@ -60,6 +61,7 @@
         "src/Marker.mss",
         "src/NoteHeads.mss",
         "src/ReadScore.mss",
+        "src/Instruments.mss",
         "src/Options.mss",
         "src/Report.mss",
         "src/BuildChart.mss",
@@ -71,6 +73,7 @@
         "test/TestCollect.mss",
         "test/TestColumns.mss",
         "test/TestPlan.mss",
+        "test/TestInstruments.mss",
         "test/TestMarker.mss",
         "test/TestOptions.mss",
         "test/TestReport.mss",

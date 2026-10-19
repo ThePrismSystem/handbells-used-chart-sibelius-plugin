@@ -21,8 +21,51 @@ TestReadScore() {
         if (not(utils.IsNumeric('' & record.diatonic, True))) {
             ok = False;
         }
+        if (not(utils.IsNumeric('' & record.staff, True))) {
+            ok = False;
+        }
     }
-    AssertTrue(ok, 'every record carries a pitch and a diatonic pitch');
+    AssertTrue(ok, 'every record carries a pitch, a diatonic pitch and a staff');
+}
+
+TestScoreInstruments() {
+    score = Sibelius.ActiveScore;
+    if (score = null) {
+        AssertTrue(False, 'open a score before running the integration tests');
+        return False;
+    }
+
+    // A chart left by an earlier run is not one of the piece's instruments,
+    // and the last instrument has to end at the score's last staff.
+    RemoveChart(score);
+
+    instruments = ScoreInstruments(score);
+    // Traced before asserting: the grouping rests on NumStavesInSameInstrument,
+    // which the reference describes as the default instrument's stave count,
+    // so a wrong grouping is something to see, not just to count.
+    for i = 0 to instruments.Length {
+        instrument = instruments[i];
+        trace('[instrument] ' & instrument.name & ' ' & instrument.firstStaff
+            & '-' & instrument.lastStaff);
+    }
+    AssertTrue(instruments.Length > 0, 'the score has at least one instrument');
+    if (instruments.Length = 0) {
+        return False;
+    }
+
+    first = instruments[0];
+    AssertEquals(first.firstStaff, 1, 'the first instrument starts at staff 1');
+    contiguous = True;
+    for i = 1 to instruments.Length {
+        before = instruments[i - 1];
+        after = instruments[i];
+        if (after.firstStaff != (before.lastStaff + 1)) {
+            contiguous = False;
+        }
+    }
+    AssertTrue(contiguous, 'instruments cover the staves without gaps');
+    last = instruments[instruments.Length - 1];
+    AssertEquals(last.lastStaff, score.StaffCount, 'instruments reach the last staff');
 }
 
 TestBuildChart() {
