@@ -84,6 +84,8 @@ TestOptions() {
         'Flute', 'selecting the piano again forgets it, and the flute is kept for a score that has one');
     AssertEquals(JoinNames(ExcludedAfterRun(CreateSparseArray('Flute'), offered, CreateSparseArray('Piano'))),
         'Flute, Handbells I, Handbells II', 'remembered names first, then this run in score order');
+    AssertEquals(JoinNames(ExcludedAfterRun(CreateSparseArray('Flute'), offered, CreateSparseArray())),
+        'Flute', 'a run with nothing selected changes nothing remembered');
 
     AssertEquals(ChartModeOf('' & CHART_MODE_SEPARATE), 'separate', 'the separate choice');
     AssertEquals(ChartModeOf('' & CHART_MODE_COMBINED), 'combined', 'the combined choice');

@@ -149,8 +149,11 @@ part holding several instruments they keep the instrument names. A chart
 staff is the same staff in the score and in every part that shows it, so a
 chart that sits in both kinds of part keeps its names in all of them.
 
-Each part is laid out to show its own charts, each on a system of its own,
-and nothing where another instrument's chart sits.
+Each part that carries a chart is laid out to show its own charts, each on a
+system of its own, and nothing where another instrument's chart sits. A part
+that carries none is left as it was. Sibelius may give every instrument the
+plugin adds a part of its own; any part holding nothing but chart staves is
+deleted, on a build and on a removal.
 
 ### Colours
 

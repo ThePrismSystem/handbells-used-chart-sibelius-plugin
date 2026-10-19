@@ -159,7 +159,14 @@ PreselectedNames(offered, excluded) {
 // whatever was remembered about it, so leaving the piano out of one score
 // still leaves it out of the next score that has one. A name it does offer is
 // remembered as left out exactly when it was not selected this time.
+//
+// Except when nothing was selected at all. That run either charts nothing and
+// says so, or is a removal that never looked at the list, and remembering
+// every instrument as left out would open the next run on an empty list.
 ExcludedAfterRun(remembered, offered, selected) {
+    if (selected.Length = 0) {
+        return remembered;
+    }
     excluded = CreateSparseArray();
     for i = 0 to remembered.Length {
         if (HeadListed(offered, remembered[i]) = 0) {

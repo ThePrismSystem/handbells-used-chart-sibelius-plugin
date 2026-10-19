@@ -255,9 +255,17 @@ TestBuildChartParts() {
     stavesA = partA.StaveCount;
     stavesB = partB.StaveCount;
 
+    // What a full-score build alone leaves in a part, to compare against: a
+    // run without parts must leave every part exactly as that.
+    BuildChart(score, oldShape, oldOptions);
+    plainHidden = HiddenStavesInPart(score, partA, 1);
+    RemoveChart(score);
+
     // The shape v1.2.0 draws, then a re-run over it with every new option on.
     built = DrawCharts(score, oldShape, oldOptions);
     AssertTrue(built.ok, 'the combined chart is drawn: ' & built.error);
+    AssertEquals(HiddenStavesInPart(score, partA, 1), plainHidden,
+        'a run without parts leaves the parts as 1.2.0 did');
     RemoveChart(score);
     rebuilt = DrawCharts(score, expected, newOptions);
     AssertTrue(rebuilt.ok, 'the separate chart with parts is drawn over it: ' & rebuilt.error);
@@ -293,6 +301,27 @@ TestBuildChartParts() {
     AssertEquals(partA.StaveCount, stavesA, 'the chart staves leave the first part with the chart');
     AssertEquals(partB.StaveCount, stavesB, 'the chart staves leave the second part with the chart');
     AssertEquals(parts.NumChildren, partsBefore, 'removal leaves the parts as they were');
+}
+
+// How many of a part's staves are hidden in a bar, read in that part's own
+// context, since hiding belongs to each part separately. The staves are found
+// first, while the full score is current.
+HiddenStavesInPart(score, part, barNum) {
+    staves = CreateSparseArray();
+    for each staff in part {
+        staves.Push(staff);
+    }
+    was = score.CurrentDynamicPart;
+    score.CurrentDynamicPart = part;
+    hidden = 0;
+    for i = 0 to staves.Length {
+        staff = staves[i];
+        if (staff.NthBar(barNum).OnHiddenStave) {
+            hidden = hidden + 1;
+        }
+    }
+    score.CurrentDynamicPart = was;
+    return hidden;
 }
 
 TestNoteHeadScan() {

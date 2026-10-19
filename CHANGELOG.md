@@ -28,8 +28,11 @@ each chart into the Sibelius part that rings from it.
   another instrument's sit. The full score always carries every chart. In a
   part that carries one instrument's charts the labels are the plain
   `Handbells Used: 25`; in a part holding several instruments they keep the
-  instrument names.
+  instrument names. A part that carries no chart is left as it was.
 - A run that picks up a selected instrument with nothing to chart says so.
+- Building or removing a chart deletes any part that holds nothing but chart
+  staves, which Sibelius may create for each chart instrument the plug-in
+  adds.
 
 ### Changed
 

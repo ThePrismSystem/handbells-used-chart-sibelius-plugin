@@ -10,7 +10,7 @@ EnterFullScore(score) {
 
 // Everything a run draws: the full-score chart exactly as it has always been
 // drawn, then, when the parts box is ticked, those same chart staves added to
-// the parts that carry them, and every part laid out so it shows only its own.
+// the parts that carry them, each laid out to show only its own charts.
 // Returns BuildChart's result.
 DrawCharts(score, plan, options) {
     partPlan = PlanParts(score, plan, options);
@@ -28,9 +28,8 @@ DrawCharts(score, plan, options) {
 }
 
 // Staves first, layout after: a part is laid out once, with every chart staff
-// it will carry already in it. Every part is laid out, not only the ones that
-// carry a chart, because the chart bars are bars of the whole score and turn
-// up at the start of every part whether its staves were added or not.
+// it will carry already in it. LayOutPart leaves alone any part that carries
+// none.
 ApplyParts(score, plan, partPlan, firstChartStaff) {
     barCount = score.NthStaff(1).BarCount;
 
@@ -85,6 +84,13 @@ LayOutPart(score, part, sections, firstChartStaff, barCount) {
             positions[k] = carried.Length;
             carried.Push(k);
         }
+    }
+    // A part with none of the chart's staves is left exactly as a full-score
+    // chart has always left it, so a run without parts changes no part at
+    // all. What such a part shows for the chart bars is for a session in
+    // Sibelius to establish before anything is done about it.
+    if (carried.Length = 0) {
+        return False;
     }
     anchor = null;
     for each staff in part {

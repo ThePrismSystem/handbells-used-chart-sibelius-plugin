@@ -302,6 +302,9 @@
     return chosen;
 }"
 	ExcludedAfterRun "(remembered, offered, selected) {
+    if (selected.Length = 0) {
+        return remembered;
+    }
     excluded = CreateSparseArray();
     for i = 0 to remembered.Length {
         if (HeadListed(offered, remembered[i]) = 0) {
@@ -1408,8 +1411,11 @@
         label = labelBar.AddText(0, section.label, LabelTextStyle());
         // The full score names the instrument and a one-choir part does not
         // need to, but the staff is the same staff in both. So the section
-        // carries two labels, each shown in one of them. PlanParts decides.
-        if (section.splitLabel = 1) {
+        // carries two labels, each shown in one of them. PlanParts decides,
+        // and only PlanParts sets the property: read through _property:, which
+        // is null when it was never set, because a plain read of a property
+        // that does not exist stops the plug-in.
+        if (section._property:splitLabel = 1) {
             label.ShowInScore();
             plain = labelBar.AddText(0, section.plainLabel, LabelTextStyle());
             plain.ShowInParts();
@@ -1719,6 +1725,13 @@
             positions[k] = carried.Length;
             carried.Push(k);
         }
+    }
+    // A part with none of the chart's staves is left exactly as a full-score
+    // chart has always left it, so a run without parts changes no part at
+    // all. What such a part shows for the chart bars is for a session in
+    // Sibelius to establish before anything is done about it.
+    if (carried.Length = 0) {
+        return False;
     }
     anchor = null;
     for each staff in part {
