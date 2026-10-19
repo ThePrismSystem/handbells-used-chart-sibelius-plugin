@@ -233,6 +233,46 @@
     Sibelius.EnableControlById(Self, _SettingsDialog, 'dlg_chartMode', count > 1);
     return True;
 }"
+	PipeList "(text) {
+    value = '' & text;
+    if (value = '') {
+        return CreateSparseArray();
+    }
+    return SplitOnPipe(value);
+}"
+	JoinPipe "(names) {
+    text = '';
+    for i = 0 to names.Length {
+        if (i > 0) {
+            text = text & '|';
+        }
+        text = text & names[i];
+    }
+    return text;
+}"
+	PreselectedNames "(offered, excluded) {
+    chosen = CreateSparseArray();
+    for i = 0 to offered.Length {
+        if (HeadListed(excluded, offered[i]) = 0) {
+            chosen.Push(offered[i]);
+        }
+    }
+    return chosen;
+}"
+	ExcludedAfterRun "(remembered, offered, selected) {
+    excluded = CreateSparseArray();
+    for i = 0 to remembered.Length {
+        if (HeadListed(offered, remembered[i]) = 0) {
+            excluded.Push(remembered[i]);
+        }
+    }
+    for i = 0 to offered.Length {
+        if (HeadListed(selected, offered[i]) = 0) {
+            excluded.Push(offered[i]);
+        }
+    }
+    return excluded;
+}"
 	DuplicateHead "(options) {
     heads = CreateSparseArray(options.bellHead, options.chimeHead, options.smbHead);
     for i = 0 to heads.Length {

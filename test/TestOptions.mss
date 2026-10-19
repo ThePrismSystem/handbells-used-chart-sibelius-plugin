@@ -63,4 +63,25 @@ TestOptions() {
     AssertEquals(DuplicateHead(CreateDictionary('bellHead', NoNoteHead(),
         'chimeHead', NoNoteHead(), 'smbHead', NoNoteHead())), '',
         'a score with nothing chosen is not a clash');
+
+    empty = PipeList('');
+    AssertEquals(empty.Length, 0, 'an empty memory is no names');
+    AssertEquals(JoinNames(PipeList('Piano|Flute')), 'Piano, Flute', 'memory splits on the pipe');
+    AssertEquals(JoinPipe(CreateSparseArray('Piano', 'Flute')), 'Piano|Flute', 'memory joins on the pipe');
+    AssertEquals(JoinPipe(CreateSparseArray()), '', 'no names joins to nothing');
+
+    offered = CreateSparseArray('Handbells I', 'Handbells II', 'Piano');
+    AssertEquals(JoinNames(PreselectedNames(offered, CreateSparseArray())),
+        'Handbells I, Handbells II, Piano', 'a first run selects everything');
+    AssertEquals(JoinNames(PreselectedNames(offered, CreateSparseArray('Piano', 'Flute'))),
+        'Handbells I, Handbells II', 'a remembered exclusion applies, one absent from this score does not matter');
+    AssertEquals(JoinNames(PreselectedNames(CreateSparseArray('Bells A'), CreateSparseArray('Handbells I'))),
+        'Bells A', 'a renamed instrument is new, so it starts selected');
+
+    AssertEquals(JoinNames(ExcludedAfterRun(CreateSparseArray(), offered,
+        CreateSparseArray('Handbells I', 'Handbells II'))), 'Piano', 'leaving the piano out is remembered');
+    AssertEquals(JoinNames(ExcludedAfterRun(CreateSparseArray('Piano', 'Flute'), offered, offered)),
+        'Flute', 'selecting the piano again forgets it, and the flute is kept for a score that has one');
+    AssertEquals(JoinNames(ExcludedAfterRun(CreateSparseArray('Flute'), offered, CreateSparseArray('Piano'))),
+        'Flute, Handbells I, Handbells II', 'remembered names first, then this run in score order');
 }

@@ -87,6 +87,59 @@ InstrumentsChanged() {
     return True;
 }
 
+// The instrument selection is remembered as the names left out, not the names
+// chosen, so an instrument the plug-in has never seen starts selected and a
+// first run charts everything, as the plug-in always has. Stored as one
+// pipe-joined string, because a plain string is the Data variable shape every
+// other remembered setting already round-trips through.
+PipeList(text) {
+    value = '' & text;
+    if (value = '') {
+        return CreateSparseArray();
+    }
+    return SplitOnPipe(value);
+}
+
+JoinPipe(names) {
+    text = '';
+    for i = 0 to names.Length {
+        if (i > 0) {
+            text = text & '|';
+        }
+        text = text & names[i];
+    }
+    return text;
+}
+
+PreselectedNames(offered, excluded) {
+    chosen = CreateSparseArray();
+    for i = 0 to offered.Length {
+        if (HeadListed(excluded, offered[i]) = 0) {
+            chosen.Push(offered[i]);
+        }
+    }
+    return chosen;
+}
+
+// What to remember after a run. A name this score does not offer keeps
+// whatever was remembered about it, so leaving the piano out of one score
+// still leaves it out of the next score that has one. A name it does offer is
+// remembered as left out exactly when it was not selected this time.
+ExcludedAfterRun(remembered, offered, selected) {
+    excluded = CreateSparseArray();
+    for i = 0 to remembered.Length {
+        if (HeadListed(offered, remembered[i]) = 0) {
+            excluded.Push(remembered[i]);
+        }
+    }
+    for i = 0 to offered.Length {
+        if (HeadListed(selected, offered[i]) = 0) {
+            excluded.Push(offered[i]);
+        }
+    }
+    return excluded;
+}
+
 // The notehead two instruments share, or '' when they share none. Two
 // instruments cannot use one head: every note carrying it would belong to
 // both, and charting each of them twice is not a reading worth guessing at.
