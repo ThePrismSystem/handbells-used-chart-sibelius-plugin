@@ -92,6 +92,15 @@ TestOptions() {
     AssertEquals(ChartModeOf(''), 'combined', 'no choice yet is combined, as v1.2.0');
     AssertEquals(ChartModeOf('something else'), 'combined', 'an unknown choice is combined');
 
+    // A ticked parts box reached the run as unticked: the read only accepted
+    // '1', and a ticked checkbox can hand back a Boolean, which reads 'true'.
+    AssertTrue(Ticked(True), 'a checkbox holding True is ticked');
+    AssertTrue(Ticked('true'), 'a checkbox reading true is ticked');
+    AssertTrue(Ticked('1'), 'a checkbox reading 1 is ticked');
+    AssertTrue(not(Ticked(False)), 'a checkbox holding False is not ticked');
+    AssertTrue(not(Ticked('0')), 'the default 0 is not ticked');
+    AssertTrue(not(Ticked('')), 'an empty checkbox value is not ticked');
+
     // The shape ReadOptions hands the list box. Whether the dialog hands back
     // the same shape is for the hand-run session to show.
     dlg_instruments = CreateArray();

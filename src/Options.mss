@@ -68,6 +68,7 @@ ReadOptions(score) {
         return null;
     }
 
+    trace('[dialog probe] parts = [' & ('' & dlg_parts) & '] remove = [' & ('' & dlg_remove) & ']');
     trace('[dialog probe] value = [' & ('' & dlg_instruments) & ']');
     trace('[dialog probe] NumChildren = ' & dlg_instruments.NumChildren);
     count = dlg_instruments.NumChildren;
@@ -84,10 +85,10 @@ ReadOptions(score) {
         'bellHead', Trim(dlg_bellHead),
         'chimeHead', Trim(dlg_chimeHead),
         'smbHead', Trim(dlg_smbHead),
-        'remove', ('' & dlg_remove) = '1',
+        'remove', Ticked(dlg_remove),
         'instruments', InstrumentsNamed(instruments, selected),
         'mode', ChartModeOf(dlg_chartMode),
-        'parts', ('' & dlg_parts) = '1'
+        'parts', Ticked(dlg_parts)
     );
 }
 
@@ -112,6 +113,19 @@ SelectedNames(value) {
         names.Push('' & value[i]);
     }
     return names;
+}
+
+// A checkbox starts on the '0' its Data variable holds, and a ticked one can
+// hand back a Boolean, which reads as 'true', so both that and '1' count.
+Ticked(value) {
+    text = '' & value;
+    if (text = '1') {
+        return True;
+    }
+    if (text = 'true') {
+        return True;
+    }
+    return False;
 }
 
 ChartModeOf(choice) {
