@@ -1,11 +1,11 @@
 TestInstruments() {
     staves = CreateSparseArray(
-        CreateDictionary('num', 1, 'name', 'Handbells I', 'span', 2),
-        CreateDictionary('num', 2, 'name', 'Handbells I', 'span', 2),
-        CreateDictionary('num', 3, 'name', 'Handbells II', 'span', 2),
-        CreateDictionary('num', 4, 'name', 'Handbells II', 'span', 2),
-        CreateDictionary('num', 5, 'name', 'Piano', 'span', 2),
-        CreateDictionary('num', 6, 'name', 'Piano', 'span', 2)
+        StaffEntry(1, 'Handbells I', 2, 'bells'),
+        StaffEntry(2, 'Handbells I', 2, 'bells'),
+        StaffEntry(3, 'Handbells II', 2, 'bells'),
+        StaffEntry(4, 'Handbells II', 2, 'bells'),
+        StaffEntry(5, 'Piano', 2, 'piano'),
+        StaffEntry(6, 'Piano', 2, 'piano')
     );
     got = GroupStaves(staves);
     AssertEquals(got.Length, 3, 'three instruments from six staves');
@@ -17,23 +17,43 @@ TestInstruments() {
     AssertEquals(third.firstStaff, 5, 'piano starts at staff 5');
     AssertEquals(third.lastStaff, 6, 'piano ends at staff 6');
 
-    zero = GroupStaves(CreateSparseArray(CreateDictionary('num', 1, 'name', 'Flute', 'span', 0)));
+    zero = GroupStaves(CreateSparseArray(StaffEntry(1, 'Flute', 0, 'flute')));
     flute = zero[0];
     AssertEquals(flute.lastStaff, 1, 'a span of 0 still covers its own staff');
 
     short = GroupStaves(CreateSparseArray(
-        CreateDictionary('num', 1, 'name', 'Flute', 'span', 1),
-        CreateDictionary('num', 2, 'name', 'Piano', 'span', 2)));
+        StaffEntry(1, 'Flute', 1, 'flute'),
+        StaffEntry(2, 'Piano', 2, 'piano')));
     AssertEquals(short.Length, 2, 'a span past the last staff does not invent an instrument');
     piano = short[1];
     AssertEquals(piano.lastStaff, 2, 'a span past the last staff is cut at it');
 
+    // The span is the stave count of the instrument the staff was created
+    // from, so an instrument with a staff deleted by hand still claims two.
+    // The staff after it belongs to another instrument type and is not taken.
+    cut = GroupStaves(CreateSparseArray(
+        StaffEntry(1, 'Handbells', 2, 'bells'),
+        StaffEntry(2, 'Piano', 2, 'piano'),
+        StaffEntry(3, 'Piano', 2, 'piano')));
+    AssertEquals(cut.Length, 2, 'a span reaching into another instrument type stops there');
+    cutBells = cut[0];
+    AssertEquals(cutBells.lastStaff, 1, 'the handbells keep only their own staff');
+    cutPiano = cut[1];
+    AssertEquals(cutPiano.firstStaff, 2, 'the piano starts on its own first staff');
+    AssertEquals(cutPiano.lastStaff, 3, 'and keeps both of its staves');
+
     twins = GroupStaves(CreateSparseArray(
-        CreateDictionary('num', 1, 'name', 'Handbells', 'span', 1),
-        CreateDictionary('num', 2, 'name', 'Handbells', 'span', 1),
-        CreateDictionary('num', 3, 'name', 'Handbells', 'span', 1)));
+        StaffEntry(1, 'Handbells', 1, 'bells'),
+        StaffEntry(2, 'Handbells', 1, 'bells'),
+        StaffEntry(3, 'Handbells', 1, 'bells')));
     AssertEquals(JoinNames(InstrumentNames(twins)), 'Handbells, Handbells (2), Handbells (3)',
         'instruments sharing a name are told apart');
+    taken = GroupStaves(CreateSparseArray(
+        StaffEntry(1, 'Handbells', 1, 'bells'),
+        StaffEntry(2, 'Handbells (2)', 1, 'bells'),
+        StaffEntry(3, 'Handbells', 1, 'bells')));
+    AssertEquals(JoinNames(InstrumentNames(taken)), 'Handbells, Handbells (2), Handbells (3)',
+        'a number is never one another instrument already uses');
 
     AssertEquals(InstrumentLabelOf('Handbells I', '[Handbells]'), 'Handbells I', 'a named staff keeps its name');
     AssertEquals(InstrumentLabelOf('', '[Piano]'), '[Piano]', 'an unnamed staff uses the displayed name');
@@ -55,4 +75,8 @@ TestInstruments() {
     AssertEquals(named.Length, 2, 'two instruments named');
     firstNamed = named[0];
     AssertEquals(firstNamed.name, 'Handbells I', 'score order is kept, not the order asked for');
+}
+
+StaffEntry(num, name, span, style) {
+    return CreateDictionary('num', num, 'name', name, 'span', span, 'style', style);
 }

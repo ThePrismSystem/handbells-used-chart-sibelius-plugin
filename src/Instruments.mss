@@ -19,11 +19,14 @@ ScoreInstruments(score) {
         staff = score.NthStaff(n);
         // NumStavesInSameInstrument is documented as the stave count of the
         // default instrument the staff was created from, not its current
-        // count. An instrument given an extra staff by hand may group wrong,
-        // which is why the integration test traces every grouping it finds.
+        // count, so the instrument type is read as well: GroupStaves stops a
+        // span at a staff of another type. An instrument given an extra staff
+        // by hand may still group wrong, which is why the integration test
+        // traces every grouping it finds.
         staves.Push(CreateDictionary('num', n,
             'name', InstrumentLabelOf(staff.FullInstrumentName, staff.InstrumentName),
-            'span', staff.NumStavesInSameInstrument));
+            'span', staff.NumStavesInSameInstrument,
+            'style', '' & staff.InitialStyleId));
         n = n + 1;
     }
     return GroupStaves(staves);
@@ -31,7 +34,9 @@ ScoreInstruments(score) {
 
 // Pure, so the grouping can be tested without a score. Each entry is one
 // staff in score order; its span says how many staves, itself included,
-// belong to its instrument.
+// belong to its instrument, and its style is the instrument type. A span is
+// the count the instrument was created with, so one that lost a staff by hand
+// still claims the next staff along. It stops at a staff of another type.
 GroupStaves(staves) {
     instruments = CreateSparseArray();
     if (staves.Length = 0) {
@@ -54,27 +59,52 @@ GroupStaves(staves) {
         if (last > lastNum) {
             last = lastNum;
         }
+        end = staff.num;
+        j = i + 1;
+        going = 1;
+        while ((j < staves.Length) and (going = 1)) {
+            following = staves[j];
+            going = 0;
+            if (following.num <= last) {
+                if (following.style = staff.style) {
+                    end = following.num;
+                    going = 1;
+                }
+            }
+            j = j + 1;
+        }
         instruments.Push(CreateDictionary('name', staff.name,
-            'firstStaff', staff.num, 'lastStaff', last));
-        i = (i + (last - staff.num)) + 1;
+            'firstStaff', staff.num, 'lastStaff', end));
+        i = (i + (end - staff.num)) + 1;
     }
     return UniqueInstrumentNames(instruments);
 }
 
 // The list box returns names, not instruments, so two instruments sharing a
 // name would be one entry that could be neither picked nor left out on its
-// own. The second and later ones are numbered.
+// own. The second and later ones are numbered, skipping any number another
+// instrument's own name already uses.
 UniqueInstrumentNames(instruments) {
-    counts = CreateDictionary();
+    original = CreateDictionary();
+    for i = 0 to instruments.Length {
+        instrument = instruments[i];
+        original['' & instrument.name] = 1;
+    }
+    used = CreateDictionary();
     for i = 0 to instruments.Length {
         instrument = instruments[i];
         name = '' & instrument.name;
-        if (counts[name] = null) {
-            counts[name] = 1;
-        } else {
-            counts[name] = counts[name] + 1;
-            instrument.name = name & (' (' & counts[name] & ')');
+        if (used[name] != null) {
+            n = 2;
+            candidate = name & (' (' & n & ')');
+            while ((original[candidate] != null) or (used[candidate] != null)) {
+                n = n + 1;
+                candidate = name & (' (' & n & ')');
+            }
+            name = candidate;
+            instrument.name = name;
         }
+        used[name] = 1;
     }
     return instruments;
 }
