@@ -6,7 +6,8 @@ first system, listing every distinct handbell and handchime the piece needs.
 
 It is a port of
 [handbells-used-chart-musescore-extension](https://github.com/ThePrismSystem/handbells-used-chart-musescore-extension)
-to Sibelius. The chart's behaviour is unchanged from that project:
+to Sibelius, and charts the same way, with additions such as charting each
+instrument into its own part:
 
 - Bells are listed in pitch order, spelled the way the score spells them. A
   bell the piece writes as both G#5 and Ab5 gets a column for each spelling,
@@ -40,14 +41,15 @@ to Sibelius. The chart's behaviour is unchanged from that project:
 ## Status
 
 Released and working. Verified inside real Sibelius Ultimate 2026 on macOS:
-the in-Sibelius test suite passes 109 of 109 assertions, including tests that
-read a real score, build a chart into it, and remove it again.
+the in-Sibelius test suite passes in full, including tests that read a real
+score, build a chart into it and its parts, and remove it again.
 
 Two rough edges worth knowing before you run it on work you care about:
 
 - Removing a chart returns the score's title block to Sibelius's default
-  positions for those text styles. The content, styling and visibility all
-  survive; hand positioning does not. Building a chart never touches it.
+  positions for those text styles, in the full score and in the parts. The
+  content, styling and visibility all survive; hand positioning does not. A
+  build leaves the title block where it is.
 - The gap between the title block and the chart is whatever Sibelius's
   automatic spacing gives it.
 
@@ -126,45 +128,46 @@ narrows that further to the bars and staves selected.
 The instruments you leave out are remembered by name, across scores: a piano
 left out of one score starts left out of the next score that has a piano. An
 instrument the plugin has not seen before starts selected, so on a first run
-everything is, which charts exactly what earlier versions did.
+every instrument is.
 
 With one combined chart, the selected instruments are pooled into one set of
-sections, as before. With a separate chart for each instrument, each one gets
-its own sections, stacked in the full score in score order and labelled with
-the instrument's name: "Handbells I - Handbells Used: 25". The choice only
+sections. With a separate chart for each instrument, each gets its own
+sections, stacked in the full score in score order and labelled with the
+instrument's name: "Handbells I - Handbells Used: 25". The choice only
 applies with two or more instruments selected. An instrument that turns out
 to have nothing to chart is named in the message at the end of the run.
 
 ### Charts in parts
 
 With "Also add charts to parts" ticked, each chart also goes into the parts
-that hold the instrument it belongs to. A part holding two choirs gets both
-choirs' charts; an instrument with no part of its own appears only in the
-full score; a part holding no selected instrument gets no chart. The full
-score always carries every chart, because the chart bars are bars of the
-whole score.
+that hold its instrument. A part holding two choirs gets both choirs'
+charts, an instrument with no part of its own appears only in the full
+score, and a part holding no selected instrument gets no chart and is left
+as it was. The full score always carries every chart, because the chart
+bars are bars of the whole score.
 
 In a part that carries one instrument's charts, the labels are the plain
-"Handbells Used: 25", since the part's name already says whose they are. In a
-part holding several instruments they keep the instrument names. A chart
+"Handbells Used: 25", since the part's name already says whose they are. In
+a part holding several instruments they keep the instrument names. A chart
 staff is the same staff in the score and in every part that shows it, so a
 chart that sits in both kinds of part keeps its names in all of them.
 
-Each part that carries a chart is laid out to show its own charts, each on a
-system of its own. Another instrument's chart cannot vanish from a part
-entirely, because Sibelius keeps at least one staff showing in every system,
-so its bar joins the part's own chart beside it as a short empty bar. A part
-that carries none is left as it was.
+In a part, each chart is a system of its own showing only that chart's
+staves. Another instrument's chart can't disappear from a part completely,
+because Sibelius keeps at least one staff showing in every system, so its
+bar joins the part's own chart as a short empty bar.
 
 A part's first page is often laid out by hand, with its page turns planned,
-and charts added in front of it push music off that page. So in a part given
-two or more charts, the music starts on a new page, laid out exactly as it
-was, one page later. With one chart it follows the chart on the first page,
-unless "Page break after one chart" is ticked. To keep music on the same
-left- or right-hand pages as before, add a blank page after the chart in
-Sibelius. Sibelius may give every instrument the
-plugin adds a part of its own; any part holding nothing but chart staves is
-deleted, on a build and on a removal.
+and charts in front of it push music off that page. In a part with two or
+more charts, the music therefore starts on a new page, laid out as it was,
+one page later. In a part with one chart, the music follows the chart on the
+first page unless "Page break after one chart" is ticked. To keep the music
+on the same left- or right-hand pages as before, add a blank page after the
+chart in Sibelius.
+
+The part's title block stays where it was. Sibelius gives every instrument
+the plugin adds a part of its own, so any part holding nothing but chart
+staves is deleted, on a build and on a removal.
 
 ### Colours
 
@@ -243,6 +246,18 @@ choices make no difference to a removal.
 The plugin works on the full score even when it is run while a part is open,
 and leaves that part open afterwards.
 
+The title block stays on the first page with the chart, and so does any text
+in a blank-page style, such as a copyright line. Tempo marks and other
+directions at the start of the piece move down to its first bar of music,
+and the piece keeps its own bar numbers.
+
+The chart makes the music start a new section, and Sibelius takes the
+instrument names there from a separate Engraving Rules option, the one for
+the start of new sections. While a chart is in the score, the plugin sets
+that option to match the one for the first system, so the first system of
+music is named as the score's first system would be. Any other section starts in the piece follow it too.
+Removing the chart puts the score's own setting back.
+
 ## Testing
 
 **CI builds and lints only. It cannot run the plugin.** Sibelius has no
@@ -252,10 +267,16 @@ this project can be executed by a CI runner.
 The real tests are a second plugin, `HandbellsUsedChartTests.plg`, built
 from the same `src/` sources plus `test/*.mss`. It is run by hand inside
 Sibelius Ultimate 2026 on macOS, and reports pass/fail counts to the trace
-window. As of this writing it passes 109 of 109 assertions, covering bell
-naming and region boundaries, collection and enharmonic handling, column
-anchoring and stacking, plan assembly, and score-level runs that build a
-chart into a real score and remove it again.
+window. It covers bell naming and region boundaries, collection and
+enharmonic handling, column anchoring and stacking, plan assembly, the
+dialog's options, instrument and part planning, and score-level runs that
+build a chart into a real score and its parts and remove it again.
+
+The score-level tests run on whatever score is open, and the parts tests
+need two instruments that each have a part of their own. When it starts,
+the test plugin asks whether to run the parts probe instead: a diagnostic
+that builds a two-section chart into the first two instruments' parts and
+leaves it in place to look at.
 
 ## Known limitations
 
@@ -273,7 +294,14 @@ chart into a real score and remove it again.
   it was created. One given an extra staff by hand may be listed as two.
 - Many instruments make many charts: each chart section is a system of its
   own before the music, so five instruments with bells and chimes put ten
-  systems ahead of bar 1, running onto later pages.
+  systems ahead of bar 1 in the full score, running onto later pages. A part
+  carries only its own.
+- In a part, another instrument's chart shows as a short empty bar beside
+  the part's own chart, because Sibelius keeps a staff showing in every
+  system.
+- Sibelius's Optimize Staff Spacing is run over the chart and the first
+  system of music, which replaces any staff spacing set on those systems by
+  hand.
 - One notehead per kind of bell, and three kinds at most. A score
   marking its handchimes with two different diamond styles has to be charted
   twice, or normalised first; notes carrying the head that was not chosen

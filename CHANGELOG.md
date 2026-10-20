@@ -14,59 +14,61 @@ each chart into the Sibelius part that rings from it.
 
 - An "Instruments to Chart" list in the dialog, filled from the open score,
   chooses which instruments are read. A piano or other accompaniment written
-  with plain noteheads was charted as handbells; it can now be left out. The
-  instruments left out are remembered by name between runs, so one left out
-  of one score stays out of the next score that has it, and an instrument
-  the plug-in has not seen before starts selected.
-- A "Charts" choice between one combined chart, which is what earlier
-  versions drew, and a separate chart for each instrument. Separate charts
-  are stacked in the full score in score order, labelled with the
-  instrument's name: `Handbells I - Handbells Used: 25`. It applies once two
-  or more instruments are selected.
+  with plain noteheads used to be charted as handbells; now it can be left
+  out. The plug-in remembers the instruments left out by name, so one left
+  out of one score stays out of the next score that has it. An instrument
+  it has not seen before starts selected.
+- A "Charts" choice between one combined chart, as earlier versions drew,
+  and a separate chart for each instrument. Separate charts are stacked in
+  the full score in score order and labelled with the instrument's name:
+  `Handbells I - Handbells Used: 25`. The choice applies once two or more
+  instruments are selected.
 - "Also Add Charts to Parts" puts each instrument's charts into the parts
-  that hold it, laid out so a part shows its own charts, each on a system of
-  its own. Another instrument's chart shows only as a short empty bar beside
-  them, since Sibelius keeps a staff showing in every system. In a part given
-  two or more charts the music starts on a new page, laid out as it was; with
-  one, "Page Break After One Chart" decides. The full score always carries
-  every chart. In a
-  part that carries one instrument's charts the labels are the plain
-  `Handbells Used: 25`; in a part holding several instruments they keep the
-  instrument names. A part that carries no chart is left as it was.
-- A run that picks up a selected instrument with nothing to chart says so.
-- Building or removing a chart deletes any part that holds nothing but chart
-  staves, which Sibelius may create for each chart instrument the plug-in
-  adds.
+  that hold it, each chart on a system of its own. The full score always
+  carries every chart. In a part holding one instrument the labels are the
+  plain `Handbells Used: 25`; in a part holding several they keep the
+  instrument names. Sibelius keeps a staff showing in every system, so
+  another instrument's chart can't disappear from a part entirely: it shows
+  as a short empty bar beside the part's own chart. A part's title block
+  stays where it was, and a part with no chart is left alone.
+- In a part given two or more charts, the music starts on a new page, laid
+  out as it was, because charts added in front of a full first page push
+  music off it. For a part with one chart, a new "Page Break After One
+  Chart" box decides.
+- The message at the end of a run names any selected instrument that had
+  nothing to chart.
+- Sibelius creates a part for each chart instrument the plug-in adds.
+  Building or removing a chart now deletes any part holding nothing but
+  chart staves.
 
 ### Fixed
 
-- Ticking "Remove Existing Chart" did nothing: a run with it ticked drew
+- Ticking "Remove Existing Chart" did nothing, and a run with it ticked drew
   the chart again. A ticked checkbox hands back `true`, and the plug-in only
-  ever counted `1` as ticked.
-- A chart that did not fit on the first page with the first system of
-  music overlapped it, and each other, instead of moving on to the next
-  page. Each chart bar ended with a break that Sibelius only allows in the
-  middle of a page; it now ends with an ordinary system break.
-- A chart's ledger lines ran into the system above it, and the first system
-  of music lost the staff spacing it had been given, since the chart now
-  takes its place as the first system. Sibelius's Optimize Staff Spacing is
-  run over the chart and the first system of music, in the full score and
-  in each part given a chart.
-- The first system of music showed no instrument names in a score set to
-  show none at the start of a new section, which the chart makes it. While
-  a chart is in place, that rule follows the one for the score's first
-  system, and a removal puts the score's own back.
-- A copyright line set in a blank-page text style was moved down from the
-  first page to the music on a build, as if it were a tempo mark, and
-  landed on top of it. Text in blank-page styles now stays on the first
-  page with the title block.
+  counted `1` as ticked.
+- When the chart and the first system of music did not fit on one page,
+  they overlapped instead of the music moving on to the next page. Each
+  chart bar ended with a break that Sibelius allows only in the middle of a
+  page. It now ends with an ordinary system break.
+- A chart's ledger lines could run into the system above or below it.
+  Sibelius's Optimize Staff Spacing now runs over the chart and the first
+  system of music, in the full score and in each part given a chart.
+- The chart makes the start of the music a new section, so a score set to
+  show no instrument names at new sections lost the names on its first
+  system of music. While a chart is in place, the new-section option
+  follows the first system's. Removing the chart puts the score's own
+  setting back.
+- A copyright line set in a blank-page text style was moved from the first
+  page down to the music, as if it were a tempo mark, and landed on top of
+  it. Text in blank-page styles now stays on the first page with the title
+  block.
 
 ### Changed
 
 - The plug-in charts the full score even when it is run from a part, and
   returns to that part afterwards.
-- Defaults are every instrument, one combined chart and no parts, so a
-  first run draws exactly what 1.2.0 drew.
+- The defaults are every instrument, one combined chart and no parts, so a
+  first run draws the chart 1.2.0 drew.
 
 ## [1.2.0] - 2026-08-23
 
