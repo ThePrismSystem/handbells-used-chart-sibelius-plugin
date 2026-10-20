@@ -14,6 +14,11 @@ EnterFullScore(score) {
 // Returns BuildChart's result.
 DrawCharts(score, plan, options) {
     partPlan = PlanParts(score, plan, options);
+    // Diagnostic, kept until charts are seen in parts: a run with the parts box
+    // ticked left every part without its chart, while the test suite drawing
+    // the same kind of plan into the same score passed.
+    trace('[parts probe] parts=' & options.parts & ' view=' & Sibelius.GetCurrentScoreViewType()
+        & ' entries=' & partPlan.entries.Length);
     result = BuildChart(score, plan, options);
     if (not(result.ok)) {
         return result;
@@ -23,7 +28,9 @@ DrawCharts(score, plan, options) {
     }
     firstChartStaff = (score.StaffCount - (plan.sections.Length * 2)) + 1;
     DeleteChartOnlyParts(score, firstChartStaff);
+    TraceParts(score, 'after delete');
     ApplyParts(score, plan, partPlan, firstChartStaff);
+    TraceParts(score, 'after layout');
     return result;
 }
 
@@ -41,8 +48,10 @@ ApplyParts(score, plan, partPlan, firstChartStaff) {
         for k = 0 to carried.Length {
             index = carried[k];
             treble = firstChartStaff + (index * 2);
-            part.AddStaffToPart(score.NthStaff(treble));
-            part.AddStaffToPart(score.NthStaff(treble + 1));
+            added = part.AddStaffToPart(score.NthStaff(treble));
+            trace('[parts probe] entry ' & e & ' add ' & treble & ' = ' & added);
+            added = part.AddStaffToPart(score.NthStaff(treble + 1));
+            trace('[parts probe] entry ' & e & ' add ' & (treble + 1) & ' = ' & added);
         }
     }
 
@@ -102,6 +111,10 @@ LayOutPart(score, part, sections, firstChartStaff, barCount) {
 
     parts = score.DynamicParts;
     score.CurrentDynamicPart = part;
+    active = score.CurrentDynamicPart;
+    trace('[parts probe] layout: staves=' & part.StaveCount & ' piece=' & pieceCount
+        & ' carried=' & carried.Length & ' active is full score=' & active.IsFullScore
+        & ' active StaffCount=' & score.StaffCount);
     for b = 1 to chartBars + 1 {
         anchor.NthBar(b).BreakType = EndOfSystem;
         position = positions[b - 1];
@@ -129,7 +142,46 @@ LayOutPart(score, part, sections, firstChartStaff, barCount) {
             score.HideEmptyStaves(pieceCount + 1, part.StaveCount, chartBars + 1, barCount);
         }
     }
+    TraceLayout(score, anchor, chartBars + 1);
     score.CurrentDynamicPart = parts[0];
+    return True;
+}
+
+// Diagnostic, read in the part's own context: each chart bar and the first
+// music bar, with the break the part sees there and which of its staves are
+// hidden (1) or showing (0).
+TraceLayout(score, anchor, lastBar) {
+    b = 1;
+    while (b <= lastBar) {
+        line = '';
+        s = 1;
+        while (s <= score.StaffCount) {
+            hidden = 0;
+            if (score.NthStaff(s).NthBar(b).OnHiddenStave) {
+                hidden = 1;
+            }
+            line = line & (' ' & hidden);
+            s = s + 1;
+        }
+        trace('[parts probe] bar ' & b & ' break=' & score.NthStaff(1).NthBar(b).BreakType
+            & ' anchor break=' & anchor.NthBar(b).BreakType & ' hidden=' & line);
+        b = b + 1;
+    }
+    return True;
+}
+
+// Diagnostic: every part and the full-score numbers of the staves it holds.
+TraceParts(score, label) {
+    parts = score.DynamicParts;
+    i = 0;
+    for each part in parts {
+        line = '';
+        for each staff in part {
+            line = line & (' ' & staff.StaffNum);
+        }
+        trace('[probe] part ' & label & ' ' & i & ' fullScore=' & part.IsFullScore & ' staves=' & line);
+        i = i + 1;
+    }
     return True;
 }
 

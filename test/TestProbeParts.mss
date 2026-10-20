@@ -155,20 +155,6 @@ ProbeStop(score, was) {
     return False;
 }
 
-TraceParts(score, label) {
-    parts = score.DynamicParts;
-    i = 0;
-    for each part in parts {
-        line = '';
-        for each staff in part {
-            line = line & (' ' & staff.StaffNum);
-        }
-        trace('[probe] part ' & label & ' ' & i & ' fullScore=' & part.IsFullScore & ' staves=' & line);
-        i = i + 1;
-    }
-    return True;
-}
-
 // The first part, other than the full score, holding the given staff, or null
 // when no part does.
 PartHoldingStaff(score, staffNum) {
