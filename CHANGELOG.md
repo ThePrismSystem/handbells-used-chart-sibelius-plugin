@@ -30,13 +30,24 @@ each chart into the Sibelius part that rings from it.
   instrument names. Sibelius keeps a staff showing in every system, so
   another instrument's chart can't disappear from a part entirely: it shows
   as a short empty bar beside the part's own chart. A part's title block
-  stays where it was, and a part with no chart is left alone.
-- In a part given two or more charts, the music starts on a new page, laid
-  out as it was, because charts added in front of a full first page push
-  music off it. For a part with one chart, a new "Page Break After One
-  Chart" box decides.
-- The message at the end of a run names any selected instrument that had
-  nothing to chart.
+  stays where it was through a build, a re-run and a removal, and a part
+  holding no selected instrument gets no chart staves. The message at the
+  end of the run names any part Sibelius wouldn't add the chart staves to,
+  and says so when the box is ticked but no part holds a selected
+  instrument.
+- In each part given a chart, the first page's top staff margin grows by as
+  far as the part's first chart reaches above its staff, to keep the
+  chart's label and high bells clear of the title block. Only the first
+  page changes,
+  and removing the chart puts the margin back. The full score's margin is
+  never changed.
+- In a part given two or more chart sections, the music starts on a new
+  page, laid out as it was, because charts added in front of a full first
+  page push music off it. An instrument's bells and chimes are two
+  sections. For a part with one section, a new "Page Break After One Chart"
+  box decides.
+- With separate charts, the message at the end of a run names any selected
+  instrument that had nothing to chart.
 - Sibelius creates a part for each chart instrument the plug-in adds.
   Building or removing a chart now deletes any part holding nothing but
   chart staves.
@@ -56,8 +67,9 @@ each chart into the Sibelius part that rings from it.
 - The chart makes the start of the music a new section, so a score set to
   show no instrument names at new sections lost the names on its first
   system of music. While a chart is in place, the new-section option
-  follows the first system's. Removing the chart puts the score's own
-  setting back.
+  follows the first system's, and so does every other section start in the
+  piece. Removing the chart puts the score's own setting back, and so does
+  a removal that stops because the chart can no longer be identified.
 - A copyright line set in a blank-page text style was moved from the first
   page down to the music, as if it were a tempo mark, and landed on top of
   it. Text in blank-page styles now stays on the first page with the title
@@ -68,7 +80,7 @@ each chart into the Sibelius part that rings from it.
 - The plug-in charts the full score even when it is run from a part, and
   returns to that part afterwards.
 - The defaults are every instrument, one combined chart and no parts, so a
-  first run draws the chart 1.2.0 drew.
+  first run charts the same sections, under the same labels, as 1.2.0.
 
 ## [1.2.0] - 2026-08-23
 

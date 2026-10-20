@@ -46,12 +46,15 @@ score, build a chart into it and its parts, and remove it again.
 
 Two rough edges worth knowing before you run it on work you care about:
 
-- Removing a chart returns the score's title block to Sibelius's default
-  positions for those text styles, in the full score and in the parts. The
-  content, styling and visibility all survive; hand positioning does not. A
-  build leaves the title block where it is.
-- The gap between the title block and the chart is whatever Sibelius's
-  automatic spacing gives it.
+- Removing a chart returns the full score's title block to Sibelius's
+  default positions for those text styles. The content, styling and
+  visibility all survive; hand positioning does not. A build leaves the
+  title block where it is, and the parts keep theirs through a build, a
+  re-run and a removal.
+- In the full score, the gap between the title block and the chart is
+  whatever Sibelius's automatic spacing gives it. In a part, the plugin
+  moves the first page's music down to make room for the chart; see
+  [Charts in parts](#charts-in-parts).
 
 ## Installation
 
@@ -102,7 +105,7 @@ The plugin's dialog offers ten controls:
 | Instruments to chart | Which of the score's instruments are read; Cmd-click (Ctrl-click on Windows) to pick more than one |
 | Charts | One combined chart, or a separate chart for each instrument |
 | Also add charts to parts | Puts each instrument's charts into its parts as well |
-| Page break after one chart | Starts a part's music on a new page when the part has only one chart; with two or more it always does |
+| Page break after one chart | Starts a part's music on a new page when the part has a single chart section; with two or more (bells and chimes count as two) it always does |
 | Handbell notehead type | Which notehead in the score counts as a handbell |
 | Handchime notehead type | Which notehead in the score counts as a handchime |
 | SMBs notehead type | Which notehead in the score counts as a silver melody bell |
@@ -134,17 +137,18 @@ With one combined chart, the selected instruments are pooled into one set of
 sections. With a separate chart for each instrument, each gets its own
 sections, stacked in the full score in score order and labelled with the
 instrument's name: "Handbells I - Handbells Used: 25". The choice only
-applies with two or more instruments selected. An instrument that turns out
-to have nothing to chart is named in the message at the end of the run.
+applies with two or more instruments selected. With separate charts, an
+instrument that turns out to have nothing to chart is named in the message
+at the end of the run.
 
 ### Charts in parts
 
 With "Also add charts to parts" ticked, each chart also goes into the parts
 that hold its instrument. A part holding two choirs gets both choirs'
 charts, an instrument with no part of its own appears only in the full
-score, and a part holding no selected instrument gets no chart and is left
-as it was. The full score always carries every chart, because the chart
-bars are bars of the whole score.
+score, and a part holding no selected instrument gets no chart staves. The
+full score always carries every chart, because the chart bars are bars of
+the whole score.
 
 In a part that carries one instrument's charts, the labels are the plain
 "Handbells Used: 25", since the part's name already says whose they are. In
@@ -158,16 +162,37 @@ because Sibelius keeps at least one staff showing in every system, so its
 bar joins the part's own chart as a short empty bar.
 
 A part's first page is often laid out by hand, with its page turns planned,
-and charts in front of it push music off that page. In a part with two or
-more charts, the music therefore starts on a new page, laid out as it was,
-one page later. In a part with one chart, the music follows the chart on the
-first page unless "Page break after one chart" is ticked. To keep the music
-on the same left- or right-hand pages as before, add a blank page after the
-chart in Sibelius.
+and charts in front of it push music off that page. Each chart section is a
+system of its own, and an instrument's bells and chimes are two sections. In
+a part with two or more sections, the music therefore starts on a new page,
+laid out as it was, one page later. In a part with one section, the music
+follows the chart on the first page unless "Page break after one chart" is
+ticked.
 
-The part's title block stays where it was. Sibelius gives every instrument
-the plugin adds a part of its own, so any part holding nothing but chart
-staves is deleted, on a build and on a removal.
+After that page break the music starts on a left-hand page instead of a
+right-hand one. If the part uses mirrored or different page margins in
+Document Setup, that page takes the left-hand margins and sits further left
+than the old first page did, as every left-hand page in the part already
+does. To keep the music on the same left- or right-hand pages as before, add
+a blank page after the chart in Sibelius.
+
+A part's title block stays where it was, through a build, a re-run and a
+removal. If Sibelius won't take a position back, the message at the end of
+the run says how many title lines it couldn't restore.
+
+A part's first staff sits at the first-page top staff margin, which leaves
+room for the title block above ordinary music. A chart reaches higher than
+that, with its label and with high bells on ledger lines, so in each part
+given a chart the plugin raises that margin by as far as the part's first
+chart reaches above its staff. The chart's highest point then sits no higher
+than the part's first staff line did. Only the first page changes. If the
+part used one top margin for every page, the plugin gives the first page a
+margin of its own to do this. Removing the chart puts the part's margin back
+as it was, and the full score's margin is never changed.
+
+Sibelius gives every instrument the plugin adds a part of its own, so any
+part holding nothing but chart staves is deleted, on a build and on a
+removal.
 
 ### Colours
 
@@ -255,8 +280,11 @@ The chart makes the music start a new section, and Sibelius takes the
 instrument names there from a separate Engraving Rules option, the one for
 the start of new sections. While a chart is in the score, the plugin sets
 that option to match the one for the first system, so the first system of
-music is named as the score's first system would be. Any other section starts in the piece follow it too.
-Removing the chart puts the score's own setting back.
+music is named as the score's first system would be. Any other section
+starts in the piece follow it too. Removing the chart puts the score's own
+setting back. If a chart can no longer be identified, the plugin still puts
+this setting and the parts' first-page margins back before asking you to
+delete the chart by hand.
 
 ## Testing
 
@@ -273,10 +301,7 @@ dialog's options, instrument and part planning, and score-level runs that
 build a chart into a real score and its parts and remove it again.
 
 The score-level tests run on whatever score is open, and the parts tests
-need two instruments that each have a part of their own. When it starts,
-the test plugin asks whether to run the parts probe instead: a diagnostic
-that builds a two-section chart into the first two instruments' parts and
-leaves it in place to look at.
+need two instruments that each have a part of their own.
 
 ## Known limitations
 
@@ -291,7 +316,9 @@ leaves it in place to look at.
 - Handbells sound an octave above written pitch. Sibelius has no transposing
   handbell instrument, so the plugin applies that octave itself.
 - An instrument is recognised from the number of staves Sibelius gave it when
-  it was created. One given an extra staff by hand may be listed as two.
+  it was created, and from its instrument type. One given an extra staff by
+  hand may be listed as two. One that lost a staff by hand can take in the
+  next instrument's first staff when both are the same type.
 - Many instruments make many charts: each chart section is a system of its
   own before the music, so five instruments with bells and chimes put ten
   systems ahead of bar 1 in the full score, running onto later pages. A part
@@ -302,6 +329,10 @@ leaves it in place to look at.
 - Sibelius's Optimize Staff Spacing is run over the chart and the first
   system of music, which replaces any staff spacing set on those systems by
   hand.
+- The room a part's first page makes for its chart comes from an estimate:
+  about four spaces for the label, or more for bells high on ledger lines.
+  A title block that reaches unusually far down the page can still meet the
+  chart; drag the chart's system down in Sibelius if it does.
 - One notehead per kind of bell, and three kinds at most. A score
   marking its handchimes with two different diamond styles has to be charted
   twice, or normalised first; notes carrying the head that was not chosen
