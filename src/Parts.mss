@@ -19,6 +19,10 @@ DrawCharts(score, plan, options) {
     // the same kind of plan into the same score passed.
     trace('[parts probe] parts=' & options.parts & ' view=' & Sibelius.GetCurrentScoreViewType()
         & ' entries=' & partPlan.entries.Length);
+    rules = score.EngravingRules;
+    trace('[names probe] first system=' & rules.InstrumentNamesFirstSystem & ' new sections='
+        & rules.InstrumentNamesNewSections & ' subsequent=' & rules.InstrumentNamesSubsequentSystems);
+    TraceTextEverywhere(score, partPlan.entries, 'before', plan.sections.Length + 1);
     result = BuildChart(score, plan, options);
     if (not(result.ok)) {
         return result;
@@ -31,6 +35,7 @@ DrawCharts(score, plan, options) {
     TraceParts(score, 'after delete');
     ApplyParts(score, plan, partPlan, firstChartStaff);
     TraceParts(score, 'after layout');
+    TraceTextEverywhere(score, partPlan.entries, 'after', plan.sections.Length + 1);
     return result;
 }
 
@@ -192,6 +197,37 @@ PartChartSystems(positions) {
         }
     }
     return CreateDictionary('shows', shows, 'ends', ends);
+}
+
+// Diagnostic: the text at the top of the score, in the full score and in
+// each part given a chart, read in each one's own context so a part's own
+// positions show.
+TraceTextEverywhere(score, entries, label, lastBar) {
+    parts = score.DynamicParts;
+    TraceText(score, label & ' score', lastBar);
+    for e = 0 to entries.Length {
+        entry = entries[e];
+        score.CurrentDynamicPart = entry.part;
+        TraceText(score, (label & ' part ') & e, lastBar);
+        score.CurrentDynamicPart = parts[0];
+    }
+    return True;
+}
+
+TraceText(score, label, lastBar) {
+    system = score.SystemStaff;
+    b = 1;
+    while (b <= lastBar) {
+        bar = system.NthBar(b);
+        for each item in bar {
+            if (item.Type = 'SystemTextItem') {
+                trace('[text probe] ' & label & ' bar ' & b & ' ' & item.StyleId & ' dx=' & item.Dx
+                    & ' dy=' & item.Dy & ' hidden=' & item.Hidden & ' [' & item.Text & ']');
+            }
+        }
+        b = b + 1;
+    }
+    return True;
 }
 
 // Diagnostic, read in the part's own context: each chart bar and the first
