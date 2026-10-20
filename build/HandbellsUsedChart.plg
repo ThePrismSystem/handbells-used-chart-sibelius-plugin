@@ -232,7 +232,8 @@
         return null;
     }
 
-    trace('[dialog probe] parts = [' & ('' & dlg_parts) & '] remove = [' & ('' & dlg_remove) & ']');
+    trace('[dialog probe] parts = [' & ('' & dlg_parts) & '] page break = [' & ('' & dlg_pageBreak)
+        & '] remove = [' & ('' & dlg_remove) & ']');
     trace('[dialog probe] value = [' & ('' & dlg_instruments) & ']');
     trace('[dialog probe] NumChildren = ' & dlg_instruments.NumChildren);
     count = dlg_instruments.NumChildren;
@@ -252,7 +253,8 @@
         'remove', Ticked(dlg_remove),
         'instruments', InstrumentsNamed(instruments, selected),
         'mode', ChartModeOf(dlg_chartMode),
-        'parts', Ticked(dlg_parts)
+        'parts', Ticked(dlg_parts),
+        'pageBreak', Ticked(dlg_pageBreak)
     );
 }"
 	InstrumentsChanged "() {
@@ -1760,13 +1762,13 @@
     firstChartStaff = (score.StaffCount - (plan.sections.Length * 2)) + 1;
     DeleteChartOnlyParts(score, firstChartStaff);
     TraceParts(score, 'after delete');
-    ApplyParts(score, plan, partPlan, firstChartStaff);
+    ApplyParts(score, plan, partPlan, firstChartStaff, options.pageBreak = True);
     RestorePartTitleText(score, partPlan.entries, titles);
     TraceParts(score, 'after layout');
     TraceTextEverywhere(score, partPlan.entries, 'after', plan.sections.Length + 1);
     return result;
 }"
-	ApplyParts "(score, plan, partPlan, firstChartStaff) {
+	ApplyParts "(score, plan, partPlan, firstChartStaff, breakForOne) {
     barCount = score.NthStaff(1).BarCount;
 
     entries = partPlan.entries;
@@ -1788,13 +1790,13 @@
     for each part in parts {
         if (not(part.IsFullScore)) {
             if (part.StaveCount > 0) {
-                LayOutPart(score, part, plan.sections, firstChartStaff, barCount);
+                LayOutPart(score, part, plan.sections, firstChartStaff, barCount, breakForOne);
             }
         }
     }
     return True;
 }"
-	LayOutPart "(score, part, sections, firstChartStaff, barCount) {
+	LayOutPart "(score, part, sections, firstChartStaff, barCount, breakForOne) {
     chartBars = sections.Length;
     carried = CreateSparseArray();
     positions = CreateSparseArray();
@@ -1829,9 +1831,15 @@
     trace('[parts probe] layout: staves=' & part.StaveCount & ' piece=' & pieceCount
         & ' carried=' & carried.Length & ' active is full score=' & active.IsFullScore
         & ' active StaffCount=' & score.StaffCount);
+    endsPage = PartEndsPage(carried.Length, breakForOne);
     for b = 1 to chartBars + 1 {
         if (ends[b - 1] = 1) {
             anchor.NthBar(b).BreakType = EndOfSystemOrPage;
+            if (b = chartBars) {
+                if (endsPage = 1) {
+                    anchor.NthBar(b).BreakType = EndOfPage;
+                }
+            }
         } else {
             anchor.NthBar(b).BreakType = MiddleOfSystem;
         }
@@ -1862,6 +1870,15 @@
     TraceLayout(score, anchor, chartBars + 1);
     score.CurrentDynamicPart = parts[0];
     return True;
+}"
+	PartEndsPage "(carriedCount, breakForOne) {
+    if (carriedCount > 1) {
+        return 1;
+    }
+    if (breakForOne) {
+        return 1;
+    }
+    return 0;
 }"
 	KeepPartTitleText "(score, entries) {
     parts = score.DynamicParts;
@@ -2383,7 +2400,7 @@ _SettingsDialog "Dialog"
 		X "333"
 		Y "271"
 		Width "198"
-		Height "308"
+		Height "328"
 		Controls
 		{
 			Text
@@ -2465,11 +2482,23 @@ _SettingsDialog "Dialog"
 				Method
 				SetFocus "0"
 			}
+			CheckBox
+			{
+				Title "Page Break After One Chart"
+				X "98"
+				Y "134"
+				Width "92"
+				Height "22"
+				ID "dlg_pageBreak"
+				Value "dlg_pageBreak"
+				Method
+				SetFocus "0"
+			}
 			Text
 			{
 				Title "Handbell Notehead Type"
 				X "22"
-				Y "144"
+				Y "164"
 				Width "74"
 				Height "14"
 				RightAlign "0"
@@ -2482,7 +2511,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "98"
-				Y "140"
+				Y "160"
 				Width "92"
 				Height "21"
 				ListVar "_BellHeadItems"
@@ -2496,7 +2525,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "Handchime Notehead Type"
 				X "22"
-				Y "166"
+				Y "186"
 				Width "74"
 				Height "14"
 				RightAlign "0"
@@ -2509,7 +2538,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "98"
-				Y "162"
+				Y "182"
 				Width "92"
 				Height "21"
 				ListVar "_ChimeHeadItems"
@@ -2523,7 +2552,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "SMBs Notehead Type"
 				X "22"
-				Y "188"
+				Y "208"
 				Width "74"
 				Height "14"
 				RightAlign "0"
@@ -2536,7 +2565,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "98"
-				Y "184"
+				Y "204"
 				Width "92"
 				Height "21"
 				ListVar "_SmbHeadItems"
@@ -2550,7 +2579,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "Handchime Color"
 				X "22"
-				Y "214"
+				Y "234"
 				Width "74"
 				Height "14"
 				RightAlign "0"
@@ -2563,7 +2592,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "98"
-				Y "210"
+				Y "230"
 				Width "92"
 				Height "14"
 				ID "dlg_chimeColor"
@@ -2575,7 +2604,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "SMBs Color"
 				X "22"
-				Y "234"
+				Y "254"
 				Width "74"
 				Height "14"
 				RightAlign "0"
@@ -2588,7 +2617,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "98"
-				Y "230"
+				Y "250"
 				Width "92"
 				Height "14"
 				ID "dlg_smbColor"
@@ -2600,7 +2629,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "Remove Existing Chart"
 				X "98"
-				Y "252"
+				Y "272"
 				Width "92"
 				Height "14"
 				ID "dlg_remove"
@@ -2612,7 +2641,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "Cancel"
 				X "84"
-				Y "274"
+				Y "294"
 				Width "50"
 				Height "14"
 				DefaultButton "0"
@@ -2626,7 +2655,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "OK"
 				X "140"
-				Y "274"
+				Y "294"
 				Width "50"
 				Height "14"
 				DefaultButton "0"
@@ -2669,6 +2698,7 @@ _SettingsDialog "Dialog"
 	}
 	dlg_chartMode ""
 	dlg_parts "0"
+	dlg_pageBreak "0"
 	_InstrumentItems
 	{
 	}

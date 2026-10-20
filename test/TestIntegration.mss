@@ -317,8 +317,10 @@ TestBuildChartParts() {
 
     onlyOwnA = True;
     onlyOwnB = True;
+    chartsA = 0;
     for i = 0 to expected.sections.Length {
         section = expected.sections[i];
+        chartsA = chartsA + HeadListed(section.owners, first.name);
         treble = score.NthStaff(found.firstStaff + (i * 2));
         inA = 0;
         if (partA.IncludesStaff(treble)) {
@@ -339,6 +341,12 @@ TestBuildChartParts() {
     AssertTrue(onlyOwnB, 'the second part carries its own charts and no others');
     AssertEquals(parts.NumChildren, partsBefore, 'no chart-only parts are left behind');
     AssertEquals(PartTitleText(score, partA), titleA, 'the first part keeps its title block where it was');
+    wanted = EndOfSystemOrPage;
+    if (PartEndsPage(chartsA, False) = 1) {
+        wanted = EndOfPage;
+    }
+    AssertEquals(PartBarBreak(score, partA, expected.sections.Length), wanted,
+        'the first part ends its charts with a page break only when it should');
 
     removal = RemoveChart(score);
     AssertTrue(removal.removed, 'the chart with parts is removed: ' & removal.error);
@@ -363,6 +371,15 @@ PartTitleText(score, part) {
     }
     score.CurrentDynamicPart = was;
     return line;
+}
+
+// A bar's break as one part sees it.
+PartBarBreak(score, part, barNum) {
+    was = score.CurrentDynamicPart;
+    score.CurrentDynamicPart = part;
+    breakType = score.NthStaff(1).NthBar(barNum).BreakType;
+    score.CurrentDynamicPart = was;
+    return breakType;
 }
 
 // How many of a part's staves are hidden in a bar, read in that part's own

@@ -34,7 +34,7 @@ DrawCharts(score, plan, options) {
     firstChartStaff = (score.StaffCount - (plan.sections.Length * 2)) + 1;
     DeleteChartOnlyParts(score, firstChartStaff);
     TraceParts(score, 'after delete');
-    ApplyParts(score, plan, partPlan, firstChartStaff);
+    ApplyParts(score, plan, partPlan, firstChartStaff, options.pageBreak = True);
     RestorePartTitleText(score, partPlan.entries, titles);
     TraceParts(score, 'after layout');
     TraceTextEverywhere(score, partPlan.entries, 'after', plan.sections.Length + 1);
@@ -44,7 +44,7 @@ DrawCharts(score, plan, options) {
 // Staves first, layout after: a part is laid out once, with every chart staff
 // it will carry already in it. LayOutPart leaves alone any part that carries
 // none.
-ApplyParts(score, plan, partPlan, firstChartStaff) {
+ApplyParts(score, plan, partPlan, firstChartStaff, breakForOne) {
     barCount = score.NthStaff(1).BarCount;
 
     entries = partPlan.entries;
@@ -66,7 +66,7 @@ ApplyParts(score, plan, partPlan, firstChartStaff) {
     for each part in parts {
         if (not(part.IsFullScore)) {
             if (part.StaveCount > 0) {
-                LayOutPart(score, part, plan.sections, firstChartStaff, barCount);
+                LayOutPart(score, part, plan.sections, firstChartStaff, barCount, breakForOne);
             }
         }
     }
@@ -85,13 +85,19 @@ ApplyParts(score, plan, partPlan, firstChartStaff) {
 // instead, as a short empty bar. Through the music, the part's chart staves
 // are hidden and its own staves are left as the user had them.
 //
+// The last chart bar ends the page when the part has two or more charts, or
+// one and breakForOne is set, so the music starts on a page of its own laid
+// out as the user laid it out. Adding charts to a full first page otherwise
+// pushes music off it, and a part's layout may hold it there regardless,
+// overlapping the systems.
+//
 // The chart staves were added at the bottom of the part in section order, so
 // they follow its own staves, two per carried section. Which sections it
 // carries, and the staff the breaks go on, are read while the full score is
 // still current, where staff numbers mean what BuildChart meant by them. The
 // breaks go on a staff the part holds: the reference warns that editing a
 // staff a part does not hold creates overrides that stay invisible.
-LayOutPart(score, part, sections, firstChartStaff, barCount) {
+LayOutPart(score, part, sections, firstChartStaff, barCount, breakForOne) {
     chartBars = sections.Length;
     carried = CreateSparseArray();
     positions = CreateSparseArray();
@@ -126,9 +132,15 @@ LayOutPart(score, part, sections, firstChartStaff, barCount) {
     trace('[parts probe] layout: staves=' & part.StaveCount & ' piece=' & pieceCount
         & ' carried=' & carried.Length & ' active is full score=' & active.IsFullScore
         & ' active StaffCount=' & score.StaffCount);
+    endsPage = PartEndsPage(carried.Length, breakForOne);
     for b = 1 to chartBars + 1 {
         if (ends[b - 1] = 1) {
             anchor.NthBar(b).BreakType = EndOfSystemOrPage;
+            if (b = chartBars) {
+                if (endsPage = 1) {
+                    anchor.NthBar(b).BreakType = EndOfPage;
+                }
+            }
         } else {
             anchor.NthBar(b).BreakType = MiddleOfSystem;
         }
@@ -159,6 +171,18 @@ LayOutPart(score, part, sections, firstChartStaff, barCount) {
     TraceLayout(score, anchor, chartBars + 1);
     score.CurrentDynamicPart = parts[0];
     return True;
+}
+
+// 1 when a part's charts end its first page, 0 when the music may follow them
+// on it.
+PartEndsPage(carriedCount, breakForOne) {
+    if (carriedCount > 1) {
+        return 1;
+    }
+    if (breakForOne) {
+        return 1;
+    }
+    return 0;
 }
 
 // Adding staves to a part puts its title block back at the styles' default

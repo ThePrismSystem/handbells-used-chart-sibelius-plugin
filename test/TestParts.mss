@@ -73,4 +73,11 @@ TestParts() {
     AssertEquals(JoinNames(joined.ends), '0, 0, 1', 'in one system');
     joined = PartChartSystems(CreateSparseArray(0));
     AssertEquals(JoinNames(joined.ends), '1', 'a part carrying the only chart ends its system');
+
+    // The music starts on a new page after two or more charts, and after one
+    // only when the box asks for it.
+    AssertEquals(PartEndsPage(2, False), 1, 'two charts always end the page');
+    AssertEquals(PartEndsPage(3, True), 1, 'and so do three with the box ticked');
+    AssertEquals(PartEndsPage(1, False), 0, 'one chart shares its page by default');
+    AssertEquals(PartEndsPage(1, True), 1, 'one chart ends the page with the box ticked');
 }

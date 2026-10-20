@@ -4,7 +4,7 @@ _SettingsDialog "Dialog"
 		X "333"
 		Y "271"
 		Width "198"
-		Height "308"
+		Height "328"
 		Controls
 		{
 			Text
@@ -86,11 +86,23 @@ _SettingsDialog "Dialog"
 				Method
 				SetFocus "0"
 			}
+			CheckBox
+			{
+				Title "Page Break After One Chart"
+				X "98"
+				Y "134"
+				Width "92"
+				Height "22"
+				ID "dlg_pageBreak"
+				Value "dlg_pageBreak"
+				Method
+				SetFocus "0"
+			}
 			Text
 			{
 				Title "Handbell Notehead Type"
 				X "22"
-				Y "144"
+				Y "164"
 				Width "74"
 				Height "14"
 				RightAlign "0"
@@ -103,7 +115,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "98"
-				Y "140"
+				Y "160"
 				Width "92"
 				Height "21"
 				ListVar "_BellHeadItems"
@@ -117,7 +129,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "Handchime Notehead Type"
 				X "22"
-				Y "166"
+				Y "186"
 				Width "74"
 				Height "14"
 				RightAlign "0"
@@ -130,7 +142,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "98"
-				Y "162"
+				Y "182"
 				Width "92"
 				Height "21"
 				ListVar "_ChimeHeadItems"
@@ -144,7 +156,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "SMBs Notehead Type"
 				X "22"
-				Y "188"
+				Y "208"
 				Width "74"
 				Height "14"
 				RightAlign "0"
@@ -157,7 +169,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "98"
-				Y "184"
+				Y "204"
 				Width "92"
 				Height "21"
 				ListVar "_SmbHeadItems"
@@ -171,7 +183,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "Handchime Color"
 				X "22"
-				Y "214"
+				Y "234"
 				Width "74"
 				Height "14"
 				RightAlign "0"
@@ -184,7 +196,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "98"
-				Y "210"
+				Y "230"
 				Width "92"
 				Height "14"
 				ID "dlg_chimeColor"
@@ -196,7 +208,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "SMBs Color"
 				X "22"
-				Y "234"
+				Y "254"
 				Width "74"
 				Height "14"
 				RightAlign "0"
@@ -209,7 +221,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "98"
-				Y "230"
+				Y "250"
 				Width "92"
 				Height "14"
 				ID "dlg_smbColor"
@@ -221,7 +233,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "Remove Existing Chart"
 				X "98"
-				Y "252"
+				Y "272"
 				Width "92"
 				Height "14"
 				ID "dlg_remove"
@@ -233,7 +245,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "Cancel"
 				X "84"
-				Y "274"
+				Y "294"
 				Width "50"
 				Height "14"
 				DefaultButton "0"
@@ -247,7 +259,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "OK"
 				X "140"
-				Y "274"
+				Y "294"
 				Width "50"
 				Height "14"
 				DefaultButton "0"

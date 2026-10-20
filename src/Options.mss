@@ -68,7 +68,8 @@ ReadOptions(score) {
         return null;
     }
 
-    trace('[dialog probe] parts = [' & ('' & dlg_parts) & '] remove = [' & ('' & dlg_remove) & ']');
+    trace('[dialog probe] parts = [' & ('' & dlg_parts) & '] page break = [' & ('' & dlg_pageBreak)
+        & '] remove = [' & ('' & dlg_remove) & ']');
     trace('[dialog probe] value = [' & ('' & dlg_instruments) & ']');
     trace('[dialog probe] NumChildren = ' & dlg_instruments.NumChildren);
     count = dlg_instruments.NumChildren;
@@ -88,7 +89,8 @@ ReadOptions(score) {
         'remove', Ticked(dlg_remove),
         'instruments', InstrumentsNamed(instruments, selected),
         'mode', ChartModeOf(dlg_chartMode),
-        'parts', Ticked(dlg_parts)
+        'parts', Ticked(dlg_parts),
+        'pageBreak', Ticked(dlg_pageBreak)
     );
 }
 

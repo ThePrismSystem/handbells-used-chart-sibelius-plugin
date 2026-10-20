@@ -93,13 +93,14 @@ downloadable `plugins` artifact.
 
 ## Settings
 
-The plugin's dialog offers nine controls:
+The plugin's dialog offers ten controls:
 
 | Control | Effect |
 |---|---|
 | Instruments to chart | Which of the score's instruments are read; Cmd-click (Ctrl-click on Windows) to pick more than one |
 | Charts | One combined chart, or a separate chart for each instrument |
 | Also add charts to parts | Puts each instrument's charts into its parts as well |
+| Page break after one chart | Starts a part's music on a new page when the part has only one chart; with two or more it always does |
 | Handbell notehead type | Which notehead in the score counts as a handbell |
 | Handchime notehead type | Which notehead in the score counts as a handchime |
 | SMBs notehead type | Which notehead in the score counts as a silver melody bell |
@@ -153,7 +154,15 @@ Each part that carries a chart is laid out to show its own charts, each on a
 system of its own. Another instrument's chart cannot vanish from a part
 entirely, because Sibelius keeps at least one staff showing in every system,
 so its bar joins the part's own chart beside it as a short empty bar. A part
-that carries none is left as it was. Sibelius may give every instrument the
+that carries none is left as it was.
+
+A part's first page is often laid out by hand, with its page turns planned,
+and charts added in front of it push music off that page. So in a part given
+two or more charts, the music starts on a new page, laid out exactly as it
+was, one page later. With one chart it follows the chart on the first page,
+unless "Page break after one chart" is ticked. To keep music on the same
+left- or right-hand pages as before, add a blank page after the chart in
+Sibelius. Sibelius may give every instrument the
 plugin adds a part of its own; any part holding nothing but chart staves is
 deleted, on a build and on a removal.
 

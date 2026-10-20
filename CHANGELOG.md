@@ -26,8 +26,10 @@ each chart into the Sibelius part that rings from it.
 - "Also Add Charts to Parts" puts each instrument's charts into the parts
   that hold it, laid out so a part shows its own charts, each on a system of
   its own. Another instrument's chart shows only as a short empty bar beside
-  them, since Sibelius keeps a staff showing in every system. The full score
-  always carries every chart. In a
+  them, since Sibelius keeps a staff showing in every system. In a part given
+  two or more charts the music starts on a new page, laid out as it was; with
+  one, "Page Break After One Chart" decides. The full score always carries
+  every chart. In a
   part that carries one instrument's charts the labels are the plain
   `Handbells Used: 25`; in a part holding several instruments they keep the
   instrument names. A part that carries no chart is left as it was.
