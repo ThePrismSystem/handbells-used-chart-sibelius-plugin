@@ -144,6 +144,12 @@ BuildChart(score, plan, options) {
 
     RestoreTimeSignature(score, metre, sections.Length);
 
+    // 8. Staff spacing, over the chart and the music's first system. A chart's
+    //    ledger lines reach far past its staves into the system above, and the
+    //    music's first system loses whatever spacing it had been given when
+    //    the chart takes its place as the first system.
+    score.OptimizeStaffSpacing(1, score.StaffCount, 1, sections.Length + 1);
+
     return CreateDictionary('ok', True, 'error', '', 'warnings', warnings);
 }
 

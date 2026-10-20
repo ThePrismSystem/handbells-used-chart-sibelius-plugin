@@ -24,8 +24,10 @@ each chart into the Sibelius part that rings from it.
   instrument's name: `Handbells I - Handbells Used: 25`. It applies once two
   or more instruments are selected.
 - "Also Add Charts to Parts" puts each instrument's charts into the parts
-  that hold it, laid out so a part shows its own charts and nothing where
-  another instrument's sit. The full score always carries every chart. In a
+  that hold it, laid out so a part shows its own charts, each on a system of
+  its own. Another instrument's chart shows only as a short empty bar beside
+  them, since Sibelius keeps a staff showing in every system. The full score
+  always carries every chart. In a
   part that carries one instrument's charts the labels are the plain
   `Handbells Used: 25`; in a part holding several instruments they keep the
   instrument names. A part that carries no chart is left as it was.
@@ -43,6 +45,11 @@ each chart into the Sibelius part that rings from it.
   music overlapped it, and each other, instead of moving on to the next
   page. Each chart bar ended with a break that Sibelius only allows in the
   middle of a page; it now ends with an ordinary system break.
+- A chart's ledger lines ran into the system above it, and the first system
+  of music lost the staff spacing it had been given, since the chart now
+  takes its place as the first system. Sibelius's Optimize Staff Spacing is
+  run over the chart and the first system of music, in the full score and
+  in each part given a chart.
 
 ### Changed
 

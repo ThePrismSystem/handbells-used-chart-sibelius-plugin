@@ -70,12 +70,13 @@ ApplyParts(score, plan, partPlan, firstChartStaff) {
 // HideEmptyStaves numbers staves and bars within the current part, and hidden
 // staves and breaks belong to each part separately, so nothing carries over.
 //
-// Each chart bar is a system of its own. In a bar of one of this part's
-// charts, everything but that chart's two staves is hidden, and its lower
-// staff too for a one-staff instrument, exactly as in the full score. In a bar
-// of a chart the part does not carry, every staff is hidden. Through the
-// music, the part's chart staves are hidden and its own staves are left as the
-// user had them.
+// Each of the part's own charts is a system of its own, showing that chart's
+// two staves only, and only the upper one for a one-staff instrument, exactly
+// as in the full score. A bar of a chart the part does not carry cannot be a
+// system of its own: Sibelius keeps one staff showing in every system, so it
+// would stand as a lone empty staff. It joins the part's chart beside it
+// instead, as a short empty bar. Through the music, the part's chart staves
+// are hidden and its own staves are left as the user had them.
 //
 // The chart staves were added at the bottom of the part in section order, so
 // they follow its own staves, two per carried section. Which sections it
@@ -108,6 +109,9 @@ LayOutPart(score, part, sections, firstChartStaff, barCount) {
         }
     }
     pieceCount = part.StaveCount - (carried.Length * 2);
+    systems = PartChartSystems(positions);
+    shows = systems.shows;
+    ends = systems.ends;
 
     parts = score.DynamicParts;
     score.CurrentDynamicPart = part;
@@ -116,35 +120,78 @@ LayOutPart(score, part, sections, firstChartStaff, barCount) {
         & ' carried=' & carried.Length & ' active is full score=' & active.IsFullScore
         & ' active StaffCount=' & score.StaffCount);
     for b = 1 to chartBars + 1 {
-        anchor.NthBar(b).BreakType = EndOfSystemOrPage;
-        position = positions[b - 1];
-        if (position < 0) {
-            score.HideEmptyStaves(1, part.StaveCount, b, b);
+        if (ends[b - 1] = 1) {
+            anchor.NthBar(b).BreakType = EndOfSystemOrPage;
         } else {
-            treble = (pieceCount + (position * 2)) + 1;
-            if (pieceCount > 0) {
-                score.HideEmptyStaves(1, pieceCount, b, b);
-            }
-            if (treble > (pieceCount + 1)) {
-                score.HideEmptyStaves(pieceCount + 1, treble - 1, b, b);
-            }
-            if ((treble + 1) < part.StaveCount) {
-                score.HideEmptyStaves(treble + 2, part.StaveCount, b, b);
-            }
-            section = sections[b - 1];
-            if (UsesOneStaff(section.kind) = 1) {
-                score.HideEmptyStaves(treble + 1, treble + 1, b, b);
-            }
+            anchor.NthBar(b).BreakType = MiddleOfSystem;
+        }
+        position = shows[b - 1];
+        treble = (pieceCount + (position * 2)) + 1;
+        if (pieceCount > 0) {
+            score.HideEmptyStaves(1, pieceCount, b, b);
+        }
+        if (treble > (pieceCount + 1)) {
+            score.HideEmptyStaves(pieceCount + 1, treble - 1, b, b);
+        }
+        if ((treble + 1) < part.StaveCount) {
+            score.HideEmptyStaves(treble + 2, part.StaveCount, b, b);
+        }
+        index = carried[position];
+        section = sections[index];
+        if (UsesOneStaff(section.kind) = 1) {
+            score.HideEmptyStaves(treble + 1, treble + 1, b, b);
         }
     }
-    if (carried.Length > 0) {
-        if (barCount > chartBars) {
-            score.HideEmptyStaves(pieceCount + 1, part.StaveCount, chartBars + 1, barCount);
-        }
+    if (barCount > chartBars) {
+        score.HideEmptyStaves(pieceCount + 1, part.StaveCount, chartBars + 1, barCount);
     }
+    // The charts' ledger lines reach far past their staves, and the music's
+    // first system lost whatever spacing the part had given it when the chart
+    // took the first system's place.
+    score.OptimizeStaffSpacing(1, part.StaveCount, 1, chartBars + 1);
     TraceLayout(score, anchor, chartBars + 1);
     score.CurrentDynamicPart = parts[0];
     return True;
+}
+
+// Which of the part's own charts each chart bar's system shows, and whether
+// the bar ends that system. positions holds, per chart bar, the part's own
+// chart index or -1 for a chart it does not carry, and at least one is its
+// own. A bar it does not carry joins the own chart before it, or the first
+// one when none comes before. Returns Dictionary{shows, ends}, ends holding 1
+// or 0.
+PartChartSystems(positions) {
+    shows = CreateSparseArray();
+    first = -1;
+    previous = -1;
+    for k = 0 to positions.Length {
+        if (positions[k] >= 0) {
+            previous = positions[k];
+            if (first < 0) {
+                first = previous;
+            }
+        }
+        shows.Push(previous);
+    }
+    for k = 0 to shows.Length {
+        if (shows[k] < 0) {
+            shows[k] = first;
+        }
+    }
+    ends = CreateSparseArray();
+    last = shows.Length - 1;
+    for k = 0 to shows.Length {
+        if (k = last) {
+            ends.Push(1);
+        } else {
+            if (shows[k + 1] != shows[k]) {
+                ends.Push(1);
+            } else {
+                ends.Push(0);
+            }
+        }
+    }
+    return CreateDictionary('shows', shows, 'ends', ends);
 }
 
 // Diagnostic, read in the part's own context: each chart bar and the first

@@ -54,4 +54,23 @@ TestParts() {
         CreateDictionary('part', 'A', 'names', CreateSparseArray('Handbells I'))));
     only = combined[0];
     AssertEquals(only.splitLabel, 0, 'a combined label is never split');
+
+    // Sibelius keeps one staff showing in every system, so a chart bar a part
+    // does not carry joins one of the part's own charts rather than standing
+    // as a system of one empty staff. Positions are the part's own chart
+    // order, -1 for another choir's chart.
+    joined = PartChartSystems(CreateSparseArray(-1, 0, 1));
+    AssertEquals(JoinNames(joined.shows), '0, 0, 1', 'a chart before the part charts joins the first');
+    AssertEquals(JoinNames(joined.ends), '0, 1, 1', 'and shares its system');
+    joined = PartChartSystems(CreateSparseArray(0, 1, -1));
+    AssertEquals(JoinNames(joined.shows), '0, 1, 1', 'a chart after the part charts joins the last');
+    AssertEquals(JoinNames(joined.ends), '1, 0, 1', 'and ends that system');
+    joined = PartChartSystems(CreateSparseArray(0, -1, -1, 1));
+    AssertEquals(JoinNames(joined.shows), '0, 0, 0, 1', 'charts between joins the one before them');
+    AssertEquals(JoinNames(joined.ends), '0, 0, 1, 1', 'and every own chart still ends a system');
+    joined = PartChartSystems(CreateSparseArray(-1, -1, 0));
+    AssertEquals(JoinNames(joined.shows), '0, 0, 0', 'several charts before join the first');
+    AssertEquals(JoinNames(joined.ends), '0, 0, 1', 'in one system');
+    joined = PartChartSystems(CreateSparseArray(0));
+    AssertEquals(JoinNames(joined.ends), '1', 'a part carrying the only chart ends its system');
 }
