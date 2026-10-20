@@ -36,6 +36,21 @@ WarningLines(warnings) {
             line = (warning.instrument & ' were drawn as hollow whole notes because ')
                 & ('this score has no ' & JoinNames(warning.names)) & ' notehead';
         }
+        // The parts warnings. A part has no name ManuScript can read, so it is
+        // named by the instruments it holds.
+        if (warning.type = 'part-not-charted') {
+            line = 'Sibelius would not add the charts to the part for ' & JoinNames(warning.names)
+                & ', so that part has none';
+        }
+        if (warning.type = 'no-part-for-charts') {
+            line = 'No part holds a selected instrument, so only the full score has the chart';
+        }
+        if (warning.type = 'title-not-restored') {
+            line = warning.count & ' title or copyright line(s) in the parts could not be put back where they were';
+        }
+        if (warning.type = 'margin-not-restored') {
+            line = warning.count & ' part(s) could not be found to put back the top margin of their first page';
+        }
         if (line != '') {
             if (lines != '') {
                 lines = lines & '\n';

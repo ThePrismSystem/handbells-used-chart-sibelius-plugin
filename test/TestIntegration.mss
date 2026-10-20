@@ -88,12 +88,9 @@ TestBuildChart() {
 
     records = ReadScoreNotes(score);
     choices = ScoreHeadChoices(score);
-    // Every instrument, combined: the defaults a first run opens on, and so
-    // the proof that they still draw exactly what v1.2.0 drew.
-    options = CreateDictionary('chimeColor', '', 'smbColor', '',
-        'bellHead', choices.defaultBell, 'chimeHead', choices.defaultChime,
-        'smbHead', NoNoteHead(),
-        'instruments', ScoreInstruments(score), 'mode', 'combined');
+    // Every instrument, combined: the defaults a first run opens on, which
+    // chart the same sections under the same labels v1.2.0 did.
+    options = IntegrationOptions(choices, ScoreInstruments(score), 'combined', False, False);
     plan = BuildChartPlan(records, options);
     result = BuildChart(score, plan, options);
 
@@ -135,6 +132,12 @@ TestBuildChart() {
         'the music starts with the names the first system would have had');
     AssertEquals(FirstPageTextCount(score), firstPageBefore,
         'the title block and blank-page text stay in the first bar');
+
+    // The dialog is filled before a re-run removes the chart, so the chart's
+    // own staves must not be offered as one of the piece's instruments.
+    offered = ScoreInstruments(score);
+    lastOffered = offered[offered.Length - 1];
+    AssertEquals(lastOffered.lastStaff, staffCountBefore, 'the chart is not offered as an instrument');
 }
 
 // How many text items in the first bar belong to the first page rather than
@@ -166,24 +169,52 @@ TestRemoveChart() {
     staffCountBefore = score.StaffCount;
     barCountBefore = score.NthStaff(1).BarCount;
     sections = found.sections;
-    rules = score.EngravingRules;
-    namesAfter = rules.InstrumentNamesNewSections;
-    kept = NamesMarkerRead(score, found.firstStaff);
-    if (kept >= 0) {
-        namesAfter = kept;
-    }
 
     result = RemoveChart(score);
     AssertTrue(result.removed, 'chart removed: ' & result.error);
     AssertEquals(score.StaffCount, staffCountBefore - (sections * 2), 'chart staves gone');
     AssertEquals(score.NthStaff(1).BarCount, barCountBefore - sections, 'chart bars gone');
     AssertEquals(MarkerFind(score), null, 'marker gone');
-    AssertEquals(rules.InstrumentNamesNewSections, namesAfter, 'the score gets its own names rule back');
 
     // A second removal finds nothing and says so without erroring.
     again = RemoveChart(score);
     AssertEquals(again.removed, False, 'second removal finds no chart');
     AssertEquals(again.error, '', 'no chart is not an error');
+}
+
+// The names rule round trip, from a setting known to differ from the first
+// system's, so that both halves can fail: a build that leaves it alone, and a
+// removal that does not put it back.
+TestNamesRule() {
+    score = Sibelius.ActiveScore;
+    if (score = null) {
+        AssertTrue(False, 'open a score before running the integration tests');
+        return False;
+    }
+
+    RemoveChart(score);
+    rules = score.EngravingRules;
+    own = rules.InstrumentNamesNewSections;
+    differing = 0;
+    if (rules.InstrumentNamesFirstSystem = 0) {
+        differing = 1;
+    }
+    rules.InstrumentNamesNewSections = differing;
+
+    choices = ScoreHeadChoices(score);
+    options = IntegrationOptions(choices, ScoreInstruments(score), 'combined', False, False);
+    plan = BuildChartPlan(ReadScoreNotes(score), options);
+    built = BuildChart(score, plan, options);
+    AssertTrue(built.ok, 'the names fixture builds: ' & built.error);
+    rules = score.EngravingRules;
+    AssertEquals(rules.InstrumentNamesNewSections, rules.InstrumentNamesFirstSystem,
+        'while a chart is in place the music is named as the first system is');
+
+    RemoveChart(score);
+    rules = score.EngravingRules;
+    AssertEquals(rules.InstrumentNamesNewSections, differing,
+        'removing the chart puts back the setting the score had');
+    rules.InstrumentNamesNewSections = own;
 }
 
 TestBuildSeparate() {
@@ -202,9 +233,7 @@ TestBuildSeparate() {
 
     staffCountBefore = score.StaffCount;
     choices = ScoreHeadChoices(score);
-    options = CreateDictionary('chimeColor', '', 'smbColor', '',
-        'bellHead', choices.defaultBell, 'chimeHead', choices.defaultChime,
-        'smbHead', NoNoteHead(), 'instruments', instruments, 'mode', 'separate');
+    options = IntegrationOptions(choices, instruments, 'separate', False, False);
     plan = BuildChartPlan(ReadScoreNotes(score), options);
     AssertTrue(plan.sections.Length > 0, 'the fixture charts something');
     if (plan.sections.Length = 0) {
@@ -280,22 +309,24 @@ TestBuildChartParts() {
     }
 
     // Both plans from the clean score: once a chart is drawn, reading the
-    // score again would read the chart's own notes back in.
+    // score again would read the chart's own notes back in. The labels a
+    // section gets in the parts are decided by planning the parts, which only
+    // reads them, so the expected plan is planned the same way.
     choices = ScoreHeadChoices(score);
     records = ReadScoreNotes(score);
-    oldOptions = CreateDictionary('chimeColor', '', 'smbColor', '',
-        'bellHead', choices.defaultBell, 'chimeHead', choices.defaultChime,
-        'smbHead', NoNoteHead(), 'instruments', instruments, 'mode', 'combined', 'parts', False);
-    newOptions = CreateDictionary('chimeColor', '', 'smbColor', '',
-        'bellHead', choices.defaultBell, 'chimeHead', choices.defaultChime,
-        'smbHead', NoNoteHead(), 'instruments', instruments, 'mode', 'separate', 'parts', True);
+    oldOptions = IntegrationOptions(choices, instruments, 'combined', False, False);
+    newOptions = IntegrationOptions(choices, instruments, 'separate', True, False);
     oldShape = BuildChartPlan(records, oldOptions);
     expected = BuildChartPlan(records, newOptions);
+    PlanParts(score, expected, newOptions);
 
     parts = score.DynamicParts;
     partsBefore = parts.NumChildren;
     stavesA = partA.StaveCount;
     stavesB = partB.StaveCount;
+    marginA = PartFirstPageGap(score, partA);
+    setup = score.DocumentSetup;
+    scoreMargin = setup.AboveTopStaveGap;
 
     // What a full-score build alone leaves in a part, to compare against: a
     // run without parts must leave every part exactly as that.
@@ -303,15 +334,15 @@ TestBuildChartParts() {
     plainHidden = HiddenStavesInPart(score, partA, 1);
     RemoveChart(score);
 
-    // The shape v1.2.0 draws, then a re-run over it with every new option on.
+    // A combined chart without parts, then a real re-run over it with every
+    // new option on, which removes the old chart itself.
     built = DrawCharts(score, oldShape, oldOptions);
     AssertTrue(built.ok, 'the combined chart is drawn: ' & built.error);
     AssertEquals(HiddenStavesInPart(score, partA, 1), plainHidden,
-        'a run without parts leaves the parts as 1.2.0 did');
-    RemoveChart(score);
+        'a run without parts leaves the parts as a full-score build does');
     titleA = PartTitleText(score, partA);
-    rebuilt = DrawCharts(score, expected, newOptions);
-    AssertTrue(rebuilt.ok, 'the separate chart with parts is drawn over it: ' & rebuilt.error);
+    rebuilt = ChartScore(score, newOptions);
+    AssertTrue(rebuilt.ok, 'the separate chart with parts replaces the combined one: ' & rebuilt.text);
     found = FindChart(score);
     AssertEquals(found.sections, expected.sections.Length, 'the re-run chart has every section');
 
@@ -348,11 +379,143 @@ TestBuildChartParts() {
     AssertEquals(PartBarBreak(score, partA, expected.sections.Length), wanted,
         'the first part ends its charts with a page break only when it should');
 
-    removal = RemoveChart(score);
-    AssertTrue(removal.removed, 'the chart with parts is removed: ' & removal.error);
+    // Every chart bar in the part shows its own chart's staves and nothing
+    // else, and the chart staves are hidden through the music.
+    chartBars = expected.sections.Length;
+    carriedA = PartSections(expected.sections, CreateSparseArray(first.name));
+    systemsA = PartChartSystems(CarriedPositions(chartBars, carriedA));
+    showsA = systemsA.shows;
+    layoutDetail = '';
+    for b = 1 to chartBars + 1 {
+        position = showsA[b - 1];
+        index = carriedA[position];
+        shown = expected.sections[index];
+        wantedHidden = JoinNames(ChartBarHiddenStaves(stavesA, partA.StaveCount, position,
+            UsesOneStaff(shown.kind)));
+        gotHidden = JoinNames(PartHiddenFlags(score, partA, b));
+        if (gotHidden != wantedHidden) {
+            layoutDetail = layoutDetail & ((' bar ' & b) & (' wanted ' & wantedHidden) & (' got ' & gotHidden));
+        }
+    }
+    AssertEquals(layoutDetail, '', 'each chart bar in the first part shows only its own chart');
+    musicFlags = PartHiddenFlags(score, partA, chartBars + 1);
+    chartStavesHidden = True;
+    for s = stavesA to musicFlags.Length {
+        if (musicFlags[s] != 1) {
+            chartStavesHidden = False;
+        }
+    }
+    AssertTrue(chartStavesHidden, 'the chart staves are hidden where the music starts');
+
+    // A section carried only by one-choir parts reads its plain label there
+    // and its named label in the full score: two texts on one staff, each
+    // shown in one place.
+    splitIndex = -1;
+    for k = 0 to carriedA.Length {
+        index = carriedA[k];
+        section = expected.sections[index];
+        if (splitIndex < 0) {
+            if (section.splitLabel = 1) {
+                splitIndex = index;
+            }
+        }
+    }
+    if (splitIndex >= 0) {
+        section = expected.sections[splitIndex];
+        trebleNum = found.firstStaff + (splitIndex * 2);
+        fullScore = parts[0];
+        AssertEquals(TextHiddenIn(score, fullScore, trebleNum, section.label), 0,
+            'the full score shows the named label');
+        AssertEquals(TextHiddenIn(score, fullScore, trebleNum, section.plainLabel), 1,
+            'the full score hides the plain label');
+        AssertEquals(TextHiddenIn(score, partA, trebleNum, section.label), 1,
+            'the part hides the named label');
+        AssertEquals(TextHiddenIn(score, partA, trebleNum, section.plainLabel), 0,
+            'the part shows the plain label');
+    }
+
+    // The chart pushes the first page's music down in the part, and only in
+    // the part.
+    raisedA = PartFirstPageGap(score, partA);
+    AssertTrue(raisedA.gap > marginA.gap, 'the first part starts its first page lower while it has a chart');
+    setup = score.DocumentSetup;
+    AssertEquals(setup.AboveTopStaveGap, scoreMargin, 'the full score keeps its first-page margin');
+
+    // A run that would chart nothing is refused before the chart is touched.
+    refused = ChartScore(score, IntegrationOptions(choices, CreateSparseArray(), 'separate', True, False));
+    AssertTrue(not(refused.ok), 'a run with no instrument selected is refused');
+    kept = FindChart(score);
+    AssertTrue(kept.found, 'and the chart it refused to replace is still there');
+
+    removal = ChartScore(score, IntegrationOptions(choices, instruments, 'separate', True, True));
+    AssertTrue(removal.ok, 'the chart with parts is removed: ' & removal.text);
     AssertEquals(partA.StaveCount, stavesA, 'the chart staves leave the first part with the chart');
     AssertEquals(partB.StaveCount, stavesB, 'the chart staves leave the second part with the chart');
     AssertEquals(parts.NumChildren, partsBefore, 'removal leaves the parts as they were');
+    restoredA = PartFirstPageGap(score, partA);
+    AssertEquals(Round(restoredA.gap * 100), Round(marginA.gap * 100),
+        'the first part gets its own first-page margin back');
+    AssertEquals(restoredA.unique, marginA.unique, 'and its own choice of a separate first-page margin');
+    AssertEquals(PartTitleText(score, partA), titleA, 'removing the chart leaves the first part title block in place');
+}
+
+// Every option ChartScore and the drawing read, for a test to vary the ones it
+// is about.
+IntegrationOptions(choices, instruments, mode, parts, remove) {
+    return CreateDictionary('chimeColor', '', 'smbColor', '',
+        'bellHead', choices.defaultBell, 'chimeHead', choices.defaultChime,
+        'smbHead', NoNoteHead(), 'instruments', instruments, 'mode', mode,
+        'parts', parts, 'pageBreak', False, 'remove', remove);
+}
+
+// The first part, other than the full score, holding the given staff, or null
+// when no part does.
+PartHoldingStaff(score, staffNum) {
+    staff = score.NthStaff(staffNum);
+    parts = score.DynamicParts;
+    for each part in parts {
+        if (not(part.IsFullScore)) {
+            if (part.IncludesStaff(staff)) {
+                return part;
+            }
+        }
+    }
+    return null;
+}
+
+// A part's first-page top staff margin and whether its first page has margins
+// of its own, read in the part.
+PartFirstPageGap(score, part) {
+    was = score.CurrentDynamicPart;
+    score.CurrentDynamicPart = part;
+    setup = score.DocumentSetup;
+    unique = 0;
+    if (setup.FirstPageHasUniqueVerticalStaveMargins) {
+        unique = 1;
+    }
+    margin = CreateDictionary('gap', setup.AboveTopStaveGap, 'unique', unique);
+    score.CurrentDynamicPart = was;
+    return margin;
+}
+
+// 1 when the text in the first bar of a staff is hidden where the given part
+// or the full score shows it, 0 when it is shown, -1 when there is no such
+// text. The staff is found while the full score is current.
+TextHiddenIn(score, part, staffNum, text) {
+    bar = score.NthStaff(staffNum).NthBar(1);
+    was = score.CurrentDynamicPart;
+    score.CurrentDynamicPart = part;
+    hidden = -1;
+    for each Text t in bar {
+        if (('' & t.Text) = text) {
+            hidden = 0;
+            if (t.Hidden) {
+                hidden = 1;
+            }
+        }
+    }
+    score.CurrentDynamicPart = was;
+    return hidden;
 }
 
 // The offsets of a part's first-page text, read in that part, as one line to
@@ -382,25 +545,37 @@ PartBarBreak(score, part, barNum) {
     return breakType;
 }
 
-// How many of a part's staves are hidden in a bar, read in that part's own
-// context, since hiding belongs to each part separately. The staves are found
-// first, while the full score is current.
+// How many of a part's staves are hidden in a bar.
 HiddenStavesInPart(score, part, barNum) {
+    flags = PartHiddenFlags(score, part, barNum);
+    hidden = 0;
+    for i = 0 to flags.Length {
+        hidden = hidden + flags[i];
+    }
+    return hidden;
+}
+
+// Each of a part's staves in a bar, top to bottom, 1 when hidden, read in that
+// part's own context, since hiding belongs to each part separately. The staves
+// are found first, while the full score is current.
+PartHiddenFlags(score, part, barNum) {
     staves = CreateSparseArray();
     for each staff in part {
         staves.Push(staff);
     }
     was = score.CurrentDynamicPart;
     score.CurrentDynamicPart = part;
-    hidden = 0;
+    flags = CreateSparseArray();
     for i = 0 to staves.Length {
         staff = staves[i];
+        flag = 0;
         if (staff.NthBar(barNum).OnHiddenStave) {
-            hidden = hidden + 1;
+            flag = 1;
         }
+        flags.Push(flag);
     }
     score.CurrentDynamicPart = was;
-    return hidden;
+    return flags;
 }
 
 TestNoteHeadScan() {

@@ -69,13 +69,25 @@ FindFailure(message) {
         'firstStaff', 0, 'columns', CreateSparseArray(), 'error', message);
 }
 
+// Returns Dictionary{removed, error, unrestored}, unrestored counting the
+// parts whose first-page margin had no part to go back to.
 RemoveChart(score) {
     found = FindChart(score);
     if (found.error != '') {
-        return CreateDictionary('removed', False, 'error', found.error);
+        // The chart itself cannot be removed, but what its build changed
+        // elsewhere can be put back now, before the bars that record it are
+        // deleted by hand. The records sit on the chart's first staff, which
+        // is exactly what is in doubt, so they are looked for on every staff.
+        unrestored = 0;
+        recordStaff = RecordStaff(score);
+        if (recordStaff > 0) {
+            RestoreNamesRule(score, recordStaff);
+            unrestored = RestoreMargins(score, MarginMarkersRead(score, recordStaff), recordStaff);
+        }
+        return RemovalResult(False, found.error, unrestored);
     }
     if (not(found.found)) {
-        return CreateDictionary('removed', False, 'error', '');
+        return RemovalResult(False, '', 0);
     }
 
     // Staves the chart hid come back before the ranges stop meaning anything.
@@ -85,12 +97,10 @@ RemoveChart(score) {
         found.sections + 1, score.NthStaff(1).BarCount);
 
     // The names rule a build changed goes back to the score's own, read from
-    // the chart's first bar before that bar goes.
-    names = NamesMarkerRead(score, found.firstStaff);
-    if (names >= 0) {
-        rules = score.EngravingRules;
-        rules.InstrumentNamesNewSections = names;
-    }
+    // the chart's first bar before that bar goes. So are the parts' first-page
+    // margins, which go back once the chart has left the parts.
+    RestoreNamesRule(score, found.firstStaff);
+    margins = MarginMarkersRead(score, found.firstStaff);
 
     // Before any bar goes, rescue the title block it is carrying and drop the
     // renumbering that only made sense while the chart was in front.
@@ -104,9 +114,9 @@ RemoveChart(score) {
         score.NthStaff(1).NthBar(1).Delete();
     }
     if (score.NthStaff(1).BarCount != (barsBefore - found.sections)) {
-        return CreateDictionary('removed', False, 'error', IdentificationError(
+        return RemovalResult(False, IdentificationError(
             'This score records a Handbells Used chart, but Sibelius did not remove '
-            & 'the chart bars.'));
+            & 'the chart bars.'), 0);
     }
 
     // While the chart staves still exist to say which parts are only theirs.
@@ -120,12 +130,25 @@ RemoveChart(score) {
         n = n - 1;
     }
     if (score.StaffCount != (staffCountBefore - (found.sections * 2))) {
-        return CreateDictionary('removed', False, 'error', IdentificationError(
+        return RemovalResult(False, IdentificationError(
             'This score records a Handbells Used chart, but Sibelius did not remove '
-            & 'the chart staves.'));
+            & 'the chart staves.'), 0);
     }
 
-    return CreateDictionary('removed', True, 'error', '');
+    return RemovalResult(True, '', RestoreMargins(score, margins, found.firstStaff));
+}
+
+RemovalResult(removed, error, unrestored) {
+    return CreateDictionary('removed', removed, 'error', error, 'unrestored', unrestored);
+}
+
+RestoreNamesRule(score, staffNum) {
+    names = NamesMarkerRead(score, staffNum);
+    if (names >= 0) {
+        rules = score.EngravingRules;
+        rules.InstrumentNamesNewSections = names;
+    }
+    return True;
 }
 
 // Both paths relocate system text out of the chart bars, for opposite reasons,

@@ -8,22 +8,13 @@ EnterFullScore(score) {
     return was;
 }
 
-// Everything a run draws: the full-score chart exactly as it has always been
-// drawn, then, when the parts box is ticked, those same chart staves added to
-// the parts that carry them, each laid out to show only its own charts.
-// Returns BuildChart's result.
+// Everything a run draws: the full-score chart, then, when the parts box is
+// ticked, those same chart staves added to the parts that carry them, each
+// laid out to show only its own charts. Returns BuildChart's result, with a
+// warning for any part that could not be given its charts, and one when the
+// box was ticked but no part holds a selected instrument.
 DrawCharts(score, plan, options) {
     partPlan = PlanParts(score, plan, options);
-    // Diagnostic, kept until charts are seen in parts: a run with the parts box
-    // ticked left every part without its chart, while the test suite drawing
-    // the same kind of plan into the same score passed.
-    trace('[parts probe] parts=' & options.parts & ' view=' & Sibelius.GetCurrentScoreViewType()
-        & ' entries=' & partPlan.entries.Length);
-    rules = score.EngravingRules;
-    trace('[names probe] first system=' & rules.InstrumentNamesFirstSystem & ' new sections='
-        & rules.InstrumentNamesNewSections & ' subsequent=' & rules.InstrumentNamesSubsequentSystems);
-    TraceTextEverywhere(score, partPlan.entries, 'before', plan.sections.Length + 1);
-    titles = KeepPartTitleText(score, partPlan.entries);
     result = BuildChart(score, plan, options);
     if (not(result.ok)) {
         return result;
@@ -33,44 +24,72 @@ DrawCharts(score, plan, options) {
     }
     firstChartStaff = (score.StaffCount - (plan.sections.Length * 2)) + 1;
     DeleteChartOnlyParts(score, firstChartStaff);
-    TraceParts(score, 'after delete');
-    ApplyParts(score, plan, partPlan, firstChartStaff, options.pageBreak = True);
-    RestorePartTitleText(score, partPlan.entries, titles);
-    TraceParts(score, 'after layout');
-    TraceTextEverywhere(score, partPlan.entries, 'after', plan.sections.Length + 1);
+    applied = ApplyParts(score, plan, partPlan.entries, firstChartStaff, options.pageBreak = True);
+    MarginMarkersWrite(score.NthStaff(firstChartStaff).NthBar(1), applied.margins);
+
+    warnings = result.warnings;
+    partWarnings = applied.warnings;
+    for i = 0 to partWarnings.Length {
+        warnings.Push(partWarnings[i]);
+    }
+    if (options.parts = True) {
+        if (partPlan.entries.Length = 0) {
+            warnings.Push(CreateDictionary('type', 'no-part-for-charts'));
+        }
+    }
     return result;
 }
 
 // Staves first, layout after: a part is laid out once, with every chart staff
-// it will carry already in it. LayOutPart leaves alone any part that carries
-// none.
-ApplyParts(score, plan, partPlan, firstChartStaff, breakForOne) {
+// it will carry already in it. A part that refuses one of its staves is given
+// none of them and named in a warning, rather than laid out around a chart
+// with a staff missing. Returns Dictionary{warnings, margins}, margins holding
+// one record per part whose first page was lowered, for MarginMarkersWrite.
+ApplyParts(score, plan, entries, firstChartStaff, breakForOne) {
     barCount = score.NthStaff(1).BarCount;
-
-    entries = partPlan.entries;
+    warnings = CreateSparseArray();
+    margins = CreateSparseArray();
     for e = 0 to entries.Length {
         entry = entries[e];
         part = entry.part;
+        // Counted before anything is added, so the part's own staves are what
+        // the part held rather than what is left after taking away what was
+        // meant to be added.
+        pieceCount = part.StaveCount;
         carried = entry.sections;
+        added = CreateSparseArray();
+        complete = 1;
         for k = 0 to carried.Length {
             index = carried[k];
             treble = firstChartStaff + (index * 2);
-            added = part.AddStaffToPart(score.NthStaff(treble));
-            trace('[parts probe] entry ' & e & ' add ' & treble & ' = ' & added);
-            added = part.AddStaffToPart(score.NthStaff(treble + 1));
-            trace('[parts probe] entry ' & e & ' add ' & (treble + 1) & ' = ' & added);
-        }
-    }
-
-    parts = score.DynamicParts;
-    for each part in parts {
-        if (not(part.IsFullScore)) {
-            if (part.StaveCount > 0) {
-                LayOutPart(score, part, plan.sections, firstChartStaff, barCount, breakForOne);
+            if (complete = 1) {
+                complete = AddChartStaff(part, score.NthStaff(treble), added);
+            }
+            if (complete = 1) {
+                complete = AddChartStaff(part, score.NthStaff(treble + 1), added);
             }
         }
+        if (complete = 1) {
+            kept = LayOutPart(score, part, plan.sections, carried, pieceCount, barCount, breakForOne);
+            margins.Push(CreateDictionary('key', entry.key, 'gap', kept.gap, 'unique', kept.unique));
+        } else {
+            for a = 0 to added.Length {
+                staff = added[a];
+                part.DeleteStaffFromPart(staff);
+            }
+            warnings.Push(CreateDictionary('type', 'part-not-charted', 'names', entry.names));
+        }
     }
-    return True;
+    return CreateDictionary('warnings', warnings, 'margins', margins);
+}
+
+// 1 when the staff went into the part, which is then listed in added.
+AddChartStaff(part, staff, added) {
+    if (part.AddStaffToPart(staff)) {
+        added.Push(staff);
+        return 1;
+    }
+    return 0;
 }
 
 // The same layout BuildChart gives the full score, done again in one part:
@@ -85,53 +104,34 @@ ApplyParts(score, plan, partPlan, firstChartStaff, breakForOne) {
 // instead, as a short empty bar. Through the music, the part's chart staves
 // are hidden and its own staves are left as the user had them.
 //
-// The last chart bar ends the page when the part has two or more charts, or
-// one and breakForOne is set, so the music starts on a page of its own laid
-// out as the user laid it out. Adding charts to a full first page otherwise
-// pushes music off it, and a part's layout may hold it there regardless,
-// overlapping the systems.
+// The last chart bar ends the page when the part has two or more chart
+// sections, or one and breakForOne is set, so the music starts on a page of
+// its own laid out as the user laid it out. Adding charts to a full first page
+// otherwise pushes music off it, and a part's layout may hold it there
+// regardless, overlapping the systems.
 //
 // The chart staves were added at the bottom of the part in section order, so
-// they follow its own staves, two per carried section. Which sections it
-// carries, and the staff the breaks go on, are read while the full score is
-// still current, where staff numbers mean what BuildChart meant by them. The
-// breaks go on a staff the part holds: the reference warns that editing a
-// staff a part does not hold creates overrides that stay invisible.
-LayOutPart(score, part, sections, firstChartStaff, barCount, breakForOne) {
+// they follow the part's pieceCount staves of its own, two per carried
+// section. The breaks go on a staff the part holds: the reference warns that
+// editing a staff a part does not hold creates overrides that stay invisible.
+// Returns what LowerFirstPage returns.
+LayOutPart(score, part, sections, carried, pieceCount, barCount, breakForOne) {
     chartBars = sections.Length;
-    carried = CreateSparseArray();
-    positions = CreateSparseArray();
-    for k = 0 to chartBars {
-        positions.Push(-1);
-        if (part.IncludesStaff(score.NthStaff(firstChartStaff + (k * 2)))) {
-            positions[k] = carried.Length;
-            carried.Push(k);
-        }
-    }
-    // A part with none of the chart's staves is left exactly as a full-score
-    // chart has always left it, so a run without parts changes no part at
-    // all. What such a part shows for the chart bars is for a session in
-    // Sibelius to establish before anything is done about it.
-    if (carried.Length = 0) {
-        return False;
-    }
     anchor = null;
     for each staff in part {
         if (anchor = null) {
             anchor = staff;
         }
     }
-    pieceCount = part.StaveCount - (carried.Length * 2);
-    systems = PartChartSystems(positions);
+    systems = PartChartSystems(CarriedPositions(chartBars, carried));
     shows = systems.shows;
     ends = systems.ends;
+    firstIndex = carried[0];
+    firstSection = sections[firstIndex];
 
     parts = score.DynamicParts;
     score.CurrentDynamicPart = part;
-    active = score.CurrentDynamicPart;
-    trace('[parts probe] layout: staves=' & part.StaveCount & ' piece=' & pieceCount
-        & ' carried=' & carried.Length & ' active is full score=' & active.IsFullScore
-        & ' active StaffCount=' & score.StaffCount);
+    staveCount = part.StaveCount;
     endsPage = PartEndsPage(carried.Length, breakForOne);
     for b = 1 to chartBars + 1 {
         if (ends[b - 1] = 1) {
@@ -145,36 +145,30 @@ LayOutPart(score, part, sections, firstChartStaff, barCount, breakForOne) {
             anchor.NthBar(b).BreakType = MiddleOfSystem;
         }
         position = shows[b - 1];
-        treble = (pieceCount + (position * 2)) + 1;
-        if (pieceCount > 0) {
-            score.HideEmptyStaves(1, pieceCount, b, b);
-        }
-        if (treble > (pieceCount + 1)) {
-            score.HideEmptyStaves(pieceCount + 1, treble - 1, b, b);
-        }
-        if ((treble + 1) < part.StaveCount) {
-            score.HideEmptyStaves(treble + 2, part.StaveCount, b, b);
-        }
         index = carried[position];
         section = sections[index];
-        if (UsesOneStaff(section.kind) = 1) {
-            score.HideEmptyStaves(treble + 1, treble + 1, b, b);
+        hidden = ChartBarHiddenStaves(pieceCount, staveCount, position, UsesOneStaff(section.kind));
+        for s = 0 to hidden.Length {
+            if (hidden[s] = 1) {
+                score.HideEmptyStaves(s + 1, s + 1, b, b);
+            }
         }
     }
     if (barCount > chartBars) {
-        score.HideEmptyStaves(pieceCount + 1, part.StaveCount, chartBars + 1, barCount);
+        score.HideEmptyStaves(pieceCount + 1, staveCount, chartBars + 1, barCount);
     }
     // The charts' ledger lines reach far past their staves, and the music's
     // first system lost whatever spacing the part had given it when the chart
     // took the first system's place.
-    score.OptimizeStaffSpacing(1, part.StaveCount, 1, chartBars + 1);
-    TraceLayout(score, anchor, chartBars + 1);
+    score.OptimizeStaffSpacing(1, staveCount, 1, chartBars + 1);
+    kept = LowerFirstPage(score, ChartReach(firstSection));
     score.CurrentDynamicPart = parts[0];
-    return True;
+    return kept;
 }
 
 // 1 when a part's charts end its first page, 0 when the music may follow them
-// on it.
+// on it. Counted in chart sections: bells and chimes for one instrument are
+// two systems, and two systems are enough to push music off the first page.
 PartEndsPage(carriedCount, breakForOne) {
     if (carriedCount > 1) {
         return 1;
@@ -185,68 +179,42 @@ PartEndsPage(carriedCount, breakForOne) {
     return 0;
 }
 
-// Adding staves to a part puts its title block back at the styles' default
-// positions, which put a part's composer lines on top of its chart. The
-// offsets of the text that stays on the first page are read in each part
-// given a chart before anything is drawn, and written back after. Returns
-// one Dictionary per entry, keyed as TitleTextKey keys them.
-KeepPartTitleText(score, entries) {
-    parts = score.DynamicParts;
-    kept = CreateSparseArray();
-    for e = 0 to entries.Length {
-        entry = entries[e];
-        score.CurrentDynamicPart = entry.part;
-        positions = CreateDictionary();
-        seen = CreateDictionary();
-        firstBar = score.SystemStaff.NthBar(1);
-        for each item in firstBar {
-            if (item.Type = 'SystemTextItem') {
-                if (StyleStaysOnFirstPage(item.StyleId)) {
-                    positions[TitleTextKey(seen, item)] = CreateDictionary('dx', item.Dx, 'dy', item.Dy);
-                }
-            }
-        }
-        kept.Push(positions);
-        score.CurrentDynamicPart = parts[0];
+// Per chart bar, the part's own chart index of that bar's chart, or -1 for a
+// chart the part does not carry. carried lists the part's sections in order.
+CarriedPositions(chartBars, carried) {
+    positions = CreateSparseArray();
+    for k = 0 to chartBars {
+        positions.Push(-1);
     }
-    return kept;
+    for j = 0 to carried.Length {
+        index = carried[j];
+        positions[index] = j;
+    }
+    return positions;
 }
 
-// Written in each part's own context, so the offsets are that part's.
-RestorePartTitleText(score, entries, kept) {
-    parts = score.DynamicParts;
-    for e = 0 to entries.Length {
-        entry = entries[e];
-        positions = kept[e];
-        score.CurrentDynamicPart = entry.part;
-        seen = CreateDictionary();
-        firstBar = score.SystemStaff.NthBar(1);
-        for each item in firstBar {
-            if (item.Type = 'SystemTextItem') {
-                if (StyleStaysOnFirstPage(item.StyleId)) {
-                    was = positions[TitleTextKey(seen, item)];
-                    if (was != null) {
-                        item.Dx = was.dx;
-                        item.Dy = was.dy;
-                    }
-                }
+// Which of a part's staves a chart bar hides, top to bottom, 1 for hidden:
+// every staff but the two of the chart shown at position among the part's
+// own, and its lower staff as well for a one-staff chart. The part's own
+// pieceCount staves come first, then two staves per chart it carries.
+ChartBarHiddenStaves(pieceCount, staveCount, position, oneStaff) {
+    treble = (pieceCount + (position * 2)) + 1;
+    flags = CreateSparseArray();
+    s = 1;
+    while (s <= staveCount) {
+        flag = 1;
+        if (s = treble) {
+            flag = 0;
+        }
+        if (s = (treble + 1)) {
+            if (oneStaff = 0) {
+                flag = 0;
             }
         }
-        score.CurrentDynamicPart = parts[0];
+        flags.Push(flag);
+        s = s + 1;
     }
-    return True;
-}
-
-// The items are found again after the build rather than held across it, so
-// each is known by its style and text, and by how many like it came first.
-TitleTextKey(seen, item) {
-    base = ('' & item.StyleId) & ('|' & item.Text);
-    count = 1;
-    if (seen[base] != null) {
-        count = seen[base] + 1;
-    }
-    seen[base] = count;
-    return base & ('|' & count);
+    return flags;
 }
 
 // Which of the part's own charts each chart bar's system shows, and whether
@@ -289,79 +257,263 @@ PartChartSystems(positions) {
     return CreateDictionary('shows', shows, 'ends', ends);
 }
 
-// Diagnostic: the text at the top of the score, in the full score and in
-// each part given a chart, read in each one's own context so a part's own
-// positions show.
-TraceTextEverywhere(score, entries, label, lastBar) {
+// How far a chart reaches above the top line of its treble staff, in spaces.
+// Its label sits about four spaces up, measured on a part in Sibelius. A bell
+// sits half a space higher for each diatonic step above the top line, F5,
+// whose diatonic pitch is 45, and reaches one more for its own upper half and
+// a little air. The chart staff transposes nothing, so a bell's diatonic pitch
+// is where it is written.
+ChartReach(section) {
+    topLine = 45;
+    labelReach = 4;
+    highest = topLine;
+    columns = section.treble;
+    for c = 0 to columns.Length {
+        notes = columns[c];
+        for n = 0 to notes.Length {
+            note = notes[n];
+            if (note.diatonic > highest) {
+                highest = note.diatonic;
+            }
+        }
+    }
+    notesReach = (((highest - topLine) * 1.0) / 2) + 1;
+    if (notesReach > labelReach) {
+        return notesReach;
+    }
+    return labelReach;
+}
+
+// A top staff margin, in millimetres, made larger by reach spaces. Document
+// Setup's staff size is the height of a staff, four spaces.
+RaisedGap(gap, reach, staffSize) {
+    added = ((reach * staffSize) * 1.0) / 4;
+    return gap + added;
+}
+
+// Run in the part. Sibelius puts a page's first staff at the first-page top
+// staff margin, which leaves room for the title block above ordinary music. A
+// chart reaches further above its staff than that, with its label and with
+// high bells on ledger lines, and ran into the composer lines. The first page
+// starts lower by as far as the part's first chart reaches, so the chart comes
+// no higher than the part's first staff line did. The pages after the first
+// keep the margin they had. Returns Dictionary{gap, unique}, the margin as it
+// was and 1 when the first page already had margins of its own, which is what
+// a removal puts back.
+LowerFirstPage(score, reach) {
+    setup = score.DocumentSetup;
+    gap = setup.AboveTopStaveGap;
+    unique = 0;
+    if (setup.FirstPageHasUniqueVerticalStaveMargins) {
+        unique = 1;
+    }
+    if (unique = 0) {
+        below = setup.BelowBottomStaveGap;
+        setup.FirstPageHasUniqueVerticalStaveMargins = True;
+        setup.AboveTopStaveGapAfterFirstPage = gap;
+        setup.BelowBottomStaveGapAfterFirstPage = below;
+    }
+    setup.AboveTopStaveGap = RaisedGap(gap, reach, setup.StaffSize);
+    return CreateDictionary('gap', gap, 'unique', unique);
+}
+
+// Run in the part.
+RestoreFirstPage(score, gap, unique) {
+    setup = score.DocumentSetup;
+    setup.AboveTopStaveGap = gap;
+    if (unique = 0) {
+        setup.FirstPageHasUniqueVerticalStaveMargins = False;
+    }
+    return True;
+}
+
+// The first-page margins a build lowered, put back in each part from the
+// records beside the marker. Applied last record first, so that if two records
+// ever land on one part, the margin it had before either is what stays.
+// Returns how many records found no part to go back to.
+RestoreMargins(score, records, firstStaff) {
+    known = PartKeys(score, firstStaff);
+    found = known.parts;
+    keys = known.keys;
     parts = score.DynamicParts;
-    TraceText(score, label & ' score', lastBar);
-    for e = 0 to entries.Length {
-        entry = entries[e];
+    missing = 0;
+    i = records.Length - 1;
+    while (i >= 0) {
+        record = records[i];
+        target = null;
+        for j = 0 to keys.Length {
+            if (keys[j] = record.key) {
+                target = found[j];
+            }
+        }
+        if (target = null) {
+            missing = missing + 1;
+        } else {
+            score.CurrentDynamicPart = target;
+            RestoreFirstPage(score, record.gap, record.unique);
+            score.CurrentDynamicPart = parts[0];
+        }
+        i = i - 1;
+    }
+    return missing;
+}
+
+// Every part but the full score, in order, with the key it is found by again
+// after a build: the full-score numbers of its own staves, those above
+// firstStaff, and its place among parts holding the same ones. Returns
+// Dictionary{parts, keys}.
+PartKeys(score, firstStaff) {
+    found = CreateSparseArray();
+    signatures = CreateSparseArray();
+    parts = score.DynamicParts;
+    for each part in parts {
+        if (not(part.IsFullScore)) {
+            found.Push(part);
+            signatures.Push(PartSignature(part, firstStaff));
+        }
+    }
+    return CreateDictionary('parts', found, 'keys', OccurrenceKeys(signatures));
+}
+
+PartSignature(part, firstStaff) {
+    signature = '';
+    for each staff in part {
+        if (staff.StaffNum < firstStaff) {
+            if (signature != '') {
+                signature = signature & '.';
+            }
+            signature = signature & staff.StaffNum;
+        }
+    }
+    return signature;
+}
+
+// Each signature numbered by how many times it has come up so far, so two
+// parts holding the same staves keep keys of their own.
+OccurrenceKeys(signatures) {
+    keys = CreateSparseArray();
+    for i = 0 to signatures.Length {
+        signature = '' & signatures[i];
+        count = 1;
+        for j = 0 to i {
+            if (('' & signatures[j]) = signature) {
+                count = count + 1;
+            }
+        }
+        keys.Push(signature & ('#' & count));
+    }
+    return keys;
+}
+
+// Adding chart staves to a part, or taking them away, puts its title block
+// back at the styles' default positions, which put a part's composer lines on
+// top of its chart. The offsets of the text that stays on the first page are
+// read in every part before a run changes anything, and written back after.
+// Returns one Dictionary{part, items} per part holding staves. The parts are
+// collected before any of them is made current, because the collection is
+// not to be changed while it is being walked.
+KeepTitleText(score) {
+    parts = score.DynamicParts;
+    kept = CreateSparseArray();
+    for each part in parts {
+        if (not(part.IsFullScore)) {
+            if (part.StaveCount > 0) {
+                kept.Push(CreateDictionary('part', part, 'items', CreateSparseArray()));
+            }
+        }
+    }
+    for i = 0 to kept.Length {
+        entry = kept[i];
+        items = entry.items;
         score.CurrentDynamicPart = entry.part;
-        TraceText(score, (label & ' part ') & e, lastBar);
+        seen = CreateSparseArray();
+        firstBar = score.SystemStaff.NthBar(1);
+        for each item in firstBar {
+            if (item.Type = 'SystemTextItem') {
+                if (StyleStaysOnFirstPage(item.StyleId)) {
+                    style = '' & item.StyleId;
+                    text = '' & item.Text;
+                    items.Push(CreateDictionary('style', style, 'text', text,
+                        'n', TitleOccurrence(seen, style, text), 'dx', item.Dx, 'dy', item.Dy));
+                }
+            }
+        }
         score.CurrentDynamicPart = parts[0];
     }
-    return True;
+    return kept;
 }
 
-TraceText(score, label, lastBar) {
-    system = score.SystemStaff;
-    b = 1;
-    while (b <= lastBar) {
-        bar = system.NthBar(b);
-        for each item in bar {
-            if (item.Type = 'SystemTextItem') {
-                trace('[text probe] ' & label & ' bar ' & b & ' ' & item.StyleId & ' dx=' & item.Dx
-                    & ' dy=' & item.Dy & ' hidden=' & item.Hidden & ' [' & item.Text & ']');
-            }
-        }
-        b = b + 1;
-    }
-    return True;
-}
-
-// Diagnostic, read in the part's own context: each chart bar and the first
-// music bar, with the break the part sees there and which of its staves are
-// hidden (1) or showing (0).
-TraceLayout(score, anchor, lastBar) {
-    b = 1;
-    while (b <= lastBar) {
-        line = '';
-        s = 1;
-        while (s <= score.StaffCount) {
-            hidden = 0;
-            if (score.NthStaff(s).NthBar(b).OnHiddenStave) {
-                hidden = 1;
-            }
-            line = line & (' ' & hidden);
-            s = s + 1;
-        }
-        trace('[parts probe] bar ' & b & ' break=' & score.NthStaff(1).NthBar(b).BreakType
-            & ' anchor break=' & anchor.NthBar(b).BreakType & ' hidden=' & line);
-        b = b + 1;
-    }
-    return True;
-}
-
-// Diagnostic: every part and the full-score numbers of the staves it holds.
-TraceParts(score, label) {
+// Written in each part's own context, so the offsets are that part's, and
+// only where they changed, so a part whose text was never moved is left
+// alone. Returns how many items did not take the offsets written to them.
+RestoreTitleText(score, kept) {
     parts = score.DynamicParts;
-    i = 0;
-    for each part in parts {
-        line = '';
-        for each staff in part {
-            line = line & (' ' & staff.StaffNum);
+    missed = 0;
+    for i = 0 to kept.Length {
+        entry = kept[i];
+        part = entry.part;
+        // A part holding nothing but chart staves is deleted with them.
+        if (IsValid(part)) {
+            records = entry.items;
+            score.CurrentDynamicPart = part;
+            seen = CreateSparseArray();
+            firstBar = score.SystemStaff.NthBar(1);
+            for each item in firstBar {
+                if (item.Type = 'SystemTextItem') {
+                    if (StyleStaysOnFirstPage(item.StyleId)) {
+                        style = '' & item.StyleId;
+                        text = '' & item.Text;
+                        was = TitleRecordFor(records, style, text, TitleOccurrence(seen, style, text));
+                        if (was != null) {
+                            if ((item.Dx != was.dx) or (item.Dy != was.dy)) {
+                                item.Dx = was.dx;
+                                item.Dy = was.dy;
+                                if ((item.Dx != was.dx) or (item.Dy != was.dy)) {
+                                    missed = missed + 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            score.CurrentDynamicPart = parts[0];
         }
-        trace('[probe] part ' & label & ' ' & i & ' fullScore=' & part.IsFullScore & ' staves=' & line);
-        i = i + 1;
     }
-    return True;
+    return missed;
 }
 
-// Sibelius may give each instrument the plug-in adds a part of its own, the
-// way it does for an instrument added by hand, which would leave a part per
-// chart section that nobody asked for. A part holding nothing but chart staves
-// is one of those. A part the user made, holding a chart staff alongside their
+// The items are found again after the run rather than held across it, so
+// each is known by its style and text, and by how many like it came first.
+// Counts this one into seen and returns its number, from 1.
+TitleOccurrence(seen, style, text) {
+    count = 1;
+    for i = 0 to seen.Length {
+        other = seen[i];
+        if ((other.style = style) and (other.text = text)) {
+            count = count + 1;
+        }
+    }
+    seen.Push(CreateDictionary('style', style, 'text', text));
+    return count;
+}
+
+// The kept record for the nth item of this style and text, or null.
+TitleRecordFor(records, style, text, n) {
+    for i = 0 to records.Length {
+        record = records[i];
+        if ((record.style = style) and (record.text = text)) {
+            if (record.n = n) {
+                return record;
+            }
+        }
+    }
+    return null;
+}
+
+// Sibelius gives each instrument the plug-in adds a part of its own, the way
+// it does for an instrument added by hand, which would leave a part per chart
+// section that nobody asked for. A part holding nothing but chart staves is
+// one of those. A part the user made, holding a chart staff alongside their
 // own, is left alone. Collected first and deleted after, as the guide requires
 // of any collection being changed.
 DeleteChartOnlyParts(score, firstChartStaff) {
@@ -400,16 +552,18 @@ DeleteChartOnlyParts(score, firstChartStaff) {
 // considered at all, so every section keeps its one full-score label.
 //
 // Only parts that hold staves: a part left holding nothing is no one's part.
+// Run before the chart is drawn, so every staff is one of the piece's.
 PlanParts(score, plan, options) {
     infos = CreateSparseArray();
     if (options.parts = True) {
-        parts = score.DynamicParts;
-        for each part in parts {
-            if (not(part.IsFullScore)) {
-                if (part.StaveCount > 0) {
-                    infos.Push(CreateDictionary('part', part,
-                        'names', PartInstrumentNames(score, part, options.instruments)));
-                }
+        known = PartKeys(score, score.StaffCount + 1);
+        found = known.parts;
+        keys = known.keys;
+        for i = 0 to found.Length {
+            part = found[i];
+            if (part.StaveCount > 0) {
+                infos.Push(CreateDictionary('part', part, 'key', keys[i],
+                    'names', PartInstrumentNames(score, part, options.instruments)));
             }
         }
     }
@@ -438,7 +592,7 @@ PartInstrumentNames(score, part, instruments) {
 }
 
 // Pure, so it can be tested with strings standing in for parts. partInfos is
-// Dictionary{part, names} per part.
+// Dictionary{part, key, names} per part, and each entry carries all three on.
 //
 // It also marks each section's splitLabel. A label sits on a chart staff that
 // the full score and every part holding it share, so a section can only read
@@ -461,7 +615,8 @@ PlanPartEntries(sections, partInfos) {
         info = partInfos[p];
         carried = PartSections(sections, info.names);
         if (carried.Length > 0) {
-            entries.Push(CreateDictionary('part', info.part, 'sections', carried));
+            entries.Push(CreateDictionary('part', info.part, 'key', info.key,
+                'names', info.names, 'sections', carried));
             several = 0;
             if (DistinctOwnerCount(sections, carried) > 1) {
                 several = 1;

@@ -37,8 +37,8 @@ BuildChart(score, plan, options) {
     // Tempo marks and the like are anchored to the score's first bar, and the
     // chart is now that bar, so a direction such as 'Allegro' would sit over
     // the chart rather than over the music it describes. They move down to the
-    // first music bar. The title block is left exactly where it is: it belongs
-    // at the top of the page, which is above the chart.
+    // first music bar. The title block, and any text in a blank-page style, is
+    // left where it is: it belongs on the first page, which is the chart's.
     RelocateSystemText(score, sections.Length, sections.Length + 1, True);
 
     // 2. Instruments.
@@ -94,8 +94,8 @@ BuildChart(score, plan, options) {
         label = labelBar.AddText(0, section.label, LabelTextStyle());
         // The full score names the instrument and a one-choir part does not
         // need to, but the staff is the same staff in both. So the section
-        // carries two labels, each shown in one of them. PlanParts decides,
-        // and only PlanParts sets the property: read through _property:, which
+        // carries two labels, each shown in one of them. PlanPartEntries
+        // decides, and only it sets the property: read through _property:, which
         // is null when it was never set, because a plain read of a property
         // that does not exist stops the plug-in.
         if (section._property:splitLabel = 1) {

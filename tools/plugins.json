@@ -19,7 +19,8 @@
         "src/Instruments.mss",
         "src/BuildChart.mss",
         "src/Parts.mss",
-        "src/RemoveChart.mss"
+        "src/RemoveChart.mss",
+        "src/Chart.mss"
       ],
       "raw": [
         "src/Settings.msd"
@@ -32,6 +33,7 @@
         "MARKER_PREFIX": "HBUC",
         "MARKER_VERSION": "1",
         "NAMES_MARKER_PREFIX": "HBUCNAMES",
+        "MARGIN_MARKER_PREFIX": "HBUCMARGIN",
         "STEMLESS_DIAMOND": "Diamond (stemless)",
         "SQUARE_STEMLESS": "Square (stemless)",
         "NO_NOTEHEAD": "(no notehead)",
@@ -45,6 +47,7 @@
         "_SmbHeadItems": [],
         "CHART_MODE_COMBINED": "One combined chart",
         "CHART_MODE_SEPARATE": "A separate chart for each instrument",
+        "CHART_MODE_CONTROL_INDEX": "4",
         "dlg_instruments": [],
         "dlg_chartMode": "",
         "dlg_parts": "0",
@@ -59,7 +62,8 @@
         "_ChartWasReplaced": "An existing chart was replaced.",
         "_NoChartToRemove": "This score carries no chart that this plug-in made.",
         "_SameNoteheadChosen": "Choose a different notehead for one of them and run the plug-in again.",
-        "_NoInstrumentSelected": "Select at least one instrument to chart, then run the plug-in again."
+        "_NoInstrumentSelected": "Select at least one instrument to chart, then run the plug-in again.",
+        "_NothingToChartFor": "Nothing to chart for:"
       }
     },
     {
@@ -80,6 +84,7 @@
         "src/BuildChart.mss",
         "src/Parts.mss",
         "src/RemoveChart.mss",
+        "src/Chart.mss",
         "test/Assert.mss",
         "test/TestMain.mss",
         "test/TestPitch.mss",
@@ -94,7 +99,6 @@
         "test/TestReport.mss",
         "test/TestNoteHeads.mss",
         "test/TestDiagnose.mss",
-        "test/TestProbeParts.mss",
         "test/TestIntegration.mss"
       ],
       "data": {
@@ -108,6 +112,7 @@
         "MARKER_PREFIX": "HBUC",
         "MARKER_VERSION": "1",
         "NAMES_MARKER_PREFIX": "HBUCNAMES",
+        "MARGIN_MARKER_PREFIX": "HBUCMARGIN",
         "STEMLESS_DIAMOND": "Diamond (stemless)",
         "SQUARE_STEMLESS": "Square (stemless)",
         "NO_NOTEHEAD": "(no notehead)",
@@ -121,6 +126,7 @@
         "_SmbHeadItems": [],
         "CHART_MODE_COMBINED": "One combined chart",
         "CHART_MODE_SEPARATE": "A separate chart for each instrument",
+        "CHART_MODE_CONTROL_INDEX": "4",
         "dlg_instruments": [],
         "dlg_chartMode": "",
         "dlg_parts": "0",
@@ -130,8 +136,13 @@
         "_ExcludedInstruments": "",
         "dlg_remove": "0",
         "_SettingsDialog": "",
-        "LABEL_DASH_PROBE": " – ",
-        "_SameNoteheadChosen": ""
+        "_NoBellsFound": "No handbells or handchimes were found in this score.",
+        "_ChartWasRemoved": "The existing chart was removed.",
+        "_ChartWasReplaced": "An existing chart was replaced.",
+        "_NoChartToRemove": "This score carries no chart that this plug-in made.",
+        "_SameNoteheadChosen": "",
+        "_NoInstrumentSelected": "Select at least one instrument to chart, then run the plug-in again.",
+        "_NothingToChartFor": "Nothing to chart for:"
       }
     }
   ]

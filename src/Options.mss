@@ -57,24 +57,15 @@ ReadOptions(score) {
         dlg_chartMode = '' & CHART_MODE_COMBINED;
     }
 
-    // Diagnostic, kept until the list box is confirmed in Sibelius. Its .msd
-    // block is written by hand to mirror ComboBox's undocumented shape, and
-    // nothing documents whether a multi-select box opens with items selected
-    // or what its variable holds afterwards. One statement per read, so a
-    // run-time error names the read that failed.
-    trace('[dialog probe] items offered = ' & offered.Length & ', preselected = ' & preselected.Length);
+    // The Charts box means nothing with fewer than two instruments selected,
+    // and InstrumentsChanged only greys it out once the list is clicked.
+    // EnableControlById is only documented for a dialog already showing;
+    // EnableNthControl also works before one opens, but counts controls in
+    // their creation order, which a tools test pins to the .msd.
+    Sibelius.EnableNthControl(0 + CHART_MODE_CONTROL_INDEX, preselected.Length > 1);
 
     if (not(Sibelius.ShowDialog(_SettingsDialog, self))) {
         return null;
-    }
-
-    trace('[dialog probe] parts = [' & ('' & dlg_parts) & '] page break = [' & ('' & dlg_pageBreak)
-        & '] remove = [' & ('' & dlg_remove) & ']');
-    trace('[dialog probe] value = [' & ('' & dlg_instruments) & ']');
-    trace('[dialog probe] NumChildren = ' & dlg_instruments.NumChildren);
-    count = dlg_instruments.NumChildren;
-    for i = 0 to count {
-        trace('[dialog probe] item ' & i & ' = [' & dlg_instruments[i] & ']');
     }
 
     selected = SelectedNames(dlg_instruments);
@@ -96,12 +87,10 @@ ReadOptions(score) {
 
 // Called by the list box on every click, and greys the Charts box out while
 // fewer than two instruments are selected, since charting one instrument apart
-// is the same as charting it combined. The trace is the diagnostic above.
+// is the same as charting it combined.
 InstrumentsChanged() {
     selected = SelectedNames(dlg_instruments);
-    count = selected.Length;
-    trace('[dialog probe] changed: selected = ' & count);
-    Sibelius.EnableControlById(Self, _SettingsDialog, 'dlg_chartMode', count > 1);
+    Sibelius.EnableControlById(Self, _SettingsDialog, 'dlg_chartMode', selected.Length > 1);
     return True;
 }
 
@@ -141,13 +130,39 @@ ChartModeOf(choice) {
 // chosen, so an instrument the plug-in has never seen starts selected and a
 // first run charts everything, as the plug-in always has. Stored as one
 // pipe-joined string, because a plain string is the Data variable shape every
-// other remembered setting already round-trips through.
+// other remembered setting already round-trips through. A name is the user's
+// own text and may hold a pipe, so a pipe in a name is written ~p and a tilde
+// ~~.
 PipeList(text) {
     value = '' & text;
+    names = CreateSparseArray();
     if (value = '') {
-        return CreateSparseArray();
+        return names;
     }
-    return SplitOnPipe(value);
+    current = '';
+    i = 0;
+    while (i < Length(value)) {
+        char = Substring(value, i, 1);
+        if (char = '~') {
+            escaped = Substring(value, i + 1, 1);
+            if (escaped = 'p') {
+                current = current & '|';
+            } else {
+                current = current & escaped;
+            }
+            i = i + 2;
+        } else {
+            if (char = '|') {
+                names.Push(current);
+                current = '';
+            } else {
+                current = current & char;
+            }
+            i = i + 1;
+        }
+    }
+    names.Push(current);
+    return names;
 }
 
 JoinPipe(names) {
@@ -156,7 +171,24 @@ JoinPipe(names) {
         if (i > 0) {
             text = text & '|';
         }
-        text = text & names[i];
+        text = text & EscapePipe('' & names[i]);
+    }
+    return text;
+}
+
+EscapePipe(name) {
+    text = '';
+    for i = 0 to Length(name) {
+        char = Substring(name, i, 1);
+        if (char = '~') {
+            text = text & '~~';
+        } else {
+            if (char = '|') {
+                text = text & '~p';
+            } else {
+                text = text & char;
+            }
+        }
     }
     return text;
 }

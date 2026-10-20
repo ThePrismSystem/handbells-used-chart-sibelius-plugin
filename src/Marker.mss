@@ -138,6 +138,83 @@ NamesMarkerRead(score, firstStaff) {
     return -1;
 }
 
+// A part's first-page top staff margin as it was before a build lowered it,
+// kept beside the marker so a removal can put it back. key names the part, as
+// PartKeys does; gap is in millimetres, kept to two decimal places; unique is
+// 1 when the part's first page already had margins of its own.
+MarginMarkerEncode(key, gap, unique) {
+    return ('' & MARGIN_MARKER_PREFIX) & '|' & key & '|' & Round(gap * 100) & '|' & unique;
+}
+
+// Dictionary{key, gap, unique}, or null for any other text.
+MarginMarkerDecode(text) {
+    if (text = null) {
+        return null;
+    }
+    parts = SplitOnPipe(text);
+    if (parts.Length != 4) {
+        return null;
+    }
+    if (parts[0] != ('' & MARGIN_MARKER_PREFIX)) {
+        return null;
+    }
+    if (not(utils.IsNumeric(parts[2], True))) {
+        return null;
+    }
+    if (not(utils.IsNumeric(parts[3], True))) {
+        return null;
+    }
+    unique = 0 + parts[3];
+    if ((unique < 0) or (unique > 1)) {
+        return null;
+    }
+    hundredths = 0 + parts[2];
+    gap = (hundredths * 1.0) / 100;
+    return CreateDictionary('key', parts[1], 'gap', gap, 'unique', unique);
+}
+
+// Every margin record in the chart's first bar, in the order they were added.
+MarginMarkersRead(score, firstStaff) {
+    records = CreateSparseArray();
+    bar = score.NthStaff(firstStaff).NthBar(1);
+    for each Text t in bar {
+        record = MarginMarkerDecode(t.Text);
+        if (record != null) {
+            records.Push(record);
+        }
+    }
+    return records;
+}
+
+MarginMarkersWrite(bar, margins) {
+    for i = 0 to margins.Length {
+        margin = margins[i];
+        text = bar.AddText(0, MarginMarkerEncode(margin.key, margin.gap, margin.unique), LabelTextStyle());
+        text.Hidden = True;
+    }
+    return True;
+}
+
+// The staff whose first bar holds a names or margin record, or 0 when none
+// does. For a chart that can no longer be identified, where the staff the
+// records were written on is exactly what is in doubt.
+RecordStaff(score) {
+    n = 1;
+    while (n <= score.StaffCount) {
+        bar = score.NthStaff(n).NthBar(1);
+        for each Text t in bar {
+            if (NamesMarkerDecode(t.Text) >= 0) {
+                return n;
+            }
+            if (MarginMarkerDecode(t.Text) != null) {
+                return n;
+            }
+        }
+        n = n + 1;
+    }
+    return 0;
+}
+
 MarkerWrite(bar, sections, totalStaves, columnsArray) {
     text = bar.AddText(0, MarkerEncode(sections, totalStaves, columnsArray), LabelTextStyle());
     text.Hidden = True;

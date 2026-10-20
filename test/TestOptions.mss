@@ -69,6 +69,12 @@ TestOptions() {
     AssertEquals(JoinNames(PipeList('Piano|Flute')), 'Piano, Flute', 'memory splits on the pipe');
     AssertEquals(JoinPipe(CreateSparseArray('Piano', 'Flute')), 'Piano|Flute', 'memory joins on the pipe');
     AssertEquals(JoinPipe(CreateSparseArray()), '', 'no names joins to nothing');
+    // An instrument name is the user's own text and may hold the separator.
+    escaped = JoinPipe(CreateSparseArray('Bells A|B', 'Bells ~5'));
+    AssertEquals(escaped, 'Bells A~pB|Bells ~~5', 'a pipe or tilde in a name is escaped');
+    back = PipeList(escaped);
+    AssertEquals(back.Length, 2, 'an escaped pipe does not split the name');
+    AssertEquals(JoinNames(back), 'Bells A|B, Bells ~5', 'escaped names read back as they were');
 
     offered = CreateSparseArray('Handbells I', 'Handbells II', 'Piano');
     AssertEquals(JoinNames(PreselectedNames(offered, CreateSparseArray())),
@@ -101,8 +107,8 @@ TestOptions() {
     AssertTrue(not(Ticked('0')), 'the default 0 is not ticked');
     AssertTrue(not(Ticked('')), 'an empty checkbox value is not ticked');
 
-    // The shape ReadOptions hands the list box. Whether the dialog hands back
-    // the same shape is for the hand-run session to show.
+    // The shape ReadOptions hands the list box, which is also the shape a
+    // hand-run session saw the dialog hand back.
     dlg_instruments = CreateArray();
     dlg_instruments[0] = 'Handbells I';
     dlg_instruments[1] = 'Piano';
