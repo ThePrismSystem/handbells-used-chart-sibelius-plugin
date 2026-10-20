@@ -84,6 +84,7 @@ TestBuildChart() {
 
     staffCountBefore = score.StaffCount;
     barCountBefore = score.NthStaff(1).BarCount;
+    firstPageBefore = FirstPageTextCount(score);
 
     records = ReadScoreNotes(score);
     choices = ScoreHeadChoices(score);
@@ -126,6 +127,29 @@ TestBuildChart() {
         }
     }
     AssertEquals(breaks, 1, 'every chart bar ends with a break that may end a page');
+
+    // The music's first system starts a new section, and takes the names the
+    // score's first system would have had.
+    rules = score.EngravingRules;
+    AssertEquals(rules.InstrumentNamesNewSections, rules.InstrumentNamesFirstSystem,
+        'the music starts with the names the first system would have had');
+    AssertEquals(FirstPageTextCount(score), firstPageBefore,
+        'the title block and blank-page text stay in the first bar');
+}
+
+// How many text items in the first bar belong to the first page rather than
+// to the music.
+FirstPageTextCount(score) {
+    count = 0;
+    firstBar = score.SystemStaff.NthBar(1);
+    for each item in firstBar {
+        if (item.Type = 'SystemTextItem') {
+            if (StyleStaysOnFirstPage(item.StyleId)) {
+                count = count + 1;
+            }
+        }
+    }
+    return count;
 }
 
 TestRemoveChart() {
@@ -142,12 +166,19 @@ TestRemoveChart() {
     staffCountBefore = score.StaffCount;
     barCountBefore = score.NthStaff(1).BarCount;
     sections = found.sections;
+    rules = score.EngravingRules;
+    namesAfter = rules.InstrumentNamesNewSections;
+    kept = NamesMarkerRead(score, found.firstStaff);
+    if (kept >= 0) {
+        namesAfter = kept;
+    }
 
     result = RemoveChart(score);
     AssertTrue(result.removed, 'chart removed: ' & result.error);
     AssertEquals(score.StaffCount, staffCountBefore - (sections * 2), 'chart staves gone');
     AssertEquals(score.NthStaff(1).BarCount, barCountBefore - sections, 'chart bars gone');
     AssertEquals(MarkerFind(score), null, 'marker gone');
+    AssertEquals(rules.InstrumentNamesNewSections, namesAfter, 'the score gets its own names rule back');
 
     // A second removal finds nothing and says so without erroring.
     again = RemoveChart(score);
@@ -278,6 +309,7 @@ TestBuildChartParts() {
     AssertEquals(HiddenStavesInPart(score, partA, 1), plainHidden,
         'a run without parts leaves the parts as 1.2.0 did');
     RemoveChart(score);
+    titleA = PartTitleText(score, partA);
     rebuilt = DrawCharts(score, expected, newOptions);
     AssertTrue(rebuilt.ok, 'the separate chart with parts is drawn over it: ' & rebuilt.error);
     found = FindChart(score);
@@ -306,12 +338,31 @@ TestBuildChartParts() {
     AssertTrue(onlyOwnA, 'the first part carries its own charts and no others');
     AssertTrue(onlyOwnB, 'the second part carries its own charts and no others');
     AssertEquals(parts.NumChildren, partsBefore, 'no chart-only parts are left behind');
+    AssertEquals(PartTitleText(score, partA), titleA, 'the first part keeps its title block where it was');
 
     removal = RemoveChart(score);
     AssertTrue(removal.removed, 'the chart with parts is removed: ' & removal.error);
     AssertEquals(partA.StaveCount, stavesA, 'the chart staves leave the first part with the chart');
     AssertEquals(partB.StaveCount, stavesB, 'the chart staves leave the second part with the chart');
     AssertEquals(parts.NumChildren, partsBefore, 'removal leaves the parts as they were');
+}
+
+// The offsets of a part's first-page text, read in that part, as one line to
+// compare.
+PartTitleText(score, part) {
+    was = score.CurrentDynamicPart;
+    score.CurrentDynamicPart = part;
+    line = '';
+    firstBar = score.SystemStaff.NthBar(1);
+    for each item in firstBar {
+        if (item.Type = 'SystemTextItem') {
+            if (StyleStaysOnFirstPage(item.StyleId)) {
+                line = line & ((' ' & item.Dx) & (',' & item.Dy));
+            }
+        }
+    }
+    score.CurrentDynamicPart = was;
+    return line;
 }
 
 // How many of a part's staves are hidden in a bar, read in that part's own

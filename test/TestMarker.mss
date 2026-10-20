@@ -12,4 +12,18 @@ TestMarker() {
     AssertEquals(MarkerDecode('not a marker'), null, 'rejects foreign text');
     AssertEquals(MarkerDecode('HBUC|2|1|2|3'), null, 'rejects a future version');
     AssertEquals(MarkerDecode('HBUC|1|2|6|12'), null, 'rejects a short column list');
+
+    // The names rule a build changes is kept beside the marker, never in it,
+    // so a chart drawn before the record existed is still found.
+    AssertEquals(NamesMarkerDecode(NamesMarkerEncode(2)), 2, 'the names record round-trips');
+    AssertEquals(NamesMarkerDecode(NamesMarkerEncode(0)), 0, 'full names round-trip');
+    AssertEquals(NamesMarkerDecode('HBUC|1|1|4|12'), -1, 'the chart marker is not a names record');
+    AssertEquals(NamesMarkerDecode('HBUCNAMES|x'), -1, 'a names record holds a number');
+    AssertEquals(NamesMarkerDecode('HBUCNAMES|5'), -1, 'and only one of the three settings');
+    AssertEquals(MarkerDecode(NamesMarkerEncode(2)), null, 'a names record is not taken for the chart');
+
+    // Text that belongs to the first page stays there on a build.
+    AssertTrue(StyleStaysOnFirstPage('text.system.page_aligned.title'), 'the title stays');
+    AssertTrue(StyleStaysOnFirstPage('text.blankpage.plain'), 'blank-page text stays');
+    AssertTrue(not(StyleStaysOnFirstPage('text.system.tempo')), 'a tempo mark moves');
 }

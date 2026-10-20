@@ -1068,6 +1068,39 @@
     }
     return null;
 }"
+	NamesMarkerEncode "(value) {
+    return ('' & NAMES_MARKER_PREFIX) & '|' & value;
+}"
+	NamesMarkerDecode "(text) {
+    if (text = null) {
+        return -1;
+    }
+    parts = SplitOnPipe(text);
+    if (parts.Length != 2) {
+        return -1;
+    }
+    if (parts[0] != ('' & NAMES_MARKER_PREFIX)) {
+        return -1;
+    }
+    if (not(utils.IsNumeric(parts[1], True))) {
+        return -1;
+    }
+    value = 0 + parts[1];
+    if ((value < 0) or (value > 2)) {
+        return -1;
+    }
+    return value;
+}"
+	NamesMarkerRead "(score, firstStaff) {
+    bar = score.NthStaff(firstStaff).NthBar(1);
+    for each Text t in bar {
+        value = NamesMarkerDecode(t.Text);
+        if (value >= 0) {
+            return value;
+        }
+    }
+    return -1;
+}"
 	MarkerWrite "(bar, sections, totalStaves, columnsArray) {
     text = bar.AddText(0, MarkerEncode(sections, totalStaves, columnsArray), LabelTextStyle());
     text.Hidden = True;
@@ -1438,6 +1471,19 @@
     }
     score.NthStaff(1).NthBar(sections.Length).SectionEnd = True;
 
+    // The music's first system now starts a new section, and Sibelius names
+    // the instruments there by the new-section rule, which can be none where
+    // the score's first system had full names. While the chart is in place it
+    // takes the first system's rule, and the score's own is kept beside the
+    // marker for a removal to put back.
+    rules = score.EngravingRules;
+    if (rules.InstrumentNamesNewSections != rules.InstrumentNamesFirstSystem) {
+        kept = trebleStaves[0].NthBar(1).AddText(0,
+            NamesMarkerEncode(rules.InstrumentNamesNewSections), LabelTextStyle());
+        kept.Hidden = True;
+        rules.InstrumentNamesNewSections = rules.InstrumentNamesFirstSystem;
+    }
+
     NumberFromFirstMusicBar(score, sections.Length);
 
     // 7. Hide empty staves, bar-scoped: the piece's staves vanish from the
@@ -1703,6 +1749,7 @@
     trace('[names probe] first system=' & rules.InstrumentNamesFirstSystem & ' new sections='
         & rules.InstrumentNamesNewSections & ' subsequent=' & rules.InstrumentNamesSubsequentSystems);
     TraceTextEverywhere(score, partPlan.entries, 'before', plan.sections.Length + 1);
+    titles = KeepPartTitleText(score, partPlan.entries);
     result = BuildChart(score, plan, options);
     if (not(result.ok)) {
         return result;
@@ -1714,6 +1761,7 @@
     DeleteChartOnlyParts(score, firstChartStaff);
     TraceParts(score, 'after delete');
     ApplyParts(score, plan, partPlan, firstChartStaff);
+    RestorePartTitleText(score, partPlan.entries, titles);
     TraceParts(score, 'after layout');
     TraceTextEverywhere(score, partPlan.entries, 'after', plan.sections.Length + 1);
     return result;
@@ -1814,6 +1862,59 @@
     TraceLayout(score, anchor, chartBars + 1);
     score.CurrentDynamicPart = parts[0];
     return True;
+}"
+	KeepPartTitleText "(score, entries) {
+    parts = score.DynamicParts;
+    kept = CreateSparseArray();
+    for e = 0 to entries.Length {
+        entry = entries[e];
+        score.CurrentDynamicPart = entry.part;
+        positions = CreateDictionary();
+        seen = CreateDictionary();
+        firstBar = score.SystemStaff.NthBar(1);
+        for each item in firstBar {
+            if (item.Type = 'SystemTextItem') {
+                if (StyleStaysOnFirstPage(item.StyleId)) {
+                    positions[TitleTextKey(seen, item)] = CreateDictionary('dx', item.Dx, 'dy', item.Dy);
+                }
+            }
+        }
+        kept.Push(positions);
+        score.CurrentDynamicPart = parts[0];
+    }
+    return kept;
+}"
+	RestorePartTitleText "(score, entries, kept) {
+    parts = score.DynamicParts;
+    for e = 0 to entries.Length {
+        entry = entries[e];
+        positions = kept[e];
+        score.CurrentDynamicPart = entry.part;
+        seen = CreateDictionary();
+        firstBar = score.SystemStaff.NthBar(1);
+        for each item in firstBar {
+            if (item.Type = 'SystemTextItem') {
+                if (StyleStaysOnFirstPage(item.StyleId)) {
+                    was = positions[TitleTextKey(seen, item)];
+                    if (was != null) {
+                        item.Dx = was.dx;
+                        item.Dy = was.dy;
+                    }
+                }
+            }
+        }
+        score.CurrentDynamicPart = parts[0];
+    }
+    return True;
+}"
+	TitleTextKey "(seen, item) {
+    base = ('' & item.StyleId) & ('|' & item.Text);
+    count = 1;
+    if (seen[base] != null) {
+        count = seen[base] + 1;
+    }
+    seen[base] = count;
+    return base & ('|' & count);
 }"
 	PartChartSystems "(positions) {
     shows = CreateSparseArray();
@@ -2127,6 +2228,14 @@
     score.ShowEmptyStaves(found.firstStaff, score.StaffCount,
         found.sections + 1, score.NthStaff(1).BarCount);
 
+    // The names rule a build changed goes back to the score's own, read from
+    // the chart's first bar before that bar goes.
+    names = NamesMarkerRead(score, found.firstStaff);
+    if (names >= 0) {
+        rules = score.EngravingRules;
+        rules.InstrumentNamesNewSections = names;
+    }
+
     // Before any bar goes, rescue the title block it is carrying and drop the
     // renumbering that only made sense while the chart was in front.
     RelocateSystemText(score, found.sections, found.sections + 1, False);
@@ -2175,7 +2284,7 @@
             if (item.Type = 'SystemTextItem') {
                 take = True;
                 if (musicalOnly) {
-                    if (StyleIsPageAligned(item.StyleId)) {
+                    if (StyleStaysOnFirstPage(item.StyleId)) {
                         take = False;
                     }
                 }
@@ -2230,8 +2339,15 @@
     return True;
 }"
 	StyleIsPageAligned "(styleId) {
-    text = '' & styleId;
-    needle = 'page_aligned';
+    return TextContains('' & styleId, 'page_aligned');
+}"
+	StyleStaysOnFirstPage "(styleId) {
+    if (StyleIsPageAligned(styleId)) {
+        return True;
+    }
+    return TextContains('' & styleId, 'blankpage');
+}"
+	TextContains "(text, needle) {
     limit = Length(text) - Length(needle);
     if (limit < 0) {
         return False;
@@ -2528,6 +2644,7 @@ _SettingsDialog "Dialog"
 	LABEL_DASH " - "
 	MARKER_PREFIX "HBUC"
 	MARKER_VERSION "1"
+	NAMES_MARKER_PREFIX "HBUCNAMES"
 	STEMLESS_DIAMOND "Diamond (stemless)"
 	SQUARE_STEMLESS "Square (stemless)"
 	NO_NOTEHEAD "(no notehead)"

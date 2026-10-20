@@ -95,6 +95,49 @@ MarkerFind(score) {
     return null;
 }
 
+// The score's own rule for instrument names at the start of a new section,
+// kept beside the marker when a build changes it so a removal can put it
+// back. A text of its own rather than a marker field, because the marker's
+// shape is fixed and a chart drawn before this record must still be found.
+NamesMarkerEncode(value) {
+    return ('' & NAMES_MARKER_PREFIX) & '|' & value;
+}
+
+// The rule a names record holds, 0 to 2, or -1 for any other text.
+NamesMarkerDecode(text) {
+    if (text = null) {
+        return -1;
+    }
+    parts = SplitOnPipe(text);
+    if (parts.Length != 2) {
+        return -1;
+    }
+    if (parts[0] != ('' & NAMES_MARKER_PREFIX)) {
+        return -1;
+    }
+    if (not(utils.IsNumeric(parts[1], True))) {
+        return -1;
+    }
+    value = 0 + parts[1];
+    if ((value < 0) or (value > 2)) {
+        return -1;
+    }
+    return value;
+}
+
+// The rule a build recorded in the chart's first bar, or -1 when the build
+// changed nothing or drew the chart before the record existed.
+NamesMarkerRead(score, firstStaff) {
+    bar = score.NthStaff(firstStaff).NthBar(1);
+    for each Text t in bar {
+        value = NamesMarkerDecode(t.Text);
+        if (value >= 0) {
+            return value;
+        }
+    }
+    return -1;
+}
+
 MarkerWrite(bar, sections, totalStaves, columnsArray) {
     text = bar.AddText(0, MarkerEncode(sections, totalStaves, columnsArray), LabelTextStyle());
     text.Hidden = True;

@@ -84,6 +84,14 @@ RemoveChart(score) {
     score.ShowEmptyStaves(found.firstStaff, score.StaffCount,
         found.sections + 1, score.NthStaff(1).BarCount);
 
+    // The names rule a build changed goes back to the score's own, read from
+    // the chart's first bar before that bar goes.
+    names = NamesMarkerRead(score, found.firstStaff);
+    if (names >= 0) {
+        rules = score.EngravingRules;
+        rules.InstrumentNamesNewSections = names;
+    }
+
     // Before any bar goes, rescue the title block it is carrying and drop the
     // renumbering that only made sense while the chart was in front.
     RelocateSystemText(score, found.sections, found.sections + 1, False);
@@ -123,10 +131,10 @@ RemoveChart(score) {
 // Both paths relocate system text out of the chart bars, for opposite reasons,
 // so they share one routine.
 //
-// `musicalOnly` decides whether the page-aligned title block travels. On a
-// build it must not: the title belongs at the top of the page, above the
-// chart, which is where Sibelius already leaves it. On a removal it must,
-// because the bar holding it is about to be deleted.
+// `musicalOnly` decides whether the title block, and anything else that
+// belongs to the first page, travels. On a build it must not: it belongs on
+// the first page with the chart, which is where Sibelius already leaves it.
+// On a removal it must, because the bar holding it is about to be deleted.
 //
 // The delete follows the guide's documented shape: collect every item first,
 // then delete in REVERSE order. Deleting forwards while iterating desyncs the
@@ -145,7 +153,7 @@ RelocateSystemText(score, fromBars, targetBarNum, musicalOnly) {
             if (item.Type = 'SystemTextItem') {
                 take = True;
                 if (musicalOnly) {
-                    if (StyleIsPageAligned(item.StyleId)) {
+                    if (StyleStaysOnFirstPage(item.StyleId)) {
                         take = False;
                     }
                 }
@@ -210,12 +218,25 @@ PlaceMovedText(copy, item) {
     return True;
 }
 
-// ManuScript has no substring search, so this is a scan. The title block
-// styles are the `text.system.page_aligned.*` family: title, subtitle,
-// composer, copyright and the two instrument-name headers.
+// The title block styles are the `text.system.page_aligned.*` family: title,
+// subtitle, composer, copyright and the two instrument-name headers.
 StyleIsPageAligned(styleId) {
-    text = '' & styleId;
-    needle = 'page_aligned';
+    return TextContains('' & styleId, 'page_aligned');
+}
+
+// What a build leaves in the first bar, on the first page: the title block,
+// and text in a blank-page style, which sits on the page rather than over the
+// music. A copyright line set in one was carried down to the music like a
+// tempo mark, and landed on top of it.
+StyleStaysOnFirstPage(styleId) {
+    if (StyleIsPageAligned(styleId)) {
+        return True;
+    }
+    return TextContains('' & styleId, 'blankpage');
+}
+
+// ManuScript has no substring search, so this is a scan.
+TextContains(text, needle) {
     limit = Length(text) - Length(needle);
     if (limit < 0) {
         return False;

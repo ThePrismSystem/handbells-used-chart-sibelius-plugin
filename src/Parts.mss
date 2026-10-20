@@ -23,6 +23,7 @@ DrawCharts(score, plan, options) {
     trace('[names probe] first system=' & rules.InstrumentNamesFirstSystem & ' new sections='
         & rules.InstrumentNamesNewSections & ' subsequent=' & rules.InstrumentNamesSubsequentSystems);
     TraceTextEverywhere(score, partPlan.entries, 'before', plan.sections.Length + 1);
+    titles = KeepPartTitleText(score, partPlan.entries);
     result = BuildChart(score, plan, options);
     if (not(result.ok)) {
         return result;
@@ -34,6 +35,7 @@ DrawCharts(score, plan, options) {
     DeleteChartOnlyParts(score, firstChartStaff);
     TraceParts(score, 'after delete');
     ApplyParts(score, plan, partPlan, firstChartStaff);
+    RestorePartTitleText(score, partPlan.entries, titles);
     TraceParts(score, 'after layout');
     TraceTextEverywhere(score, partPlan.entries, 'after', plan.sections.Length + 1);
     return result;
@@ -157,6 +159,70 @@ LayOutPart(score, part, sections, firstChartStaff, barCount) {
     TraceLayout(score, anchor, chartBars + 1);
     score.CurrentDynamicPart = parts[0];
     return True;
+}
+
+// Adding staves to a part puts its title block back at the styles' default
+// positions, which put a part's composer lines on top of its chart. The
+// offsets of the text that stays on the first page are read in each part
+// given a chart before anything is drawn, and written back after. Returns
+// one Dictionary per entry, keyed as TitleTextKey keys them.
+KeepPartTitleText(score, entries) {
+    parts = score.DynamicParts;
+    kept = CreateSparseArray();
+    for e = 0 to entries.Length {
+        entry = entries[e];
+        score.CurrentDynamicPart = entry.part;
+        positions = CreateDictionary();
+        seen = CreateDictionary();
+        firstBar = score.SystemStaff.NthBar(1);
+        for each item in firstBar {
+            if (item.Type = 'SystemTextItem') {
+                if (StyleStaysOnFirstPage(item.StyleId)) {
+                    positions[TitleTextKey(seen, item)] = CreateDictionary('dx', item.Dx, 'dy', item.Dy);
+                }
+            }
+        }
+        kept.Push(positions);
+        score.CurrentDynamicPart = parts[0];
+    }
+    return kept;
+}
+
+// Written in each part's own context, so the offsets are that part's.
+RestorePartTitleText(score, entries, kept) {
+    parts = score.DynamicParts;
+    for e = 0 to entries.Length {
+        entry = entries[e];
+        positions = kept[e];
+        score.CurrentDynamicPart = entry.part;
+        seen = CreateDictionary();
+        firstBar = score.SystemStaff.NthBar(1);
+        for each item in firstBar {
+            if (item.Type = 'SystemTextItem') {
+                if (StyleStaysOnFirstPage(item.StyleId)) {
+                    was = positions[TitleTextKey(seen, item)];
+                    if (was != null) {
+                        item.Dx = was.dx;
+                        item.Dy = was.dy;
+                    }
+                }
+            }
+        }
+        score.CurrentDynamicPart = parts[0];
+    }
+    return True;
+}
+
+// The items are found again after the build rather than held across it, so
+// each is known by its style and text, and by how many like it came first.
+TitleTextKey(seen, item) {
+    base = ('' & item.StyleId) & ('|' & item.Text);
+    count = 1;
+    if (seen[base] != null) {
+        count = seen[base] + 1;
+    }
+    seen[base] = count;
+    return base & ('|' & count);
 }
 
 // Which of the part's own charts each chart bar's system shows, and whether

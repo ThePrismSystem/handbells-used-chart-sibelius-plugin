@@ -110,6 +110,19 @@ BuildChart(score, plan, options) {
     }
     score.NthStaff(1).NthBar(sections.Length).SectionEnd = True;
 
+    // The music's first system now starts a new section, and Sibelius names
+    // the instruments there by the new-section rule, which can be none where
+    // the score's first system had full names. While the chart is in place it
+    // takes the first system's rule, and the score's own is kept beside the
+    // marker for a removal to put back.
+    rules = score.EngravingRules;
+    if (rules.InstrumentNamesNewSections != rules.InstrumentNamesFirstSystem) {
+        kept = trebleStaves[0].NthBar(1).AddText(0,
+            NamesMarkerEncode(rules.InstrumentNamesNewSections), LabelTextStyle());
+        kept.Hidden = True;
+        rules.InstrumentNamesNewSections = rules.InstrumentNamesFirstSystem;
+    }
+
     NumberFromFirstMusicBar(score, sections.Length);
 
     // 7. Hide empty staves, bar-scoped: the piece's staves vanish from the

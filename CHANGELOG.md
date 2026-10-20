@@ -50,6 +50,14 @@ each chart into the Sibelius part that rings from it.
   takes its place as the first system. Sibelius's Optimize Staff Spacing is
   run over the chart and the first system of music, in the full score and
   in each part given a chart.
+- The first system of music showed no instrument names in a score set to
+  show none at the start of a new section, which the chart makes it. While
+  a chart is in place, that rule follows the one for the score's first
+  system, and a removal puts the score's own back.
+- A copyright line set in a blank-page text style was moved down from the
+  first page to the music on a build, as if it were a tempo mark, and
+  landed on top of it. Text in blank-page styles now stays on the first
+  page with the title block.
 
 ### Changed
 
