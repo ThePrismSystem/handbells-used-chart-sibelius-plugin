@@ -130,7 +130,7 @@ everything is, which charts exactly what earlier versions did.
 With one combined chart, the selected instruments are pooled into one set of
 sections, as before. With a separate chart for each instrument, each one gets
 its own sections, stacked in the full score in score order and labelled with
-the instrument's name: "Handbells I – Handbells Used: 25". The choice only
+the instrument's name: "Handbells I - Handbells Used: 25". The choice only
 applies with two or more instruments selected. An instrument that turns out
 to have nothing to chart is named in the message at the end of the run.
 

@@ -7,8 +7,9 @@ LabelTextStyle() {
 }
 
 // What separates an instrument's name from the label of a chart drawn for it
-// alone, as in 'Handbells I - Handbells Used: 25' with an en dash. Kept in the
-// manifest with the other score-facing text.
+// alone, as in 'Handbells I - Handbells Used: 25'. A plain hyphen, because
+// Sibelius reads a plug-in file as 8-bit text and an en dash in it came out
+// garbled. Kept in the manifest with the other score-facing text.
 LabelDash() {
     return '' & LABEL_DASH;
 }

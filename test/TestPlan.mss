@@ -59,13 +59,13 @@ TestChartPlan() {
         'instruments', instruments, 'mode', 'separate'));
     AssertEquals(separate.sections.Length, 3, 'two sections for the first choir, one for the second');
     s0 = separate.sections[0];
-    AssertEquals(s0.label, 'Handbells I' & LabelDash() & 'Handbells Used: 1', 'full score label names the instrument');
+    AssertEquals(s0.label, 'Handbells I - Handbells Used: 1', 'full score label names the instrument');
     AssertEquals(s0.plainLabel, 'Handbells Used: 1', 'plain label is the label as today');
     AssertEquals(JoinNames(s0.owners), 'Handbells I', 'a separate section has one owner');
     s1 = separate.sections[1];
-    AssertEquals(s1.label, 'Handbells I' & LabelDash() & 'Handchimes Used: 1', 'chimes follow bells within an instrument');
+    AssertEquals(s1.label, 'Handbells I - Handchimes Used: 1', 'chimes follow bells within an instrument');
     s2 = separate.sections[2];
-    AssertEquals(s2.label, 'Handbells II' & LabelDash() & 'Handbells Used: 2', 'second instrument after the first');
+    AssertEquals(s2.label, 'Handbells II - Handbells Used: 2', 'second instrument after the first');
     AssertEquals(JoinNames(separate.emptyNames), 'Piano', 'an instrument with nothing to chart is named');
     AssertEquals(separate.warnings.Length, 1, 'warnings are reported once for the run');
     w0 = separate.warnings[0];

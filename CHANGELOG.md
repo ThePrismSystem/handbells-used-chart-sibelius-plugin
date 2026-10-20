@@ -21,7 +21,7 @@ each chart into the Sibelius part that rings from it.
 - A "Charts" choice between one combined chart, which is what earlier
   versions drew, and a separate chart for each instrument. Separate charts
   are stacked in the full score in score order, labelled with the
-  instrument's name: `Handbells I – Handbells Used: 25`. It applies once two
+  instrument's name: `Handbells I - Handbells Used: 25`. It applies once two
   or more instruments are selected.
 - "Also Add Charts to Parts" puts each instrument's charts into the parts
   that hold it, laid out so a part shows its own charts and nothing where
