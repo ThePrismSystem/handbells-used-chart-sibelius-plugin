@@ -104,7 +104,7 @@ BuildChart(score, plan, options) {
             plain.ShowInParts();
         }
         bar = score.NthStaff(1).NthBar(i + 1);
-        bar.BreakType = EndOfSystem;
+        bar.BreakType = EndOfSystemOrPage;
         trebleStaves[i].Small = True;
         bassStaves[i].Small = True;
     }

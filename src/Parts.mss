@@ -116,7 +116,7 @@ LayOutPart(score, part, sections, firstChartStaff, barCount) {
         & ' carried=' & carried.Length & ' active is full score=' & active.IsFullScore
         & ' active StaffCount=' & score.StaffCount);
     for b = 1 to chartBars + 1 {
-        anchor.NthBar(b).BreakType = EndOfSystem;
+        anchor.NthBar(b).BreakType = EndOfSystemOrPage;
         position = positions[b - 1];
         if (position < 0) {
             score.HideEmptyStaves(1, part.StaveCount, b, b);

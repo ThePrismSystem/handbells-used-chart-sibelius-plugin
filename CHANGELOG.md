@@ -34,6 +34,16 @@ each chart into the Sibelius part that rings from it.
   staves, which Sibelius may create for each chart instrument the plug-in
   adds.
 
+### Fixed
+
+- Ticking "Remove Existing Chart" did nothing: a run with it ticked drew
+  the chart again. A ticked checkbox hands back `true`, and the plug-in only
+  ever counted `1` as ticked.
+- A chart that did not fit on the first page with the first system of
+  music overlapped it, and each other, instead of moving on to the next
+  page. Each chart bar ended with a break that Sibelius only allows in the
+  middle of a page; it now ends with an ordinary system break.
+
 ### Changed
 
 - The plug-in charts the full score even when it is run from a part, and

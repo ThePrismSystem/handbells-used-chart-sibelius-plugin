@@ -115,6 +115,17 @@ TestBuildChart() {
     firstMusic = score.NthStaff(1).NthBar(plan.sections.Length + 1);
     AssertEquals('' & firstMusic.ExternalBarNumberString, '1',
         'the piece still starts at bar 1');
+
+    // A system break that may also end a page. EndOfSystem forbids the end of
+    // a page, which forced every chart system and the first music system onto
+    // one page, overlapping wherever they did not fit.
+    breaks = 1;
+    for i = 0 to plan.sections.Length {
+        if (score.NthStaff(1).NthBar(i + 1).BreakType != EndOfSystemOrPage) {
+            breaks = 0;
+        }
+    }
+    AssertEquals(breaks, 1, 'every chart bar ends with a break that may end a page');
 }
 
 TestRemoveChart() {
