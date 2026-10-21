@@ -1088,13 +1088,13 @@
         }
         kind = Substring(token, size - 1, 1);
         staff = Substring(token, 0, size - 1);
-        if ((kind != 'k') and (kind != 'c')) {
+        if (kind != 'c') {
             return null;
         }
         if (not(utils.IsNumeric(staff, True))) {
             return null;
         }
-        restores.Push(CreateDictionary('staff', 0 + staff, 'kind', kind));
+        restores.Push(0 + staff);
     }
     return restores;
 }"
@@ -1418,6 +1418,9 @@
     sections = plan.sections;
     pieceStaves = score.StaffCount;
     metre = ReadInitialTimeSignature(score);
+    opening = score.NthStaff(1).CurrentKeySignature(1);
+    openingSharps = opening.Sharps;
+    openingMajor = opening.Major;
 
     // 1. Bars first. A Sibelius bar spans every staff, so staves created
     //    afterwards inherit the irregular lengths already set. And sizing must
@@ -1496,7 +1499,11 @@
 
     // 4b. The parts' copies, on each owner's own staves in the same bars. Here
     //     rather than later so their padding rests are hidden with the rest.
-    tokens = PrepareCopyStaves(score, sections);
+    roles = CopyStaffRoles(sections);
+    if (roles.Length > 0) {
+        ChartBarsInC(score, openingSharps, openingMajor, sections.Length);
+    }
+    tokens = PrepareCopyStaves(score, roles, sections.Length);
     WriteCopies(score, sections, options, styles);
     if (tokens.Length > 0) {
         record = trebleStaves[0].NthBar(1).AddText(0, RestoreMarkerEncode(tokens), LabelTextStyle());
@@ -1602,12 +1609,19 @@
     }
     return roles;
 }"
-	PrepareCopyStaves "(score, sections) {
+	ChartBarsInC "(score, sharps, major, chartBars) {
+    if ((sharps = 0) or (sharps = -8)) {
+        return False;
+    }
+    score.NthStaff(1).NthBar(1).AddKeySignature(0, 0, True, False, False, False);
+    score.NthStaff(1).NthBar(chartBars + 1).AddKeySignature(0, sharps, major, False, False, False);
+    return True;
+}"
+	PrepareCopyStaves "(score, roles, chartBars) {
     tokens = CreateSparseArray();
-    roles = CopyStaffRoles(sections);
     for i = 0 to roles.Length {
         role = roles[i];
-        made = PrepareCopyStaff(score, role.staff, role.clef, sections.Length);
+        made = PrepareCopyStaff(score, role.staff, role.clef, chartBars);
         for j = 0 to made.Length {
             tokens.Push(made[j]);
         }
@@ -1618,18 +1632,9 @@
     tokens = CreateSparseArray();
     staff = score.NthStaff(staffNum);
     music = staff.NthBar(chartBars + 1);
-    key = staff.CurrentKeySignature(chartBars + 1);
-    sharps = key.Sharps;
-    major = key.Major;
     was = music.GetClefAt(0);
     wasConcert = '' & was.ConcertClefStyleId;
     wasTransposing = '' & was.TransposingClefStyleId;
-    keyHere = 0;
-    for each KeySignature ks in music {
-        if (ks.Position = 0) {
-            keyHere = 1;
-        }
-    }
     clefHere = 0;
     for each Clef c in music {
         if (c.Position = 0) {
@@ -1637,11 +1642,6 @@
         }
     }
 
-    SilenceKeySignature(staff);
-    if (keyHere = 0) {
-        music.AddKeySignature(0, sharps, major, False, False, True);
-        tokens.Push(staffNum & 'k');
-    }
     if (wasConcert != clef) {
         staff.NthBar(1).AddClef(0, clef);
         if (clefHere = 0) {
@@ -2423,23 +2423,12 @@
 	RemoveRestores "(score, found) {
     restores = RestoreMarkerRead(score, found.firstStaff);
     for i = 0 to restores.Length {
-        restore = restores[i];
-        bar = score.NthStaff(restore.staff).NthBar(found.sections + 1);
+        bar = score.NthStaff(restores[i]).NthBar(found.sections + 1);
         doomed = null;
-        if (restore.kind = 'k') {
-            for each KeySignature ks in bar {
-                if (doomed = null) {
-                    if (ks.Position = 0) {
-                        doomed = ks;
-                    }
-                }
-            }
-        } else {
-            for each Clef c in bar {
-                if (doomed = null) {
-                    if (c.Position = 0) {
-                        doomed = c;
-                    }
+        for each Clef c in bar {
+            if (doomed = null) {
+                if (c.Position = 0) {
+                    doomed = c;
                 }
             }
         }

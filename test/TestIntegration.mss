@@ -387,8 +387,7 @@ TestBuildChartParts() {
 
     // The first instrument's copy of its first chart, on its own staves: shown
     // in its part and not in the full score, where those staves stay hidden
-    // through every chart bar. The key it had goes back where the music
-    // starts.
+    // through every chart bar. The music keeps its key where it starts.
     fullScore = parts[0];
     chartBars = expected.sections.Length;
     copyBar = 0;
@@ -480,6 +479,84 @@ TestBuildChartParts() {
     AssertEquals(AllPartLayouts(score), layoutsBefore, 'every part has the pages and systems it started with');
     AssertEquals(InstrumentFurniture(score, first), furnitureBefore,
         'the first instrument has its own key and clef back and nothing added');
+}
+
+// The open score given a key with sharps, and its own key put back after.
+// Without parts the chart staves take a hidden no-key change of their own and
+// the music keeps its key. With parts the chart bars take C major for the
+// copies, and the music starts with its key as an ordinary key change, which
+// a removal leaves as the music's opening key.
+TestBuildKeyed() {
+    score = Sibelius.ActiveScore;
+    if (score = null) {
+        AssertTrue(False, 'open a score before running the integration tests');
+        return False;
+    }
+
+    RemoveChart(score);
+    own = score.NthStaff(1).CurrentKeySignature(1);
+    ownSharps = own.Sharps;
+    ownMajor = own.Major;
+    score.NthStaff(1).NthBar(1).AddKeySignature(0, 2, True, False, False, False);
+    pieceStaves = score.StaffCount;
+    keysBefore = StaffKeys(score, pieceStaves, 1);
+    choices = ScoreHeadChoices(score);
+    records = ReadScoreNotes(score);
+    instruments = ScoreInstruments(score);
+
+    plain = ChartScore(score, IntegrationOptions(choices, instruments, 'combined', False, False));
+    AssertTrue(plain.ok, 'a score in a key is charted: ' & plain.text);
+    found = FindChart(score);
+    AssertEquals(score.NthStaff(pieceStaves + 1).CurrentKeySignature(1).Sharps, -8,
+        'the chart is drawn with no key');
+    AssertEquals(StaffKeys(score, pieceStaves, found.sections + 1), keysBefore,
+        'without parts the music starts in its key');
+    RemoveChart(score);
+    AssertEquals(StaffKeys(score, pieceStaves, 1), keysBefore, 'a removal leaves the music its key');
+
+    options = IntegrationOptions(choices, instruments, 'separate', True, False);
+    plan = BuildChartPlan(records, options);
+    PlanParts(score, plan, options);
+    sections = plan.sections;
+    copyBar = 0;
+    copyStaff = 0;
+    for i = 0 to sections.Length {
+        section = sections[i];
+        copies = section._property:copies;
+        if (copies != null) {
+            if ((copyBar = 0) and (copies.Length > 0)) {
+                staves = copies[0];
+                copyBar = i + 1;
+                copyStaff = staves[0];
+            }
+        }
+    }
+    withParts = ChartScore(score, options);
+    AssertTrue(withParts.ok, 'a score in a key is charted with parts: ' & withParts.text);
+    found = FindChart(score);
+    if (copyBar = 0) {
+        AssertTrue(False, 'fixture: needs an instrument whose staves can hold a copy');
+    } else {
+        AssertEquals(score.NthStaff(copyStaff).CurrentKeySignature(copyBar).Sharps, 0,
+            'a copy is drawn in C major');
+    }
+    AssertEquals(StaffKeys(score, pieceStaves, found.sections + 1), keysBefore,
+        'with parts the music starts in its key');
+    RemoveChart(score);
+    AssertEquals(StaffKeys(score, pieceStaves, 1), keysBefore,
+        'a removal with parts leaves the music its key');
+
+    score.NthStaff(1).NthBar(1).AddKeySignature(0, ownSharps, ownMajor, False, False, False);
+    return True;
+}
+
+// Each of the first count staves' key at the given bar, in sharps.
+StaffKeys(score, count, barNum) {
+    keys = CreateSparseArray();
+    for n = 1 to count + 1 {
+        keys.Push(score.NthStaff(n).CurrentKeySignature(barNum).Sharps);
+    }
+    return JoinNames(keys);
 }
 
 // The parts holding staves, other than the full score, collected before any

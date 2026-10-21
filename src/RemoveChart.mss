@@ -134,30 +134,19 @@ RemoveChart(score) {
     return RemovalResult(True, '');
 }
 
-// The key and clef changes a build put back where the music starts, on the
-// staves that held the parts' copies, come off again with the chart, so the
-// music's first bar is as it was. Each is the first of its kind at the start
-// of that bar, found before anything is deleted.
+// The clefs a build put back where the music starts, on the staves that held
+// the parts' copies, come off again with the chart, so the music's first bar
+// is as it was. Each is the first clef at the start of that bar, found before
+// anything is deleted.
 RemoveRestores(score, found) {
     restores = RestoreMarkerRead(score, found.firstStaff);
     for i = 0 to restores.Length {
-        restore = restores[i];
-        bar = score.NthStaff(restore.staff).NthBar(found.sections + 1);
+        bar = score.NthStaff(restores[i]).NthBar(found.sections + 1);
         doomed = null;
-        if (restore.kind = 'k') {
-            for each KeySignature ks in bar {
-                if (doomed = null) {
-                    if (ks.Position = 0) {
-                        doomed = ks;
-                    }
-                }
-            }
-        } else {
-            for each Clef c in bar {
-                if (doomed = null) {
-                    if (c.Position = 0) {
-                        doomed = c;
-                    }
+        for each Clef c in bar {
+            if (doomed = null) {
+                if (c.Position = 0) {
+                    doomed = c;
                 }
             }
         }

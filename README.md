@@ -163,9 +163,13 @@ at the end of the run names any instrument left without a chart in its part
 for this reason.
 
 The copy prints with no key signature and in treble and bass clefs, as the
-chart does. Where the instrument's own key or clef differs, the plugin
-changes it for the chart bars and puts the original back where the music
-starts. Removing the chart takes those changes off again.
+chart does. In a score whose key has sharps or flats, the chart bars are set
+in C major and the music starts with its own key as an ordinary key change,
+in the full score and in every part. Removing the chart leaves that key
+change as the music's opening key. Where an instrument's own clef differs
+from the copy's, the plugin changes it for the chart bars and puts it back
+where the music starts, and removing the chart takes those clef changes off
+again.
 
 In a part that carries one instrument's charts, the labels are the plain
 "Handbells Used: 25", since the part's name already says whose they are. In

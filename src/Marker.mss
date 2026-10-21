@@ -138,10 +138,9 @@ NamesMarkerRead(score, firstStaff) {
     return -1;
 }
 
-// The key and clef changes a build put on an owner's staves where the music
-// starts, so a removal can take them off again. A text of its own beside the
-// marker, as the names record is. Each token is a staff number followed by k
-// for a key or c for a clef.
+// The clef changes a build put on an owner's staves where the music starts,
+// so a removal can take them off again. A text of its own beside the marker,
+// as the names record is. Each token is a staff number followed by c.
 RestoreMarkerEncode(tokens) {
     text = '' & RESTORE_MARKER_PREFIX;
     for i = 0 to tokens.Length {
@@ -150,7 +149,7 @@ RestoreMarkerEncode(tokens) {
     return text;
 }
 
-// Dictionary{staff, kind} per token, or null for any other text.
+// The staff number each token names, or null for any other text.
 RestoreMarkerDecode(text) {
     if (text = null) {
         return null;
@@ -171,13 +170,13 @@ RestoreMarkerDecode(text) {
         }
         kind = Substring(token, size - 1, 1);
         staff = Substring(token, 0, size - 1);
-        if ((kind != 'k') and (kind != 'c')) {
+        if (kind != 'c') {
             return null;
         }
         if (not(utils.IsNumeric(staff, True))) {
             return null;
         }
-        restores.Push(CreateDictionary('staff', 0 + staff, 'kind', kind));
+        restores.Push(0 + staff);
     }
     return restores;
 }

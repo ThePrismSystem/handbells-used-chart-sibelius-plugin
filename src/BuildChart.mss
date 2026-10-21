@@ -6,6 +6,9 @@ BuildChart(score, plan, options) {
     sections = plan.sections;
     pieceStaves = score.StaffCount;
     metre = ReadInitialTimeSignature(score);
+    opening = score.NthStaff(1).CurrentKeySignature(1);
+    openingSharps = opening.Sharps;
+    openingMajor = opening.Major;
 
     // 1. Bars first. A Sibelius bar spans every staff, so staves created
     //    afterwards inherit the irregular lengths already set. And sizing must
@@ -84,7 +87,11 @@ BuildChart(score, plan, options) {
 
     // 4b. The parts' copies, on each owner's own staves in the same bars. Here
     //     rather than later so their padding rests are hidden with the rest.
-    tokens = PrepareCopyStaves(score, sections);
+    roles = CopyStaffRoles(sections);
+    if (roles.Length > 0) {
+        ChartBarsInC(score, openingSharps, openingMajor, sections.Length);
+    }
+    tokens = PrepareCopyStaves(score, roles, sections.Length);
     WriteCopies(score, sections, options, styles);
     if (tokens.Length > 0) {
         record = trebleStaves[0].NthBar(1).AddText(0, RestoreMarkerEncode(tokens), LabelTextStyle());
@@ -197,14 +204,30 @@ CopyStaffRoles(sections) {
     return roles;
 }
 
+// A copy prints with no key, so every accidental shows as it does on the
+// chart. A key with sharps or flats becomes C major in the chart bars and
+// comes back where the music starts as an ordinary key change, on every
+// staff. A removal deletes the chart bars, C major with them, and leaves that
+// change as the music's opening key, so nothing in the music is hidden and
+// nothing has to be put back. Any other key already prints no accidentals.
+// The key is the one read before the chart bars went in, as nothing added
+// since can have changed it.
+ChartBarsInC(score, sharps, major, chartBars) {
+    if ((sharps = 0) or (sharps = -8)) {
+        return False;
+    }
+    score.NthStaff(1).NthBar(1).AddKeySignature(0, 0, True, False, False, False);
+    score.NthStaff(1).NthBar(chartBars + 1).AddKeySignature(0, sharps, major, False, False, False);
+    return True;
+}
+
 // Every copy staff made ready for its chart. Returns the restore record's
 // tokens.
-PrepareCopyStaves(score, sections) {
+PrepareCopyStaves(score, roles, chartBars) {
     tokens = CreateSparseArray();
-    roles = CopyStaffRoles(sections);
     for i = 0 to roles.Length {
         role = roles[i];
-        made = PrepareCopyStaff(score, role.staff, role.clef, sections.Length);
+        made = PrepareCopyStaff(score, role.staff, role.clef, chartBars);
         for j = 0 to made.Length {
             tokens.Push(made[j]);
         }
@@ -212,30 +235,18 @@ PrepareCopyStaves(score, sections) {
     return tokens;
 }
 
-// A copy prints with no key, so every accidental shows as it does on the
-// chart, and in the clef it was drawn for. The staff gets the chart staves'
-// hidden no-key change in the first chart bar, and a clef change there when
-// its own clef differs. Both are put back where the music starts, unless the
-// music already starts with its own: the key always, since the no-key change
-// would otherwise run on into the music, and the clef when it was changed.
-// Read before anything changes, because each change moves what the next read
-// would see. Returns a token per change put back, for the restore record.
+// A copy prints in the clef it was drawn for. Where the staff's own clef
+// differs, it gets a clef change in the first chart bar, and its own clef
+// goes back where the music starts unless the music already starts with one.
+// Read before anything changes, because the change moves what the next read
+// would see. Returns a token per clef put back, for the restore record.
 PrepareCopyStaff(score, staffNum, clef, chartBars) {
     tokens = CreateSparseArray();
     staff = score.NthStaff(staffNum);
     music = staff.NthBar(chartBars + 1);
-    key = staff.CurrentKeySignature(chartBars + 1);
-    sharps = key.Sharps;
-    major = key.Major;
     was = music.GetClefAt(0);
     wasConcert = '' & was.ConcertClefStyleId;
     wasTransposing = '' & was.TransposingClefStyleId;
-    keyHere = 0;
-    for each KeySignature ks in music {
-        if (ks.Position = 0) {
-            keyHere = 1;
-        }
-    }
     clefHere = 0;
     for each Clef c in music {
         if (c.Position = 0) {
@@ -243,11 +254,6 @@ PrepareCopyStaff(score, staffNum, clef, chartBars) {
         }
     }
 
-    SilenceKeySignature(staff);
-    if (keyHere = 0) {
-        music.AddKeySignature(0, sharps, major, False, False, True);
-        tokens.Push(staffNum & 'k');
-    }
     if (wasConcert != clef) {
         staff.NthBar(1).AddClef(0, clef);
         if (clefHere = 0) {

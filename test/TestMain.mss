@@ -36,6 +36,7 @@ Run() {
     TestBuildSeparate();
     TestEnterFullScore();
     TestBuildChartParts();
+    TestBuildKeyed();
     Sibelius.MessageBox(AssertReport());
     trace(AssertReport());
 }
