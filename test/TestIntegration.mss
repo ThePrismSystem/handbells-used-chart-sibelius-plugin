@@ -373,6 +373,12 @@ TestBuildChartParts() {
     AssertTrue(rebuilt.ok, 'the separate chart with parts replaces the combined one: ' & rebuilt.text);
     found = FindChart(score);
     AssertEquals(found.sections, expected.sections.Length, 'the re-run chart has every section');
+    // The dialog reads the score's noteheads before a re-run removes the
+    // chart, and the parts' copies sit on the music's own staves in the chart
+    // bars, drawn in the chart's heads.
+    offered = ScoreHeadChoices(score);
+    AssertEquals(JoinNames(offered.names), JoinNames(choices.names),
+        'a re-run offers the noteheads of the music alone');
     skipped = planned.skipped;
     if (skipped.Length > 0) {
         AssertTrue(TextContains(rebuilt.text, 'No chart was added to the parts for'),
