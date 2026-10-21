@@ -67,4 +67,14 @@ TestReport() {
     AssertEquals(WarningLines(chimesMissing),
         'Handchimes were drawn as hollow whole notes because this score has no Diamond (stemless) notehead',
         'handchimes raise the same warning as SMBs');
+
+    // A part is named by its instruments, and these are the instruments whose
+    // staves could not hold a copy of their chart.
+    noCopy = CreateSparseArray(
+        CreateDictionary('type', 'no-copy-for-instrument',
+            'names', CreateSparseArray('Synthesizer', 'Pedals'))
+    );
+    AssertEquals(WarningLines(noCopy),
+        'No chart was added to the parts for Synthesizer, Pedals, as their staves cannot hold one',
+        'an instrument whose staves cannot hold a copy is named');
 }

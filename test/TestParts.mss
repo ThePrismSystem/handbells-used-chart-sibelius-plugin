@@ -1,13 +1,14 @@
 // Fresh every time: PlanPartEntries writes splitLabel onto the sections it is
-// given, so one case must not see the marks another case left.
+// given, so one case must not see the marks another case left. Every owner
+// here has staves that can hold its copy.
 PartTestSections() {
     return CreateSparseArray(
         CreateDictionary('label', 'Handbells I - Handbells Used: 3', 'plainLabel', 'Handbells Used: 3',
-            'owners', CreateSparseArray('Handbells I')),
+            'owners', CreateSparseArray('Handbells I'), 'copyOwners', CreateSparseArray('Handbells I')),
         CreateDictionary('label', 'Handbells I - Handchimes Used: 2', 'plainLabel', 'Handchimes Used: 2',
-            'owners', CreateSparseArray('Handbells I')),
+            'owners', CreateSparseArray('Handbells I'), 'copyOwners', CreateSparseArray('Handbells I')),
         CreateDictionary('label', 'Handbells II - Handbells Used: 4', 'plainLabel', 'Handbells Used: 4',
-            'owners', CreateSparseArray('Handbells II')));
+            'owners', CreateSparseArray('Handbells II'), 'copyOwners', CreateSparseArray('Handbells II')));
 }
 
 // The part values here are strings standing in for DynamicPart objects:
@@ -20,6 +21,24 @@ TestParts() {
         'a part holding two choirs gets both');
     piano = PartSections(sections, CreateSparseArray('Piano'));
     AssertEquals(piano.Length, 0, 'an unselected instrument gets nothing');
+    synth = CreateSparseArray(CreateDictionary('label', 'Synth - Handbells Used: 2',
+        'plainLabel', 'Handbells Used: 2', 'owners', CreateSparseArray('Synth'),
+        'copyOwners', CreateSparseArray()));
+    noCopy = PartSections(synth, CreateSparseArray('Synth'));
+    AssertEquals(noCopy.Length, 0, 'an owner without a copy carries nothing');
+
+    // The staves an owner's copy of a chart goes on, or none when they cannot
+    // hold it. pitched has 1 per staff, from the first, for a five-line
+    // pitched staff.
+    AssertEquals(JoinNames(CopyStaves(3, 4, 0, CreateSparseArray(1, 1))), '3, 4',
+        'a two-staff owner carries a two-staff chart');
+    one = CopyStaves(5, 5, 0, CreateSparseArray(1));
+    AssertEquals(one.Length, 0, 'a one-staff owner cannot carry bells');
+    AssertEquals(JoinNames(CopyStaves(5, 5, 1, CreateSparseArray(1))), '5', 'but carries SMBs');
+    AssertEquals(JoinNames(CopyStaves(6, 8, 0, CreateSparseArray(1, 1, 1))), '6, 7',
+        'an owner with three staves uses the top two');
+    unpitched = CopyStaves(3, 4, 0, CreateSparseArray(1, 0));
+    AssertEquals(unpitched.Length, 0, 'an unpitched staff cannot carry it');
 
     sections = PartTestSections();
     entries = PlanPartEntries(sections, CreateSparseArray(
@@ -50,7 +69,8 @@ TestParts() {
     AssertEquals(first.splitLabel, 0, 'with no parts the label is not split');
 
     combined = CreateSparseArray(CreateDictionary('label', 'Handbells Used: 5', 'plainLabel', 'Handbells Used: 5',
-        'owners', CreateSparseArray('Handbells I', 'Handbells II')));
+        'owners', CreateSparseArray('Handbells I', 'Handbells II'),
+        'copyOwners', CreateSparseArray('Handbells I', 'Handbells II')));
     PlanPartEntries(combined, CreateSparseArray(
         PartInfo('A', CreateSparseArray('Handbells I'))));
     only = combined[0];

@@ -42,6 +42,10 @@ WarningLines(warnings) {
             line = 'Sibelius would not add the charts to the part for ' & JoinNames(warning.names)
                 & ', so that part has none';
         }
+        if (warning.type = 'no-copy-for-instrument') {
+            line = 'No chart was added to the parts for ' & JoinNames(warning.names)
+                & ', as their staves cannot hold one';
+        }
         if (warning.type = 'no-part-for-charts') {
             line = 'No part holds a selected instrument, so only the full score has the chart';
         }

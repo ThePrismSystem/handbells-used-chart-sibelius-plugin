@@ -467,25 +467,118 @@ DeleteChartOnlyParts(score, firstChartStaff) {
 }
 
 // Which part carries which chart, worked out before anything is drawn, because
-// the labels a section gets depend on it. Returns Dictionary{entries}, one
-// entry per part that carries anything. With the parts box unticked no part is
-// considered at all, so every section keeps its one full-score label.
+// the copies a build draws and the labels they read depend on it. Returns
+// Dictionary{entries, skipped}: one entry per part that carries anything, and
+// the names of instruments in a part whose staves could not hold a copy. With
+// the parts box unticked no part is considered at all, so nothing is copied.
 //
 // Only parts that hold staves: a part left holding nothing is no one's part.
 PlanParts(score, plan, options) {
     infos = CreateSparseArray();
+    held = CreateSparseArray();
     if (options.parts = True) {
         parts = score.DynamicParts;
         for each part in parts {
             if (not(part.IsFullScore)) {
                 if (part.StaveCount > 0) {
-                    infos.Push(CreateDictionary('part', part,
-                        'names', PartInstrumentNames(score, part, options.instruments)));
+                    names = PartInstrumentNames(score, part, options.instruments);
+                    infos.Push(CreateDictionary('part', part, 'names', names));
+                    for i = 0 to names.Length {
+                        if (HeadListed(held, names[i]) = 0) {
+                            held.Push(names[i]);
+                        }
+                    }
                 }
             }
         }
     }
-    return CreateDictionary('entries', PlanPartEntries(plan.sections, infos));
+    skipped = PlanCopies(score, plan.sections, options.instruments, held);
+    return CreateDictionary('entries', PlanPartEntries(plan.sections, infos), 'skipped', skipped);
+}
+
+// A part shows a chart as a copy drawn on its owner's own staves, shown only
+// in the parts, because adding the chart's own staves to a part resets the
+// part's title block and staff spacing. Marks every section with copyOwners,
+// the owners in held whose staves can hold a copy, and copies, the staves of
+// each, in the same order. Returns the owners in held whose staves cannot.
+PlanCopies(score, sections, instruments, held) {
+    skipped = CreateSparseArray();
+    for i = 0 to sections.Length {
+        section = sections[i];
+        owners = section.owners;
+        copyOwners = CreateSparseArray();
+        copies = CreateSparseArray();
+        for j = 0 to owners.Length {
+            name = owners[j];
+            if (HeadListed(held, name) = 1) {
+                instrument = InstrumentNamed(instruments, name);
+                staves = CopyStaves(instrument.firstStaff, instrument.lastStaff, UsesOneStaff(section.kind),
+                    StaffPitchedFlags(score, instrument.firstStaff, instrument.lastStaff));
+                if (staves.Length > 0) {
+                    copyOwners.Push(name);
+                    copies.Push(staves);
+                } else {
+                    if (HeadListed(skipped, name) = 0) {
+                        skipped.Push(name);
+                    }
+                }
+            }
+        }
+        section._property:copyOwners = copyOwners;
+        section._property:copies = copies;
+    }
+    return skipped;
+}
+
+// The staves an owner's copy goes on: its top two, or its top one for a
+// one-staff chart. None when it has too few, or when one of them is not a
+// five-line pitched staff, which pitched marks with 1 per staff from the
+// first. A two-staff chart's bars are sized for two staves and shared with
+// the full score, so there is no fitting it onto one.
+CopyStaves(firstStaff, lastStaff, oneStaff, pitched) {
+    staves = CreateSparseArray();
+    need = 2;
+    if (oneStaff = 1) {
+        need = 1;
+    }
+    if (((lastStaff - firstStaff) + 1) < need) {
+        return staves;
+    }
+    for k = 0 to need {
+        if (pitched[k] != 1) {
+            return CreateSparseArray();
+        }
+        staves.Push(firstStaff + k);
+    }
+    return staves;
+}
+
+// 1 per staff from firstStaff to lastStaff when it is a five-line pitched
+// staff, which is what a chart is drawn on, and 0 for percussion, tab or any
+// other number of lines.
+StaffPitchedFlags(score, firstStaff, lastStaff) {
+    flags = CreateSparseArray();
+    n = firstStaff;
+    while (n <= lastStaff) {
+        type = score.NthStaff(n).InitialInstrumentType;
+        flag = 0;
+        if ((type.Category = 0) and (type.NumStaveLines = 5)) {
+            flag = 1;
+        }
+        flags.Push(flag);
+        n = n + 1;
+    }
+    return flags;
+}
+
+InstrumentNamed(instruments, name) {
+    for i = 0 to instruments.Length {
+        instrument = instruments[i];
+        if (instrument.name = name) {
+            return instrument;
+        }
+    }
+    return null;
 }
 
 // The selected instruments with at least one staff in the part. A part may
@@ -564,12 +657,12 @@ PlanPartEntries(sections, partInfos) {
     return entries;
 }
 
-// The indexes of the sections belonging to any of the named instruments.
+// The indexes of the sections any of the named instruments holds a copy of.
 PartSections(sections, partNames) {
     carried = CreateSparseArray();
     for i = 0 to sections.Length {
         section = sections[i];
-        owners = section.owners;
+        owners = section.copyOwners;
         hit = 0;
         for j = 0 to owners.Length {
             if (HeadListed(partNames, owners[j]) = 1) {
@@ -589,7 +682,7 @@ DistinctOwnerCount(sections, indexes) {
     for k = 0 to indexes.Length {
         index = indexes[k];
         section = sections[index];
-        owners = section.owners;
+        owners = section.copyOwners;
         for j = 0 to owners.Length {
             name = '' & owners[j];
             if (seen[name] = null) {

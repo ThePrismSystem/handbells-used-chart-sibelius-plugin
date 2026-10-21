@@ -381,6 +381,10 @@
             line = 'Sibelius would not add the charts to the part for ' & JoinNames(warning.names)
                 & ', so that part has none';
         }
+        if (warning.type = 'no-copy-for-instrument') {
+            line = 'No chart was added to the parts for ' & JoinNames(warning.names)
+                & ', as their staves cannot hold one';
+        }
         if (warning.type = 'no-part-for-charts') {
             line = 'No part holds a selected instrument, so only the full score has the chart';
         }
@@ -2105,18 +2109,93 @@
 }"
 	PlanParts "(score, plan, options) {
     infos = CreateSparseArray();
+    held = CreateSparseArray();
     if (options.parts = True) {
         parts = score.DynamicParts;
         for each part in parts {
             if (not(part.IsFullScore)) {
                 if (part.StaveCount > 0) {
-                    infos.Push(CreateDictionary('part', part,
-                        'names', PartInstrumentNames(score, part, options.instruments)));
+                    names = PartInstrumentNames(score, part, options.instruments);
+                    infos.Push(CreateDictionary('part', part, 'names', names));
+                    for i = 0 to names.Length {
+                        if (HeadListed(held, names[i]) = 0) {
+                            held.Push(names[i]);
+                        }
+                    }
                 }
             }
         }
     }
-    return CreateDictionary('entries', PlanPartEntries(plan.sections, infos));
+    skipped = PlanCopies(score, plan.sections, options.instruments, held);
+    return CreateDictionary('entries', PlanPartEntries(plan.sections, infos), 'skipped', skipped);
+}"
+	PlanCopies "(score, sections, instruments, held) {
+    skipped = CreateSparseArray();
+    for i = 0 to sections.Length {
+        section = sections[i];
+        owners = section.owners;
+        copyOwners = CreateSparseArray();
+        copies = CreateSparseArray();
+        for j = 0 to owners.Length {
+            name = owners[j];
+            if (HeadListed(held, name) = 1) {
+                instrument = InstrumentNamed(instruments, name);
+                staves = CopyStaves(instrument.firstStaff, instrument.lastStaff, UsesOneStaff(section.kind),
+                    StaffPitchedFlags(score, instrument.firstStaff, instrument.lastStaff));
+                if (staves.Length > 0) {
+                    copyOwners.Push(name);
+                    copies.Push(staves);
+                } else {
+                    if (HeadListed(skipped, name) = 0) {
+                        skipped.Push(name);
+                    }
+                }
+            }
+        }
+        section._property:copyOwners = copyOwners;
+        section._property:copies = copies;
+    }
+    return skipped;
+}"
+	CopyStaves "(firstStaff, lastStaff, oneStaff, pitched) {
+    staves = CreateSparseArray();
+    need = 2;
+    if (oneStaff = 1) {
+        need = 1;
+    }
+    if (((lastStaff - firstStaff) + 1) < need) {
+        return staves;
+    }
+    for k = 0 to need {
+        if (pitched[k] != 1) {
+            return CreateSparseArray();
+        }
+        staves.Push(firstStaff + k);
+    }
+    return staves;
+}"
+	StaffPitchedFlags "(score, firstStaff, lastStaff) {
+    flags = CreateSparseArray();
+    n = firstStaff;
+    while (n <= lastStaff) {
+        type = score.NthStaff(n).InitialInstrumentType;
+        flag = 0;
+        if ((type.Category = 0) and (type.NumStaveLines = 5)) {
+            flag = 1;
+        }
+        flags.Push(flag);
+        n = n + 1;
+    }
+    return flags;
+}"
+	InstrumentNamed "(instruments, name) {
+    for i = 0 to instruments.Length {
+        instrument = instruments[i];
+        if (instrument.name = name) {
+            return instrument;
+        }
+    }
+    return null;
 }"
 	PartInstrumentNames "(score, part, instruments) {
     names = CreateSparseArray();
@@ -2183,7 +2262,7 @@
     carried = CreateSparseArray();
     for i = 0 to sections.Length {
         section = sections[i];
-        owners = section.owners;
+        owners = section.copyOwners;
         hit = 0;
         for j = 0 to owners.Length {
             if (HeadListed(partNames, owners[j]) = 1) {
@@ -2202,7 +2281,7 @@
     for k = 0 to indexes.Length {
         index = indexes[k];
         section = sections[index];
-        owners = section.owners;
+        owners = section.copyOwners;
         for j = 0 to owners.Length {
             name = '' & owners[j];
             if (seen[name] = null) {
