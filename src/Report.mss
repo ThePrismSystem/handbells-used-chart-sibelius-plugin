@@ -48,9 +48,6 @@ WarningLines(warnings) {
         if (warning.type = 'title-not-restored') {
             line = warning.count & ' title or copyright line(s) in the parts could not be put back where they were';
         }
-        if (warning.type = 'margin-not-restored') {
-            line = warning.count & ' part(s) could not be found to put back the top margin of their first page';
-        }
         if (line != '') {
             if (lines != '') {
                 lines = lines & '\n';

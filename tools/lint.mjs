@@ -86,7 +86,7 @@ function divisionUnforced(code) {
 // bare LowerCase call ship and crash the first run that set a colour.
 const BUILTINS = new Set([
     'AddToPluginsMenu', 'CreateArray', 'CreateDictionary', 'CreateHash',
-    'CreateSparseArray', 'EnableStringSafety', 'IsObject', 'IsValid', 'Length',
+    'Cmd', 'CreateSparseArray', 'EnableStringSafety', 'IsObject', 'IsValid', 'Length',
     'Round', 'RoundDown', 'RoundUp', 'Substring',
     'SetInterpreterOption', 'StrToNum', 'CharAt', 'Chr', 'Asc', 'not', 'trace'
 ]);

@@ -25,22 +25,6 @@ TestMarker() {
     AssertEquals(NamesMarkerDecode('HBUCNAMES|3'), -1, 'a setting past the last is refused');
     AssertEquals(NamesMarkerDecode(null), -1, 'no text is no record');
 
-    // Each part whose first page a build lowers keeps its own record of the
-    // margin it had, kept beside the marker the way the names rule is.
-    margin = MarginMarkerDecode(MarginMarkerEncode('3.4#2', 12.7, 0));
-    AssertTrue(margin != null, 'a margin record round-trips');
-    AssertEquals(margin.key, '3.4#2', 'the record names its part');
-    AssertEquals(Round(margin.gap * 100), 1270, 'the margin keeps two decimal places');
-    AssertEquals(margin.unique, 0, 'and whether the first page had margins of its own');
-    unique = MarginMarkerDecode(MarginMarkerEncode('1#1', 20, 1));
-    AssertEquals(unique.unique, 1, 'a first page with its own margins is remembered');
-    AssertEquals(MarginMarkerDecode('HBUCMARGIN|3.4#1|x|0'), null, 'a margin record holds a number');
-    AssertEquals(MarginMarkerDecode('HBUCMARGIN|3.4#1|1270'), null, 'a short margin record is refused');
-    AssertEquals(MarginMarkerDecode(NamesMarkerEncode(2)), null, 'a names record is not a margin record');
-    AssertEquals(MarginMarkerDecode(null), null, 'no text is no margin record');
-    AssertEquals(NamesMarkerDecode(MarginMarkerEncode('1#1', 20, 1)), -1, 'a margin record is not a names record');
-    AssertEquals(MarkerDecode(MarginMarkerEncode('1#1', 20, 1)), null, 'nor is it taken for the chart');
-
     // Text that belongs to the first page stays there on a build.
     AssertTrue(StyleStaysOnFirstPage('text.system.page_aligned.title'), 'the title stays');
     AssertTrue(StyleStaysOnFirstPage('text.blankpage.plain'), 'blank-page text stays');

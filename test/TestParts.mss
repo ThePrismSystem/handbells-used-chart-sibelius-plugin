@@ -23,22 +23,21 @@ TestParts() {
 
     sections = PartTestSections();
     entries = PlanPartEntries(sections, CreateSparseArray(
-        PartInfo('A', '1.2#1', CreateSparseArray('Handbells I')),
-        PartInfo('B', '3.4#1', CreateSparseArray('Handbells II')),
-        PartInfo('P', '5.6#1', CreateSparseArray('Piano'))));
+        PartInfo('A', CreateSparseArray('Handbells I')),
+        PartInfo('B', CreateSparseArray('Handbells II')),
+        PartInfo('P', CreateSparseArray('Piano'))));
     AssertEquals(entries.Length, 2, 'the piano part gets no entry');
     e0 = entries[0];
     AssertEquals(e0.part, 'A', 'entries keep part order');
     AssertEquals(JoinNames(e0.sections), '0, 1', 'part A carries the first choir');
-    AssertEquals(e0.key, '1.2#1', 'an entry carries the key its part is found by again');
     AssertEquals(JoinNames(e0.names), 'Handbells I', 'and the instruments that name it');
     first = sections[0];
     AssertEquals(first.splitLabel, 1, 'a one-choir part reads the plain label');
 
     sections = PartTestSections();
     PlanPartEntries(sections, CreateSparseArray(
-        PartInfo('A', '1.2#1', CreateSparseArray('Handbells I')),
-        PartInfo('AB', '1.2.3.4#1', CreateSparseArray('Handbells I', 'Handbells II'))));
+        PartInfo('A', CreateSparseArray('Handbells I')),
+        PartInfo('AB', CreateSparseArray('Handbells I', 'Handbells II'))));
     first = sections[0];
     AssertEquals(first.splitLabel, 0, 'a chart also in a two-choir part is named in every part');
     last = sections[2];
@@ -53,7 +52,7 @@ TestParts() {
     combined = CreateSparseArray(CreateDictionary('label', 'Handbells Used: 5', 'plainLabel', 'Handbells Used: 5',
         'owners', CreateSparseArray('Handbells I', 'Handbells II')));
     PlanPartEntries(combined, CreateSparseArray(
-        PartInfo('A', '1.2#1', CreateSparseArray('Handbells I'))));
+        PartInfo('A', CreateSparseArray('Handbells I'))));
     only = combined[0];
     AssertEquals(only.splitLabel, 0, 'a combined label is never split');
 
@@ -100,27 +99,6 @@ TestParts() {
     AssertEquals(JoinNames(ChartBarHiddenStaves(0, 4, 1, 0)), '1, 1, 0, 0',
         'a part of chart staves alone hides only the other chart');
 
-    // How far a chart reaches above its treble staff, in spaces: never less
-    // than its label, and more for bells written high on ledger lines. F5,
-    // diatonic 45, is the top line.
-    low = CreateDictionary('treble', CreateSparseArray(
-        CreateSparseArray(NoteAt(38)), CreateSparseArray(NoteAt(45))));
-    AssertEquals(ChartReach(low), 4, 'a chart within the staff reaches as far as its label');
-    high = CreateDictionary('treble', CreateSparseArray(
-        CreateSparseArray(NoteAt(40), NoteAt(63)), CreateSparseArray(NoteAt(52))));
-    AssertEquals(ChartReach(high), 10, 'a high bell reaches half a space a step, and one more');
-    empty = CreateDictionary('treble', CreateSparseArray());
-    AssertEquals(ChartReach(empty), 4, 'a one-staff chart with nothing on the treble still has a label');
-
-    // A staff is four spaces, so a reach converts through the staff size.
-    AssertEquals(RaisedGap(20, 4, 7), 27, 'four spaces of a 7 mm staff add 7 mm');
-    AssertEquals(Round(RaisedGap(15.5, 10, 6) * 10), 305, 'and ten spaces of a 6 mm staff add 15 mm');
-
-    // A part is found again by the staves it holds and, among parts holding
-    // the same staves, by its place in the order.
-    AssertEquals(JoinNames(OccurrenceKeys(CreateSparseArray('3.4', '6.7', '3.4', ''))),
-        '3.4#1, 6.7#1, 3.4#2, #1', 'two parts of the same staves are told apart by order');
-
     // Title text is found again after a build by style and text, and by how
     // many like it came first.
     seen = CreateSparseArray();
@@ -136,14 +114,23 @@ TestParts() {
     title = TitleRecordFor(kept, 'title', 'Test Drive', 1);
     AssertEquals(title.dy, 496, 'a title is found by its style and text');
     AssertEquals(TitleRecordFor(kept, 'composer', 'x', 1), null, 'text that was not there has no record');
+
+    // A line that moved during a run is reset to the full score's position
+    // when it followed the full score before the run, and is lost when the
+    // part had placed it itself.
+    fullScore = TitleRecord('title', 'Test Drive', 1, 0, 496);
+    AssertEquals(TitleRestoreAction(title, fullScore, 0, 496), 'keep', 'a line still where it was is left alone');
+    AssertEquals(TitleRestoreAction(title, fullScore, 0, 0), 'reset', 'a line that followed the score is reset');
+    AssertEquals(TitleRestoreAction(title, fullScore, 32, 496), 'reset', 'and so is one moved sideways');
+    own = TitleRecord('title', 'Test Drive', 1, 0, 100);
+    AssertEquals(TitleRestoreAction(own, fullScore, 0, 0), 'lost', 'a line placed in the part cannot be put back');
+    AssertEquals(TitleRestoreAction(own, fullScore, 0, 100), 'keep', 'unless it never moved');
+    AssertEquals(TitleRestoreAction(null, fullScore, 0, 0), 'keep', 'a line the part did not have is left alone');
+    AssertEquals(TitleRestoreAction(title, null, 0, 0), 'lost', 'a line the score did not have cannot follow it');
 }
 
-PartInfo(part, key, names) {
-    return CreateDictionary('part', part, 'key', key, 'names', names);
-}
-
-NoteAt(diatonic) {
-    return CreateDictionary('pitch', 60, 'diatonic', diatonic);
+PartInfo(part, names) {
+    return CreateDictionary('part', part, 'names', names);
 }
 
 TitleRecord(style, text, n, dx, dy) {

@@ -18,16 +18,14 @@ ChartScore(score, options) {
         }
     }
 
-    // Adding chart staves to a part and taking them away both move its title
-    // block, and a re-run does both, so each part's is kept from before the
-    // removal and put back after the build. The full score's is left to the
-    // build and the removal themselves.
+    // Adding chart staves to a part and taking them away both reset its title
+    // block, and a re-run does both, so each part's is read before the removal
+    // and put back after the build. The full score's is left to the build and
+    // the removal themselves, which keep it where it is.
     ProbeParts(score, 'start');
-    ProbeTitleWrites(score, 'start');
     titles = KeepTitleText(score);
     message = ChartOrRemove(score, options);
     ProbeParts(score, 'built');
-    ProbeTitleWrites(score, 'built');
     missed = RestoreTitleText(score, titles);
     ProbeParts(score, 'end');
     if (missed > 0) {
@@ -42,9 +40,6 @@ ChartOrRemove(score, options) {
     // back in and charting the chart.
     removal = RemoveChart(score);
     warnings = CreateSparseArray();
-    if (removal.unrestored > 0) {
-        warnings.Push(CreateDictionary('type', 'margin-not-restored', 'count', removal.unrestored));
-    }
     if (removal.error != '') {
         return CreateDictionary('ok', False, 'kind', 'error', 'text', WithWarnings(warnings, removal.error));
     }

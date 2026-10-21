@@ -76,9 +76,11 @@
     score.Redraw = True;
     selection.RestoreSelection();
     // Unless the run deleted it: a part holding nothing but chart staves goes
-    // with the chart.
+    // with the chart. Shown as well, because putting a part's title block back
+    // shows that part.
     if (IsValid(was)) {
         score.CurrentDynamicPart = was;
+        Sibelius.ShowDynamicPart(was);
     }
 
     if (message.text != '') {
@@ -384,9 +386,6 @@
         }
         if (warning.type = 'title-not-restored') {
             line = warning.count & ' title or copyright line(s) in the parts could not be put back where they were';
-        }
-        if (warning.type = 'margin-not-restored') {
-            line = warning.count & ' part(s) could not be found to put back the top margin of their first page';
         }
         if (line != '') {
             if (lines != '') {
@@ -1067,62 +1066,12 @@
     }
     return -1;
 }"
-	MarginMarkerEncode "(key, gap, unique) {
-    return ('' & MARGIN_MARKER_PREFIX) & '|' & key & '|' & Round(gap * 100) & '|' & unique;
-}"
-	MarginMarkerDecode "(text) {
-    if (text = null) {
-        return null;
-    }
-    parts = SplitOnPipe(text);
-    if (parts.Length != 4) {
-        return null;
-    }
-    if (parts[0] != ('' & MARGIN_MARKER_PREFIX)) {
-        return null;
-    }
-    if (not(utils.IsNumeric(parts[2], True))) {
-        return null;
-    }
-    if (not(utils.IsNumeric(parts[3], True))) {
-        return null;
-    }
-    unique = 0 + parts[3];
-    if ((unique < 0) or (unique > 1)) {
-        return null;
-    }
-    hundredths = 0 + parts[2];
-    gap = (hundredths * 1.0) / 100;
-    return CreateDictionary('key', parts[1], 'gap', gap, 'unique', unique);
-}"
-	MarginMarkersRead "(score, firstStaff) {
-    records = CreateSparseArray();
-    bar = score.NthStaff(firstStaff).NthBar(1);
-    for each Text t in bar {
-        record = MarginMarkerDecode(t.Text);
-        if (record != null) {
-            records.Push(record);
-        }
-    }
-    return records;
-}"
-	MarginMarkersWrite "(bar, margins) {
-    for i = 0 to margins.Length {
-        margin = margins[i];
-        text = bar.AddText(0, MarginMarkerEncode(margin.key, margin.gap, margin.unique), LabelTextStyle());
-        text.Hidden = True;
-    }
-    return True;
-}"
 	RecordStaff "(score) {
     n = 1;
     while (n <= score.StaffCount) {
         bar = score.NthStaff(n).NthBar(1);
         for each Text t in bar {
             if (NamesMarkerDecode(t.Text) >= 0) {
-                return n;
-            }
-            if (MarginMarkerDecode(t.Text) != null) {
                 return n;
             }
         }
@@ -1807,11 +1756,9 @@
     firstChartStaff = (score.StaffCount - (plan.sections.Length * 2)) + 1;
     DeleteChartOnlyParts(score, firstChartStaff);
     ProbeParts(score, 'after-delete');
-    applied = ApplyParts(score, plan, partPlan.entries, firstChartStaff, options.pageBreak = True);
-    MarginMarkersWrite(score.NthStaff(firstChartStaff).NthBar(1), applied.margins);
+    partWarnings = ApplyParts(score, plan, partPlan.entries, firstChartStaff, options.pageBreak = True);
 
     warnings = result.warnings;
-    partWarnings = applied.warnings;
     for i = 0 to partWarnings.Length {
         warnings.Push(partWarnings[i]);
     }
@@ -1825,7 +1772,6 @@
 	ApplyParts "(score, plan, entries, firstChartStaff, breakForOne) {
     barCount = score.NthStaff(1).BarCount;
     warnings = CreateSparseArray();
-    margins = CreateSparseArray();
     for e = 0 to entries.Length {
         entry = entries[e];
         part = entry.part;
@@ -1848,8 +1794,7 @@
         }
         if (complete = 1) {
             ProbeLayout(score, part, 'after-add');
-            kept = LayOutPart(score, part, plan.sections, carried, pieceCount, barCount, breakForOne);
-            margins.Push(CreateDictionary('key', entry.key, 'gap', kept.gap, 'unique', kept.unique));
+            LayOutPart(score, part, plan.sections, carried, pieceCount, barCount, breakForOne);
         } else {
             for a = 0 to added.Length {
                 staff = added[a];
@@ -1858,7 +1803,7 @@
             warnings.Push(CreateDictionary('type', 'part-not-charted', 'names', entry.names));
         }
     }
-    return CreateDictionary('warnings', warnings, 'margins', margins);
+    return warnings;
 }"
 	AddChartStaff "(part, staff, added) {
     if (part.AddStaffToPart(staff)) {
@@ -1878,8 +1823,6 @@
     systems = PartChartSystems(CarriedPositions(chartBars, carried));
     shows = systems.shows;
     ends = systems.ends;
-    firstIndex = carried[0];
-    firstSection = sections[firstIndex];
 
     parts = score.DynamicParts;
     score.CurrentDynamicPart = part;
@@ -1915,10 +1858,8 @@
     // took the first system's place.
     score.OptimizeStaffSpacing(1, staveCount, 1, chartBars + 1);
     ProbeLayout(score, part, 'after-optimize');
-    kept = LowerFirstPage(score, ChartReach(firstSection));
-    ProbeLayout(score, part, 'after-lower');
     score.CurrentDynamicPart = parts[0];
-    return kept;
+    return True;
 }"
 	PartEndsPage "(carriedCount, breakForOne) {
     if (carriedCount > 1) {
@@ -1992,158 +1933,55 @@
     }
     return CreateDictionary('shows', shows, 'ends', ends);
 }"
-	ChartReach "(section) {
-    topLine = 45;
-    labelReach = 4;
-    highest = topLine;
-    columns = section.treble;
-    for c = 0 to columns.Length {
-        notes = columns[c];
-        for n = 0 to notes.Length {
-            note = notes[n];
-            if (note.diatonic > highest) {
-                highest = note.diatonic;
-            }
-        }
-    }
-    notesReach = (((highest - topLine) * 1.0) / 2) + 1;
-    if (notesReach > labelReach) {
-        return notesReach;
-    }
-    return labelReach;
-}"
-	RaisedGap "(gap, reach, staffSize) {
-    added = ((reach * staffSize) * 1.0) / 4;
-    return gap + added;
-}"
-	LowerFirstPage "(score, reach) {
-    setup = score.DocumentSetup;
-    gap = setup.AboveTopStaveGap;
-    unique = 0;
-    if (setup.FirstPageHasUniqueVerticalStaveMargins) {
-        unique = 1;
-    }
-    if (unique = 0) {
-        below = setup.BelowBottomStaveGap;
-        setup.FirstPageHasUniqueVerticalStaveMargins = True;
-        setup.AboveTopStaveGapAfterFirstPage = gap;
-        setup.BelowBottomStaveGapAfterFirstPage = below;
-    }
-    setup.AboveTopStaveGap = RaisedGap(gap, reach, setup.StaffSize);
-    return CreateDictionary('gap', gap, 'unique', unique);
-}"
-	RestoreFirstPage "(score, gap, unique) {
-    setup = score.DocumentSetup;
-    setup.AboveTopStaveGap = gap;
-    if (unique = 0) {
-        setup.FirstPageHasUniqueVerticalStaveMargins = False;
-    }
-    return True;
-}"
-	RestoreMargins "(score, records, firstStaff) {
-    known = PartKeys(score, firstStaff);
-    found = known.parts;
-    keys = known.keys;
-    parts = score.DynamicParts;
-    missing = 0;
-    i = records.Length - 1;
-    while (i >= 0) {
-        record = records[i];
-        target = null;
-        for j = 0 to keys.Length {
-            if (keys[j] = record.key) {
-                target = found[j];
-            }
-        }
-        if (target = null) {
-            missing = missing + 1;
-        } else {
-            score.CurrentDynamicPart = target;
-            RestoreFirstPage(score, record.gap, record.unique);
-            score.CurrentDynamicPart = parts[0];
-        }
-        i = i - 1;
-    }
-    return missing;
-}"
-	PartKeys "(score, firstStaff) {
-    found = CreateSparseArray();
-    signatures = CreateSparseArray();
-    parts = score.DynamicParts;
-    for each part in parts {
-        if (not(part.IsFullScore)) {
-            found.Push(part);
-            signatures.Push(PartSignature(part, firstStaff));
-        }
-    }
-    return CreateDictionary('parts', found, 'keys', OccurrenceKeys(signatures));
-}"
-	PartSignature "(part, firstStaff) {
-    signature = '';
-    for each staff in part {
-        if (staff.StaffNum < firstStaff) {
-            if (signature != '') {
-                signature = signature & '.';
-            }
-            signature = signature & staff.StaffNum;
-        }
-    }
-    return signature;
-}"
-	OccurrenceKeys "(signatures) {
-    keys = CreateSparseArray();
-    for i = 0 to signatures.Length {
-        signature = '' & signatures[i];
-        count = 1;
-        for j = 0 to i {
-            if (('' & signatures[j]) = signature) {
-                count = count + 1;
-            }
-        }
-        keys.Push(signature & ('#' & count));
-    }
-    return keys;
-}"
 	KeepTitleText "(score) {
     parts = score.DynamicParts;
-    kept = CreateSparseArray();
+    found = CreateSparseArray();
     for each part in parts {
         if (not(part.IsFullScore)) {
             if (part.StaveCount > 0) {
-                kept.Push(CreateDictionary('part', part, 'items', CreateSparseArray()));
+                found.Push(part);
             }
         }
     }
-    for i = 0 to kept.Length {
-        entry = kept[i];
-        items = entry.items;
-        score.CurrentDynamicPart = entry.part;
-        seen = CreateSparseArray();
-        firstBar = score.SystemStaff.NthBar(1);
-        for each item in firstBar {
-            if (item.Type = 'SystemTextItem') {
-                if (StyleStaysOnFirstPage(item.StyleId)) {
-                    style = '' & item.StyleId;
-                    text = '' & item.Text;
-                    items.Push(CreateDictionary('style', style, 'text', text,
-                        'n', TitleOccurrence(seen, style, text), 'dx', item.Dx, 'dy', item.Dy));
-                }
-            }
-        }
+    kept = CreateSparseArray();
+    for i = 0 to found.Length {
+        part = found[i];
+        score.CurrentDynamicPart = part;
+        kept.Push(CreateDictionary('part', part, 'items', TitleItems(score)));
         score.CurrentDynamicPart = parts[0];
     }
-    return kept;
+    return CreateDictionary('score', TitleItems(score), 'parts', kept);
+}"
+	TitleItems "(score) {
+    items = CreateSparseArray();
+    seen = CreateSparseArray();
+    firstBar = score.SystemStaff.NthBar(1);
+    for each item in firstBar {
+        if (item.Type = 'SystemTextItem') {
+            if (StyleStaysOnFirstPage(item.StyleId)) {
+                style = '' & item.StyleId;
+                text = '' & item.Text;
+                items.Push(CreateDictionary('style', style, 'text', text,
+                    'n', TitleOccurrence(seen, style, text), 'dx', item.Dx, 'dy', item.Dy));
+            }
+        }
+    }
+    return items;
 }"
 	RestoreTitleText "(score, kept) {
     parts = score.DynamicParts;
+    entries = kept.parts;
     missed = 0;
-    for i = 0 to kept.Length {
-        entry = kept[i];
+    for i = 0 to entries.Length {
+        entry = entries[i];
         part = entry.part;
         // A part holding nothing but chart staves is deleted with them.
         if (IsValid(part)) {
-            records = entry.items;
             score.CurrentDynamicPart = part;
+            selection = score.Selection;
+            selection.Clear();
+            reset = 0;
+            lost = 0;
             seen = CreateSparseArray();
             firstBar = score.SystemStaff.NthBar(1);
             for each item in firstBar {
@@ -2151,26 +1989,68 @@
                     if (StyleStaysOnFirstPage(item.StyleId)) {
                         style = '' & item.StyleId;
                         text = '' & item.Text;
-                        was = TitleRecordFor(records, style, text, TitleOccurrence(seen, style, text));
-                        if (was != null) {
-                            if ((item.Dx != was.dx) or (item.Dy != was.dy)) {
-                                before = item.Dy;
-                                item.Dx = was.dx;
-                                item.Dy = was.dy;
-                                trace(('[layout probe] restore ' & style) & (' from ' & before)
-                                    & (' to ' & was.dy) & (' got ' & item.Dy));
-                                if ((item.Dx != was.dx) or (item.Dy != was.dy)) {
-                                    missed = missed + 1;
-                                }
-                            }
+                        n = TitleOccurrence(seen, style, text);
+                        action = TitleRestoreAction(TitleRecordFor(entry.items, style, text, n),
+                            TitleRecordFor(kept.score, style, text, n), item.Dx, item.Dy);
+                        if (action = 'reset') {
+                            item.Select();
+                            reset = reset + 1;
+                        }
+                        if (action = 'lost') {
+                            lost = lost + 1;
                         }
                     }
                 }
+            }
+            // Counted again after a reset, which takes in the lost lines.
+            if (reset > 0) {
+                Sibelius.ShowDynamicPart(part);
+                Sibelius.Execute(Cmd('Reset to Score Position'));
+                selection.Clear();
+                missed = missed + MovedTitleCount(score, entry.items);
+                ProbeLayout(score, part, 'after-reset ' & reset);
+            } else {
+                missed = missed + lost;
             }
             score.CurrentDynamicPart = parts[0];
         }
     }
     return missed;
+}"
+	MovedTitleCount "(score, items) {
+    moved = 0;
+    seen = CreateSparseArray();
+    firstBar = score.SystemStaff.NthBar(1);
+    for each item in firstBar {
+        if (item.Type = 'SystemTextItem') {
+            if (StyleStaysOnFirstPage(item.StyleId)) {
+                style = '' & item.StyleId;
+                text = '' & item.Text;
+                was = TitleRecordFor(items, style, text, TitleOccurrence(seen, style, text));
+                if (was != null) {
+                    if ((item.Dx != was.dx) or (item.Dy != was.dy)) {
+                        moved = moved + 1;
+                    }
+                }
+            }
+        }
+    }
+    return moved;
+}"
+	TitleRestoreAction "(was, fullScore, dx, dy) {
+    if (was = null) {
+        return 'keep';
+    }
+    if ((dx = was.dx) and (dy = was.dy)) {
+        return 'keep';
+    }
+    if (fullScore = null) {
+        return 'lost';
+    }
+    if ((was.dx = fullScore.dx) and (was.dy = fullScore.dy)) {
+        return 'reset';
+    }
+    return 'lost';
 }"
 	TitleOccurrence "(seen, style, text) {
     count = 1;
@@ -2226,14 +2106,13 @@
 	PlanParts "(score, plan, options) {
     infos = CreateSparseArray();
     if (options.parts = True) {
-        known = PartKeys(score, score.StaffCount + 1);
-        found = known.parts;
-        keys = known.keys;
-        for i = 0 to found.Length {
-            part = found[i];
-            if (part.StaveCount > 0) {
-                infos.Push(CreateDictionary('part', part, 'key', keys[i],
-                    'names', PartInstrumentNames(score, part, options.instruments)));
+        parts = score.DynamicParts;
+        for each part in parts {
+            if (not(part.IsFullScore)) {
+                if (part.StaveCount > 0) {
+                    infos.Push(CreateDictionary('part', part,
+                        'names', PartInstrumentNames(score, part, options.instruments)));
+                }
             }
         }
     }
@@ -2270,7 +2149,7 @@
         info = partInfos[p];
         carried = PartSections(sections, info.names);
         if (carried.Length > 0) {
-            entries.Push(CreateDictionary('part', info.part, 'key', info.key,
+            entries.Push(CreateDictionary('part', info.part,
                 'names', info.names, 'sections', carried));
             several = 0;
             if (DistinctOwnerCount(sections, carried) > 1) {
@@ -2339,13 +2218,19 @@
     score.CurrentDynamicPart = part;
     setup = score.DocumentSetup;
     rules = score.EngravingRules;
-    line = ('[layout probe] ' & label) & (' part ' & PartSignature(part, 1000));
-    line = line & (' top=' & setup.AboveTopStaveGap) & (' bottom=' & setup.BelowBottomStaveGap);
-    line = line & (' unique=' & setup.FirstPageHasUniqueVerticalStaveMargins);
-    line = line & (' top2=' & setup.AboveTopStaveGapAfterFirstPage);
-    line = line & (' bottom2=' & setup.BelowBottomStaveGapAfterFirstPage);
-    line = line & (' staff=' & setup.StaffSize) & (' justify=' & rules.StaffJustificationPercentage);
-    line = line & (' systems=' & rules.SpacesBetweenSystems);
+    top = score.NthStaff(1);
+    line = ('[layout probe] ' & label) & (' part [' & top.FullInstrumentName) & (('] staves=' & part.StaveCount));
+    line = line & (' top=' & setup.AboveTopStaveGap) & (' top2=' & setup.AboveTopStaveGapAfterFirstPage);
+    line = line & (' auto-optimize=' & score.AutoOptimizeEnabled) & (' justify=' & rules.StaffJustificationPercentage);
+    line = line & (' pages=' & score.PageCount) & ' systems=';
+    p = 1;
+    while ((p <= score.PageCount) and (p <= 8)) {
+        if (p > 1) {
+            line = line & ',';
+        }
+        line = line & score.SystemCount(p);
+        p = p + 1;
+    }
     firstBar = score.SystemStaff.NthBar(1);
     for each item in firstBar {
         if (item.Type = 'SystemTextItem') {
@@ -2371,42 +2256,6 @@
     ProbeLayout(score, parts[0], label);
     for i = 0 to found.Length {
         ProbeLayout(score, found[i], label);
-    }
-    return True;
-}"
-	ProbeTitleWrites "(score, label) {
-    parts = score.DynamicParts;
-    found = CreateSparseArray();
-    for each part in parts {
-        if (not(part.IsFullScore)) {
-            if (part.StaveCount > 0) {
-                found.Push(part);
-            }
-        }
-    }
-    for i = 0 to found.Length {
-        part = found[i];
-        score.CurrentDynamicPart = part;
-        firstBar = score.SystemStaff.NthBar(1);
-        for each item in firstBar {
-            if (item.Type = 'SystemTextItem') {
-                if (('' & item.StyleId) = 'text.system.page_aligned.title') {
-                    dy = item.Dy;
-                    item.Dy = dy + 32;
-                    plain = item.Dy;
-                    item.Dy = dy;
-                    item.Select();
-                    item.Dy = dy + 32;
-                    selected = item.Dy;
-                    item.Dy = dy;
-                    item.Deselect();
-                    trace(('[layout probe] ' & label) & (' part ' & PartSignature(part, 1000))
-                        & (' title write: dy=' & dy) & (' plain=' & plain)
-                        & (' selected=' & selected) & (' back=' & item.Dy));
-                }
-            }
-        }
-        score.CurrentDynamicPart = parts[0];
     }
     return True;
 }"
@@ -2481,20 +2330,18 @@
 	RemoveChart "(score) {
     found = FindChart(score);
     if (found.error != '') {
-        // The chart itself cannot be removed, but what its build changed
-        // elsewhere can be put back now, before the bars that record it are
-        // deleted by hand. The records sit on the chart's first staff, which
-        // is exactly what is in doubt, so they are looked for on every staff.
-        unrestored = 0;
+        // The chart itself cannot be removed, but the names rule its build
+        // changed can be put back now, before the bars that record it are
+        // deleted by hand. The record sits on the chart's first staff, which
+        // is exactly what is in doubt, so it is looked for on every staff.
         recordStaff = RecordStaff(score);
         if (recordStaff > 0) {
             RestoreNamesRule(score, recordStaff);
-            unrestored = RestoreMargins(score, MarginMarkersRead(score, recordStaff), recordStaff);
         }
-        return RemovalResult(False, found.error, unrestored);
+        return RemovalResult(False, found.error);
     }
     if (not(found.found)) {
-        return RemovalResult(False, '', 0);
+        return RemovalResult(False, '');
     }
 
     // Staves the chart hid come back before the ranges stop meaning anything.
@@ -2504,10 +2351,8 @@
         found.sections + 1, score.NthStaff(1).BarCount);
 
     // The names rule a build changed goes back to the score's own, read from
-    // the chart's first bar before that bar goes. So are the parts' first-page
-    // margins, which go back once the chart has left the parts.
+    // the chart's first bar before that bar goes.
     RestoreNamesRule(score, found.firstStaff);
-    margins = MarginMarkersRead(score, found.firstStaff);
 
     // Before any bar goes, rescue the title block it is carrying and drop the
     // renumbering that only made sense while the chart was in front.
@@ -2523,7 +2368,7 @@
     if (score.NthStaff(1).BarCount != (barsBefore - found.sections)) {
         return RemovalResult(False, IdentificationError(
             'This score records a Handbells Used chart, but Sibelius did not remove '
-            & 'the chart bars.'), 0);
+            & 'the chart bars.'));
     }
 
     // While the chart staves still exist to say which parts are only theirs.
@@ -2539,13 +2384,13 @@
     if (score.StaffCount != (staffCountBefore - (found.sections * 2))) {
         return RemovalResult(False, IdentificationError(
             'This score records a Handbells Used chart, but Sibelius did not remove '
-            & 'the chart staves.'), 0);
+            & 'the chart staves.'));
     }
 
-    return RemovalResult(True, '', RestoreMargins(score, margins, found.firstStaff));
+    return RemovalResult(True, '');
 }"
-	RemovalResult "(removed, error, unrestored) {
-    return CreateDictionary('removed', removed, 'error', error, 'unrestored', unrestored);
+	RemovalResult "(removed, error) {
+    return CreateDictionary('removed', removed, 'error', error);
 }"
 	RestoreNamesRule "(score, staffNum) {
     names = NamesMarkerRead(score, staffNum);
@@ -2616,8 +2461,7 @@
     copy.Hidden = item.Hidden;
 
     if (StyleIsPageAligned(item.StyleId)) {
-        copy.ResetPosition();
-        return True;
+        copy.Dx = item.Dx;
     }
     copy.Dy = item.Dy;
     return True;
@@ -2678,16 +2522,14 @@
         }
     }
 
-    // Adding chart staves to a part and taking them away both move its title
-    // block, and a re-run does both, so each part's is kept from before the
-    // removal and put back after the build. The full score's is left to the
-    // build and the removal themselves.
+    // Adding chart staves to a part and taking them away both reset its title
+    // block, and a re-run does both, so each part's is read before the removal
+    // and put back after the build. The full score's is left to the build and
+    // the removal themselves, which keep it where it is.
     ProbeParts(score, 'start');
-    ProbeTitleWrites(score, 'start');
     titles = KeepTitleText(score);
     message = ChartOrRemove(score, options);
     ProbeParts(score, 'built');
-    ProbeTitleWrites(score, 'built');
     missed = RestoreTitleText(score, titles);
     ProbeParts(score, 'end');
     if (missed > 0) {
@@ -2701,9 +2543,6 @@
     // back in and charting the chart.
     removal = RemoveChart(score);
     warnings = CreateSparseArray();
-    if (removal.unrestored > 0) {
-        warnings.Push(CreateDictionary('type', 'margin-not-restored', 'count', removal.unrestored));
-    }
     if (removal.error != '') {
         return CreateDictionary('ok', False, 'kind', 'error', 'text', WithWarnings(warnings, removal.error));
     }
@@ -3053,7 +2892,6 @@ _SettingsDialog "Dialog"
 	MARKER_PREFIX "HBUC"
 	MARKER_VERSION "1"
 	NAMES_MARKER_PREFIX "HBUCNAMES"
-	MARGIN_MARKER_PREFIX "HBUCMARGIN"
 	STEMLESS_DIAMOND "Diamond (stemless)"
 	SQUARE_STEMLESS "Square (stemless)"
 	NO_NOTEHEAD "(no notehead)"

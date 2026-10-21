@@ -26,11 +26,9 @@ DrawCharts(score, plan, options) {
     firstChartStaff = (score.StaffCount - (plan.sections.Length * 2)) + 1;
     DeleteChartOnlyParts(score, firstChartStaff);
     ProbeParts(score, 'after-delete');
-    applied = ApplyParts(score, plan, partPlan.entries, firstChartStaff, options.pageBreak = True);
-    MarginMarkersWrite(score.NthStaff(firstChartStaff).NthBar(1), applied.margins);
+    partWarnings = ApplyParts(score, plan, partPlan.entries, firstChartStaff, options.pageBreak = True);
 
     warnings = result.warnings;
-    partWarnings = applied.warnings;
     for i = 0 to partWarnings.Length {
         warnings.Push(partWarnings[i]);
     }
@@ -45,12 +43,10 @@ DrawCharts(score, plan, options) {
 // Staves first, layout after: a part is laid out once, with every chart staff
 // it will carry already in it. A part that refuses one of its staves is given
 // none of them and named in a warning, rather than laid out around a chart
-// with a staff missing. Returns Dictionary{warnings, margins}, margins holding
-// one record per part whose first page was lowered, for MarginMarkersWrite.
+// with a staff missing. Returns the warnings.
 ApplyParts(score, plan, entries, firstChartStaff, breakForOne) {
     barCount = score.NthStaff(1).BarCount;
     warnings = CreateSparseArray();
-    margins = CreateSparseArray();
     for e = 0 to entries.Length {
         entry = entries[e];
         part = entry.part;
@@ -73,8 +69,7 @@ ApplyParts(score, plan, entries, firstChartStaff, breakForOne) {
         }
         if (complete = 1) {
             ProbeLayout(score, part, 'after-add');
-            kept = LayOutPart(score, part, plan.sections, carried, pieceCount, barCount, breakForOne);
-            margins.Push(CreateDictionary('key', entry.key, 'gap', kept.gap, 'unique', kept.unique));
+            LayOutPart(score, part, plan.sections, carried, pieceCount, barCount, breakForOne);
         } else {
             for a = 0 to added.Length {
                 staff = added[a];
@@ -83,7 +78,7 @@ ApplyParts(score, plan, entries, firstChartStaff, breakForOne) {
             warnings.Push(CreateDictionary('type', 'part-not-charted', 'names', entry.names));
         }
     }
-    return CreateDictionary('warnings', warnings, 'margins', margins);
+    return warnings;
 }
 
 // 1 when the staff went into the part, which is then listed in added.
@@ -117,7 +112,6 @@ AddChartStaff(part, staff, added) {
 // they follow the part's pieceCount staves of its own, two per carried
 // section. The breaks go on a staff the part holds: the reference warns that
 // editing a staff a part does not hold creates overrides that stay invisible.
-// Returns what LowerFirstPage returns.
 LayOutPart(score, part, sections, carried, pieceCount, barCount, breakForOne) {
     chartBars = sections.Length;
     anchor = null;
@@ -129,8 +123,6 @@ LayOutPart(score, part, sections, carried, pieceCount, barCount, breakForOne) {
     systems = PartChartSystems(CarriedPositions(chartBars, carried));
     shows = systems.shows;
     ends = systems.ends;
-    firstIndex = carried[0];
-    firstSection = sections[firstIndex];
 
     parts = score.DynamicParts;
     score.CurrentDynamicPart = part;
@@ -166,10 +158,8 @@ LayOutPart(score, part, sections, carried, pieceCount, barCount, breakForOne) {
     // took the first system's place.
     score.OptimizeStaffSpacing(1, staveCount, 1, chartBars + 1);
     ProbeLayout(score, part, 'after-optimize');
-    kept = LowerFirstPage(score, ChartReach(firstSection));
-    ProbeLayout(score, part, 'after-lower');
     score.CurrentDynamicPart = parts[0];
-    return kept;
+    return True;
 }
 
 // 1 when a part's charts end its first page, 0 when the music may follow them
@@ -263,205 +253,75 @@ PartChartSystems(positions) {
     return CreateDictionary('shows', shows, 'ends', ends);
 }
 
-// How far a chart reaches above the top line of its treble staff, in spaces.
-// Its label sits about four spaces up, measured on a part in Sibelius. A bell
-// sits half a space higher for each diatonic step above the top line, F5,
-// whose diatonic pitch is 45, and reaches one more for its own upper half and
-// a little air. The chart staff transposes nothing, so a bell's diatonic pitch
-// is where it is written.
-ChartReach(section) {
-    topLine = 45;
-    labelReach = 4;
-    highest = topLine;
-    columns = section.treble;
-    for c = 0 to columns.Length {
-        notes = columns[c];
-        for n = 0 to notes.Length {
-            note = notes[n];
-            if (note.diatonic > highest) {
-                highest = note.diatonic;
-            }
-        }
-    }
-    notesReach = (((highest - topLine) * 1.0) / 2) + 1;
-    if (notesReach > labelReach) {
-        return notesReach;
-    }
-    return labelReach;
-}
-
-// A top staff margin, in millimetres, made larger by reach spaces. Document
-// Setup's staff size is the height of a staff, four spaces.
-RaisedGap(gap, reach, staffSize) {
-    added = ((reach * staffSize) * 1.0) / 4;
-    return gap + added;
-}
-
-// Run in the part. Sibelius puts a page's first staff at the first-page top
-// staff margin, which leaves room for the title block above ordinary music. A
-// chart reaches further above its staff than that, with its label and with
-// high bells on ledger lines, and ran into the composer lines. The first page
-// starts lower by as far as the part's first chart reaches, so the chart comes
-// no higher than the part's first staff line did. The pages after the first
-// keep the margin they had. Returns Dictionary{gap, unique}, the margin as it
-// was and 1 when the first page already had margins of its own, which is what
-// a removal puts back.
-LowerFirstPage(score, reach) {
-    setup = score.DocumentSetup;
-    gap = setup.AboveTopStaveGap;
-    unique = 0;
-    if (setup.FirstPageHasUniqueVerticalStaveMargins) {
-        unique = 1;
-    }
-    if (unique = 0) {
-        below = setup.BelowBottomStaveGap;
-        setup.FirstPageHasUniqueVerticalStaveMargins = True;
-        setup.AboveTopStaveGapAfterFirstPage = gap;
-        setup.BelowBottomStaveGapAfterFirstPage = below;
-    }
-    setup.AboveTopStaveGap = RaisedGap(gap, reach, setup.StaffSize);
-    return CreateDictionary('gap', gap, 'unique', unique);
-}
-
-// Run in the part.
-RestoreFirstPage(score, gap, unique) {
-    setup = score.DocumentSetup;
-    setup.AboveTopStaveGap = gap;
-    if (unique = 0) {
-        setup.FirstPageHasUniqueVerticalStaveMargins = False;
-    }
-    return True;
-}
-
-// The first-page margins a build lowered, put back in each part from the
-// records beside the marker. Applied last record first, so that if two records
-// ever land on one part, the margin it had before either is what stays.
-// Returns how many records found no part to go back to.
-RestoreMargins(score, records, firstStaff) {
-    known = PartKeys(score, firstStaff);
-    found = known.parts;
-    keys = known.keys;
-    parts = score.DynamicParts;
-    missing = 0;
-    i = records.Length - 1;
-    while (i >= 0) {
-        record = records[i];
-        target = null;
-        for j = 0 to keys.Length {
-            if (keys[j] = record.key) {
-                target = found[j];
-            }
-        }
-        if (target = null) {
-            missing = missing + 1;
-        } else {
-            score.CurrentDynamicPart = target;
-            RestoreFirstPage(score, record.gap, record.unique);
-            score.CurrentDynamicPart = parts[0];
-        }
-        i = i - 1;
-    }
-    return missing;
-}
-
-// Every part but the full score, in order, with the key it is found by again
-// after a build: the full-score numbers of its own staves, those above
-// firstStaff, and its place among parts holding the same ones. Returns
-// Dictionary{parts, keys}.
-PartKeys(score, firstStaff) {
-    found = CreateSparseArray();
-    signatures = CreateSparseArray();
-    parts = score.DynamicParts;
-    for each part in parts {
-        if (not(part.IsFullScore)) {
-            found.Push(part);
-            signatures.Push(PartSignature(part, firstStaff));
-        }
-    }
-    return CreateDictionary('parts', found, 'keys', OccurrenceKeys(signatures));
-}
-
-PartSignature(part, firstStaff) {
-    signature = '';
-    for each staff in part {
-        if (staff.StaffNum < firstStaff) {
-            if (signature != '') {
-                signature = signature & '.';
-            }
-            signature = signature & staff.StaffNum;
-        }
-    }
-    return signature;
-}
-
-// Each signature numbered by how many times it has come up so far, so two
-// parts holding the same staves keep keys of their own.
-OccurrenceKeys(signatures) {
-    keys = CreateSparseArray();
-    for i = 0 to signatures.Length {
-        signature = '' & signatures[i];
-        count = 1;
-        for j = 0 to i {
-            if (('' & signatures[j]) = signature) {
-                count = count + 1;
-            }
-        }
-        keys.Push(signature & ('#' & count));
-    }
-    return keys;
-}
-
-// Adding chart staves to a part, or taking them away, puts its title block
-// back at the styles' default positions, which put a part's composer lines on
-// top of its chart. The offsets of the text that stays on the first page are
-// read in every part before a run changes anything, and written back after.
-// Returns one Dictionary{part, items} per part holding staves. The parts are
-// collected before any of them is made current, because the collection is
-// not to be changed while it is being walked.
+// Adding chart staves to a part, or taking them away, puts the part's title
+// block back at its styles' default positions, and a part's title block hangs
+// from its top staff, so the composer lines landed on the chart. A plug-in
+// cannot move it back: Sibelius ignores an offset written in a part. Where the
+// part's lines followed the full score's, Sibelius's own Reset to Score
+// Position puts them back. The offsets of the text that stays on the first
+// page are read in the full score and in every part holding staves before a
+// run changes anything. Returns Dictionary{score, parts}: the full score's
+// records, and one Dictionary{part, items} per part. The parts are collected
+// before any of them is made current, because the collection is not to be
+// changed while it is being walked.
 KeepTitleText(score) {
     parts = score.DynamicParts;
-    kept = CreateSparseArray();
+    found = CreateSparseArray();
     for each part in parts {
         if (not(part.IsFullScore)) {
             if (part.StaveCount > 0) {
-                kept.Push(CreateDictionary('part', part, 'items', CreateSparseArray()));
+                found.Push(part);
             }
         }
     }
-    for i = 0 to kept.Length {
-        entry = kept[i];
-        items = entry.items;
-        score.CurrentDynamicPart = entry.part;
-        seen = CreateSparseArray();
-        firstBar = score.SystemStaff.NthBar(1);
-        for each item in firstBar {
-            if (item.Type = 'SystemTextItem') {
-                if (StyleStaysOnFirstPage(item.StyleId)) {
-                    style = '' & item.StyleId;
-                    text = '' & item.Text;
-                    items.Push(CreateDictionary('style', style, 'text', text,
-                        'n', TitleOccurrence(seen, style, text), 'dx', item.Dx, 'dy', item.Dy));
-                }
-            }
-        }
+    kept = CreateSparseArray();
+    for i = 0 to found.Length {
+        part = found[i];
+        score.CurrentDynamicPart = part;
+        kept.Push(CreateDictionary('part', part, 'items', TitleItems(score)));
         score.CurrentDynamicPart = parts[0];
     }
-    return kept;
+    return CreateDictionary('score', TitleItems(score), 'parts', kept);
 }
 
-// Written in each part's own context, so the offsets are that part's, and
-// only where they changed, so a part whose text was never moved is left
-// alone. Returns how many items did not take the offsets written to them.
+// The first-page text in the first bar, as the current part or full score has
+// it: Dictionary{style, text, n, dx, dy} per item.
+TitleItems(score) {
+    items = CreateSparseArray();
+    seen = CreateSparseArray();
+    firstBar = score.SystemStaff.NthBar(1);
+    for each item in firstBar {
+        if (item.Type = 'SystemTextItem') {
+            if (StyleStaysOnFirstPage(item.StyleId)) {
+                style = '' & item.StyleId;
+                text = '' & item.Text;
+                items.Push(CreateDictionary('style', style, 'text', text,
+                    'n', TitleOccurrence(seen, style, text), 'dx', item.Dx, 'dy', item.Dy));
+            }
+        }
+    }
+    return items;
+}
+
+// After the run, in each part, the lines that moved are selected and reset to
+// the full score's positions, which a removal leaves where they were. The
+// command acts on the part on screen, so each part is shown while it runs.
+// Returns how many lines are not back where they were: those the part had
+// placed itself, and any the reset did not move.
 RestoreTitleText(score, kept) {
     parts = score.DynamicParts;
+    entries = kept.parts;
     missed = 0;
-    for i = 0 to kept.Length {
-        entry = kept[i];
+    for i = 0 to entries.Length {
+        entry = entries[i];
         part = entry.part;
         // A part holding nothing but chart staves is deleted with them.
         if (IsValid(part)) {
-            records = entry.items;
             score.CurrentDynamicPart = part;
+            selection = score.Selection;
+            selection.Clear();
+            reset = 0;
+            lost = 0;
             seen = CreateSparseArray();
             firstBar = score.SystemStaff.NthBar(1);
             for each item in firstBar {
@@ -469,26 +329,77 @@ RestoreTitleText(score, kept) {
                     if (StyleStaysOnFirstPage(item.StyleId)) {
                         style = '' & item.StyleId;
                         text = '' & item.Text;
-                        was = TitleRecordFor(records, style, text, TitleOccurrence(seen, style, text));
-                        if (was != null) {
-                            if ((item.Dx != was.dx) or (item.Dy != was.dy)) {
-                                before = item.Dy;
-                                item.Dx = was.dx;
-                                item.Dy = was.dy;
-                                trace(('[layout probe] restore ' & style) & (' from ' & before)
-                                    & (' to ' & was.dy) & (' got ' & item.Dy));
-                                if ((item.Dx != was.dx) or (item.Dy != was.dy)) {
-                                    missed = missed + 1;
-                                }
-                            }
+                        n = TitleOccurrence(seen, style, text);
+                        action = TitleRestoreAction(TitleRecordFor(entry.items, style, text, n),
+                            TitleRecordFor(kept.score, style, text, n), item.Dx, item.Dy);
+                        if (action = 'reset') {
+                            item.Select();
+                            reset = reset + 1;
+                        }
+                        if (action = 'lost') {
+                            lost = lost + 1;
                         }
                     }
                 }
+            }
+            // Counted again after a reset, which takes in the lost lines.
+            if (reset > 0) {
+                Sibelius.ShowDynamicPart(part);
+                Sibelius.Execute(Cmd('Reset to Score Position'));
+                selection.Clear();
+                missed = missed + MovedTitleCount(score, entry.items);
+                ProbeLayout(score, part, 'after-reset ' & reset);
+            } else {
+                missed = missed + lost;
             }
             score.CurrentDynamicPart = parts[0];
         }
     }
     return missed;
+}
+
+// How many first-page lines in the current part are not where items records
+// them.
+MovedTitleCount(score, items) {
+    moved = 0;
+    seen = CreateSparseArray();
+    firstBar = score.SystemStaff.NthBar(1);
+    for each item in firstBar {
+        if (item.Type = 'SystemTextItem') {
+            if (StyleStaysOnFirstPage(item.StyleId)) {
+                style = '' & item.StyleId;
+                text = '' & item.Text;
+                was = TitleRecordFor(items, style, text, TitleOccurrence(seen, style, text));
+                if (was != null) {
+                    if ((item.Dx != was.dx) or (item.Dy != was.dy)) {
+                        moved = moved + 1;
+                    }
+                }
+            }
+        }
+    }
+    return moved;
+}
+
+// What a part's first-page line needs after a run: 'keep' when it is where it
+// was, or was not there before; 'reset' when it moved but had followed the
+// full score, so the full score's position is its own; 'lost' when it moved
+// from a place the part gave it, which nothing can put back. was and fullScore
+// are its records from before the run, in the part and in the full score.
+TitleRestoreAction(was, fullScore, dx, dy) {
+    if (was = null) {
+        return 'keep';
+    }
+    if ((dx = was.dx) and (dy = was.dy)) {
+        return 'keep';
+    }
+    if (fullScore = null) {
+        return 'lost';
+    }
+    if ((was.dx = fullScore.dx) and (was.dy = fullScore.dy)) {
+        return 'reset';
+    }
+    return 'lost';
 }
 
 // The items are found again after the run rather than held across it, so
@@ -561,18 +472,16 @@ DeleteChartOnlyParts(score, firstChartStaff) {
 // considered at all, so every section keeps its one full-score label.
 //
 // Only parts that hold staves: a part left holding nothing is no one's part.
-// Run before the chart is drawn, so every staff is one of the piece's.
 PlanParts(score, plan, options) {
     infos = CreateSparseArray();
     if (options.parts = True) {
-        known = PartKeys(score, score.StaffCount + 1);
-        found = known.parts;
-        keys = known.keys;
-        for i = 0 to found.Length {
-            part = found[i];
-            if (part.StaveCount > 0) {
-                infos.Push(CreateDictionary('part', part, 'key', keys[i],
-                    'names', PartInstrumentNames(score, part, options.instruments)));
+        parts = score.DynamicParts;
+        for each part in parts {
+            if (not(part.IsFullScore)) {
+                if (part.StaveCount > 0) {
+                    infos.Push(CreateDictionary('part', part,
+                        'names', PartInstrumentNames(score, part, options.instruments)));
+                }
             }
         }
     }
@@ -601,7 +510,7 @@ PartInstrumentNames(score, part, instruments) {
 }
 
 // Pure, so it can be tested with strings standing in for parts. partInfos is
-// Dictionary{part, key, names} per part, and each entry carries all three on.
+// Dictionary{part, names} per part, and each entry carries both on.
 //
 // It also marks each section's splitLabel. A label sits on a chart staff that
 // the full score and every part holding it share, so a section can only read
@@ -624,7 +533,7 @@ PlanPartEntries(sections, partInfos) {
         info = partInfos[p];
         carried = PartSections(sections, info.names);
         if (carried.Length > 0) {
-            entries.Push(CreateDictionary('part', info.part, 'key', info.key,
+            entries.Push(CreateDictionary('part', info.part,
                 'names', info.names, 'sections', carried));
             several = 0;
             if (DistinctOwnerCount(sections, carried) > 1) {
@@ -692,22 +601,28 @@ DistinctOwnerCount(sections, indexes) {
     return count;
 }
 
-// Diagnostic, kept until the title block and the first-page margin in parts
-// are understood: a run moved a part's title block down with its chart, and
-// squashed its music from page 3 on. One part's staff margins and the offsets
-// of its page-aligned text, read in the part's own context.
+// Diagnostic, kept until the squashed music pages in parts are understood: a
+// part's music came out squashed from its first music page on, on some runs
+// and not others. One part's systems per page and title offsets, read in the
+// part's own context.
 ProbeLayout(score, part, label) {
     was = score.CurrentDynamicPart;
     score.CurrentDynamicPart = part;
     setup = score.DocumentSetup;
     rules = score.EngravingRules;
-    line = ('[layout probe] ' & label) & (' part ' & PartSignature(part, 1000));
-    line = line & (' top=' & setup.AboveTopStaveGap) & (' bottom=' & setup.BelowBottomStaveGap);
-    line = line & (' unique=' & setup.FirstPageHasUniqueVerticalStaveMargins);
-    line = line & (' top2=' & setup.AboveTopStaveGapAfterFirstPage);
-    line = line & (' bottom2=' & setup.BelowBottomStaveGapAfterFirstPage);
-    line = line & (' staff=' & setup.StaffSize) & (' justify=' & rules.StaffJustificationPercentage);
-    line = line & (' systems=' & rules.SpacesBetweenSystems);
+    top = score.NthStaff(1);
+    line = ('[layout probe] ' & label) & (' part [' & top.FullInstrumentName) & (('] staves=' & part.StaveCount));
+    line = line & (' top=' & setup.AboveTopStaveGap) & (' top2=' & setup.AboveTopStaveGapAfterFirstPage);
+    line = line & (' auto-optimize=' & score.AutoOptimizeEnabled) & (' justify=' & rules.StaffJustificationPercentage);
+    line = line & (' pages=' & score.PageCount) & ' systems=';
+    p = 1;
+    while ((p <= score.PageCount) and (p <= 8)) {
+        if (p > 1) {
+            line = line & ',';
+        }
+        line = line & score.SystemCount(p);
+        p = p + 1;
+    }
     firstBar = score.SystemStaff.NthBar(1);
     for each item in firstBar {
         if (item.Type = 'SystemTextItem') {
@@ -736,45 +651,6 @@ ProbeParts(score, label) {
     ProbeLayout(score, parts[0], label);
     for i = 0 to found.Length {
         ProbeLayout(score, found[i], label);
-    }
-    return True;
-}
-
-// Diagnostic: whether a title offset written in a part takes, written plainly
-// and again with the item selected, put back after each.
-ProbeTitleWrites(score, label) {
-    parts = score.DynamicParts;
-    found = CreateSparseArray();
-    for each part in parts {
-        if (not(part.IsFullScore)) {
-            if (part.StaveCount > 0) {
-                found.Push(part);
-            }
-        }
-    }
-    for i = 0 to found.Length {
-        part = found[i];
-        score.CurrentDynamicPart = part;
-        firstBar = score.SystemStaff.NthBar(1);
-        for each item in firstBar {
-            if (item.Type = 'SystemTextItem') {
-                if (('' & item.StyleId) = 'text.system.page_aligned.title') {
-                    dy = item.Dy;
-                    item.Dy = dy + 32;
-                    plain = item.Dy;
-                    item.Dy = dy;
-                    item.Select();
-                    item.Dy = dy + 32;
-                    selected = item.Dy;
-                    item.Dy = dy;
-                    item.Deselect();
-                    trace(('[layout probe] ' & label) & (' part ' & PartSignature(part, 1000))
-                        & (' title write: dy=' & dy) & (' plain=' & plain)
-                        & (' selected=' & selected) & (' back=' & item.Dy));
-                }
-            }
-        }
-        score.CurrentDynamicPart = parts[0];
     }
     return True;
 }

@@ -169,12 +169,18 @@ TestRemoveChart() {
     staffCountBefore = score.StaffCount;
     barCountBefore = score.NthStaff(1).BarCount;
     sections = found.sections;
+    parts = score.DynamicParts;
+    titleBefore = PartTitleText(score, parts[0]);
 
     result = RemoveChart(score);
     AssertTrue(result.removed, 'chart removed: ' & result.error);
     AssertEquals(score.StaffCount, staffCountBefore - (sections * 2), 'chart staves gone');
     AssertEquals(score.NthStaff(1).BarCount, barCountBefore - sections, 'chart bars gone');
     AssertEquals(MarkerFind(score), null, 'marker gone');
+    // The title block hangs from the first system's top staff in whichever
+    // bar holds it, so its offsets mean on the music what they meant on the
+    // chart, even where they put a line off the page.
+    AssertEquals(PartTitleText(score, parts[0]), titleBefore, 'the full score keeps its title block where it was');
 
     // A second removal finds nothing and says so without erroring.
     again = RemoveChart(score);
@@ -308,6 +314,17 @@ TestBuildChartParts() {
         return False;
     }
 
+    // The title blocks before any chart. Sibelius resets a part's title block
+    // when staves are added to it or taken away, and where the part's had
+    // followed the full score's, the run puts it back.
+    parts = score.DynamicParts;
+    fullTitle = PartTitleText(score, parts[0]);
+    titleA = PartTitleText(score, partA);
+    followsA = 0;
+    if (titleA = fullTitle) {
+        followsA = 1;
+    }
+
     // Both plans from the clean score: once a chart is drawn, reading the
     // score again would read the chart's own notes back in. The labels a
     // section gets in the parts are decided by planning the parts, which only
@@ -320,19 +337,15 @@ TestBuildChartParts() {
     expected = BuildChartPlan(records, newOptions);
     PlanParts(score, expected, newOptions);
 
-    parts = score.DynamicParts;
     partsBefore = parts.NumChildren;
     stavesA = partA.StaveCount;
     stavesB = partB.StaveCount;
-    marginA = PartFirstPageGap(score, partA);
-    setup = score.DocumentSetup;
-    scoreMargin = setup.AboveTopStaveGap;
 
     // What a full-score build alone leaves in a part, to compare against: a
     // run without parts must leave every part exactly as that.
     BuildChart(score, oldShape, oldOptions);
     plainHidden = HiddenStavesInPart(score, partA, 1);
-    RemoveChart(score);
+    ChartScore(score, IntegrationOptions(choices, instruments, 'combined', False, True));
 
     // A combined chart without parts, then a real re-run over it with every
     // new option on, which removes the old chart itself.
@@ -340,7 +353,6 @@ TestBuildChartParts() {
     AssertTrue(built.ok, 'the combined chart is drawn: ' & built.error);
     AssertEquals(HiddenStavesInPart(score, partA, 1), plainHidden,
         'a run without parts leaves the parts as a full-score build does');
-    titleA = PartTitleText(score, partA);
     rebuilt = ChartScore(score, newOptions);
     AssertTrue(rebuilt.ok, 'the separate chart with parts replaces the combined one: ' & rebuilt.text);
     found = FindChart(score);
@@ -371,7 +383,9 @@ TestBuildChartParts() {
     AssertTrue(onlyOwnA, 'the first part carries its own charts and no others');
     AssertTrue(onlyOwnB, 'the second part carries its own charts and no others');
     AssertEquals(parts.NumChildren, partsBefore, 'no chart-only parts are left behind');
-    AssertEquals(PartTitleText(score, partA), titleA, 'the first part keeps its title block where it was');
+    if (followsA = 1) {
+        AssertEquals(PartTitleText(score, partA), titleA, 'the first part gets its title block back');
+    }
     wanted = EndOfSystemOrPage;
     if (PartEndsPage(chartsA, False) = 1) {
         wanted = EndOfPage;
@@ -434,13 +448,6 @@ TestBuildChartParts() {
             'the part shows the plain label');
     }
 
-    // The chart pushes the first page's music down in the part, and only in
-    // the part.
-    raisedA = PartFirstPageGap(score, partA);
-    AssertTrue(raisedA.gap > marginA.gap, 'the first part starts its first page lower while it has a chart');
-    setup = score.DocumentSetup;
-    AssertEquals(setup.AboveTopStaveGap, scoreMargin, 'the full score keeps its first-page margin');
-
     // A run that would chart nothing is refused before the chart is touched.
     refused = ChartScore(score, IntegrationOptions(choices, CreateSparseArray(), 'separate', True, False));
     AssertTrue(not(refused.ok), 'a run with no instrument selected is refused');
@@ -452,11 +459,10 @@ TestBuildChartParts() {
     AssertEquals(partA.StaveCount, stavesA, 'the chart staves leave the first part with the chart');
     AssertEquals(partB.StaveCount, stavesB, 'the chart staves leave the second part with the chart');
     AssertEquals(parts.NumChildren, partsBefore, 'removal leaves the parts as they were');
-    restoredA = PartFirstPageGap(score, partA);
-    AssertEquals(Round(restoredA.gap * 100), Round(marginA.gap * 100),
-        'the first part gets its own first-page margin back');
-    AssertEquals(restoredA.unique, marginA.unique, 'and its own choice of a separate first-page margin');
-    AssertEquals(PartTitleText(score, partA), titleA, 'removing the chart leaves the first part title block in place');
+    AssertEquals(PartTitleText(score, parts[0]), fullTitle, 'the full score title block is where it started');
+    if (followsA = 1) {
+        AssertEquals(PartTitleText(score, partA), titleA, 'removing the chart puts the first part title block back');
+    }
 }
 
 // Every option ChartScore and the drawing read, for a test to vary the ones it
@@ -485,19 +491,6 @@ PartHoldingStaff(score, staffNum) {
 
 // A part's first-page top staff margin and whether its first page has margins
 // of its own, read in the part.
-PartFirstPageGap(score, part) {
-    was = score.CurrentDynamicPart;
-    score.CurrentDynamicPart = part;
-    setup = score.DocumentSetup;
-    unique = 0;
-    if (setup.FirstPageHasUniqueVerticalStaveMargins) {
-        unique = 1;
-    }
-    margin = CreateDictionary('gap', setup.AboveTopStaveGap, 'unique', unique);
-    score.CurrentDynamicPart = was;
-    return margin;
-}
-
 // 1 when the text in the first bar of a staff is hidden where the given part
 // or the full score shows it, 0 when it is shown, -1 when there is no such
 // text. The staff is found while the full score is current.

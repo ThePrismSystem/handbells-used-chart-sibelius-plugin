@@ -69,25 +69,22 @@ FindFailure(message) {
         'firstStaff', 0, 'columns', CreateSparseArray(), 'error', message);
 }
 
-// Returns Dictionary{removed, error, unrestored}, unrestored counting the
-// parts whose first-page margin had no part to go back to.
+// Returns Dictionary{removed, error}.
 RemoveChart(score) {
     found = FindChart(score);
     if (found.error != '') {
-        // The chart itself cannot be removed, but what its build changed
-        // elsewhere can be put back now, before the bars that record it are
-        // deleted by hand. The records sit on the chart's first staff, which
-        // is exactly what is in doubt, so they are looked for on every staff.
-        unrestored = 0;
+        // The chart itself cannot be removed, but the names rule its build
+        // changed can be put back now, before the bars that record it are
+        // deleted by hand. The record sits on the chart's first staff, which
+        // is exactly what is in doubt, so it is looked for on every staff.
         recordStaff = RecordStaff(score);
         if (recordStaff > 0) {
             RestoreNamesRule(score, recordStaff);
-            unrestored = RestoreMargins(score, MarginMarkersRead(score, recordStaff), recordStaff);
         }
-        return RemovalResult(False, found.error, unrestored);
+        return RemovalResult(False, found.error);
     }
     if (not(found.found)) {
-        return RemovalResult(False, '', 0);
+        return RemovalResult(False, '');
     }
 
     // Staves the chart hid come back before the ranges stop meaning anything.
@@ -97,10 +94,8 @@ RemoveChart(score) {
         found.sections + 1, score.NthStaff(1).BarCount);
 
     // The names rule a build changed goes back to the score's own, read from
-    // the chart's first bar before that bar goes. So are the parts' first-page
-    // margins, which go back once the chart has left the parts.
+    // the chart's first bar before that bar goes.
     RestoreNamesRule(score, found.firstStaff);
-    margins = MarginMarkersRead(score, found.firstStaff);
 
     // Before any bar goes, rescue the title block it is carrying and drop the
     // renumbering that only made sense while the chart was in front.
@@ -116,7 +111,7 @@ RemoveChart(score) {
     if (score.NthStaff(1).BarCount != (barsBefore - found.sections)) {
         return RemovalResult(False, IdentificationError(
             'This score records a Handbells Used chart, but Sibelius did not remove '
-            & 'the chart bars.'), 0);
+            & 'the chart bars.'));
     }
 
     // While the chart staves still exist to say which parts are only theirs.
@@ -132,14 +127,14 @@ RemoveChart(score) {
     if (score.StaffCount != (staffCountBefore - (found.sections * 2))) {
         return RemovalResult(False, IdentificationError(
             'This score records a Handbells Used chart, but Sibelius did not remove '
-            & 'the chart staves.'), 0);
+            & 'the chart staves.'));
     }
 
-    return RemovalResult(True, '', RestoreMargins(score, margins, found.firstStaff));
+    return RemovalResult(True, '');
 }
 
-RemovalResult(removed, error, unrestored) {
-    return CreateDictionary('removed', removed, 'error', error, 'unrestored', unrestored);
+RemovalResult(removed, error) {
+    return CreateDictionary('removed', removed, 'error', error);
 }
 
 RestoreNamesRule(score, staffNum) {
@@ -218,9 +213,11 @@ RelocateSystemText(score, fromBars, targetBarNum, musicalOnly) {
     return True;
 }
 
-// A page-aligned item is positioned against the page, and its offsets were
-// measured from the system about to be deleted, so carrying them over put the
-// title and subtitle off the top of the page. Its own style knows better.
+// A page-aligned item keeps both offsets. The title block hangs from the top
+// staff of the first system, and the music's first bar starts that system
+// once the chart bars go, so the offsets mean what they meant. A score whose
+// title the user has placed partly off the page keeps it there; resetting it
+// instead moved every hand-placed title block back to its style's position.
 //
 // Everything else is staff-relative, and a staff is a staff in either bar, so
 // the vertical nudge still means what it meant. It is worth keeping: two tempo
@@ -234,8 +231,7 @@ PlaceMovedText(copy, item) {
     copy.Hidden = item.Hidden;
 
     if (StyleIsPageAligned(item.StyleId)) {
-        copy.ResetPosition();
-        return True;
+        copy.Dx = item.Dx;
     }
     copy.Dy = item.Dy;
     return True;
