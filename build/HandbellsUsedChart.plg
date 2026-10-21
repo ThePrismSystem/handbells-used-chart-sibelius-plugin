@@ -1070,6 +1070,53 @@
     }
     return -1;
 }"
+	RestoreMarkerEncode "(tokens) {
+    text = '' & RESTORE_MARKER_PREFIX;
+    for i = 0 to tokens.Length {
+        text = text & ('|' & tokens[i]);
+    }
+    return text;
+}"
+	RestoreMarkerDecode "(text) {
+    if (text = null) {
+        return null;
+    }
+    parts = SplitOnPipe(text);
+    if (parts.Length < 2) {
+        return null;
+    }
+    if (parts[0] != ('' & RESTORE_MARKER_PREFIX)) {
+        return null;
+    }
+    restores = CreateSparseArray();
+    for i = 1 to parts.Length {
+        token = parts[i];
+        size = Length(token);
+        if (size < 2) {
+            return null;
+        }
+        kind = Substring(token, size - 1, 1);
+        staff = Substring(token, 0, size - 1);
+        if ((kind != 'k') and (kind != 'c')) {
+            return null;
+        }
+        if (not(utils.IsNumeric(staff, True))) {
+            return null;
+        }
+        restores.Push(CreateDictionary('staff', 0 + staff, 'kind', kind));
+    }
+    return restores;
+}"
+	RestoreMarkerRead "(score, firstStaff) {
+    bar = score.NthStaff(firstStaff).NthBar(1);
+    for each Text t in bar {
+        restores = RestoreMarkerDecode(t.Text);
+        if (restores != null) {
+            return restores;
+        }
+    }
+    return CreateSparseArray();
+}"
 	RecordStaff "(score) {
     n = 1;
     while (n <= score.StaffCount) {
@@ -2971,6 +3018,7 @@ _SettingsDialog "Dialog"
 	MARKER_PREFIX "HBUC"
 	MARKER_VERSION "1"
 	NAMES_MARKER_PREFIX "HBUCNAMES"
+	RESTORE_MARKER_PREFIX "HBUCRESTORE"
 	STEMLESS_DIAMOND "Diamond (stemless)"
 	SQUARE_STEMLESS "Square (stemless)"
 	NO_NOTEHEAD "(no notehead)"

@@ -138,6 +138,63 @@ NamesMarkerRead(score, firstStaff) {
     return -1;
 }
 
+// The key and clef changes a build put on an owner's staves where the music
+// starts, so a removal can take them off again. A text of its own beside the
+// marker, as the names record is. Each token is a staff number followed by k
+// for a key or c for a clef.
+RestoreMarkerEncode(tokens) {
+    text = '' & RESTORE_MARKER_PREFIX;
+    for i = 0 to tokens.Length {
+        text = text & ('|' & tokens[i]);
+    }
+    return text;
+}
+
+// Dictionary{staff, kind} per token, or null for any other text.
+RestoreMarkerDecode(text) {
+    if (text = null) {
+        return null;
+    }
+    parts = SplitOnPipe(text);
+    if (parts.Length < 2) {
+        return null;
+    }
+    if (parts[0] != ('' & RESTORE_MARKER_PREFIX)) {
+        return null;
+    }
+    restores = CreateSparseArray();
+    for i = 1 to parts.Length {
+        token = parts[i];
+        size = Length(token);
+        if (size < 2) {
+            return null;
+        }
+        kind = Substring(token, size - 1, 1);
+        staff = Substring(token, 0, size - 1);
+        if ((kind != 'k') and (kind != 'c')) {
+            return null;
+        }
+        if (not(utils.IsNumeric(staff, True))) {
+            return null;
+        }
+        restores.Push(CreateDictionary('staff', 0 + staff, 'kind', kind));
+    }
+    return restores;
+}
+
+// The restores a build recorded in the chart's first bar, none when it made
+// none.
+RestoreMarkerRead(score, firstStaff) {
+    bar = score.NthStaff(firstStaff).NthBar(1);
+    for each Text t in bar {
+        restores = RestoreMarkerDecode(t.Text);
+        if (restores != null) {
+            return restores;
+        }
+    }
+    return CreateSparseArray();
+}
+
 // The staff whose first bar holds a names record, or 0 when none does. For a
 // chart that can no longer be identified, where the staff the record was
 // written on is exactly what is in doubt.

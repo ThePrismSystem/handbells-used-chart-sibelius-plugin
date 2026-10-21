@@ -25,6 +25,27 @@ TestMarker() {
     AssertEquals(NamesMarkerDecode('HBUCNAMES|3'), -1, 'a setting past the last is refused');
     AssertEquals(NamesMarkerDecode(null), -1, 'no text is no record');
 
+    // The key and clef changes a build puts on an owner's staves where the
+    // music starts are recorded beside the marker too, so a removal can take
+    // them back off.
+    restores = RestoreMarkerDecode(RestoreMarkerEncode(CreateSparseArray('3k', '4c')));
+    AssertEquals(restores.Length, 2, 'the restore record round-trips');
+    firstRestore = restores[0];
+    AssertEquals(firstRestore.staff, 3, 'a restore names its staff');
+    AssertEquals(firstRestore.kind, 'k', 'and what it put back');
+    secondRestore = restores[1];
+    AssertEquals(secondRestore.kind, 'c', 'a clef restore reads as one');
+    AssertEquals(RestoreMarkerDecode('HBUCRESTORE'), null, 'a restore record restores something');
+    AssertEquals(RestoreMarkerDecode('HBUCRESTORE|x'), null, 'a restore names a staff');
+    AssertEquals(RestoreMarkerDecode('HBUCRESTORE|3q'), null, 'and puts back a key or a clef');
+    AssertEquals(RestoreMarkerDecode('HBUC|1|1|4|12'), null, 'the chart marker is not a restore record');
+    AssertEquals(RestoreMarkerDecode(NamesMarkerEncode(2)), null, 'nor is the names record');
+    AssertEquals(MarkerDecode(RestoreMarkerEncode(CreateSparseArray('3k'))), null,
+        'a restore record is not taken for the chart');
+    AssertEquals(NamesMarkerDecode(RestoreMarkerEncode(CreateSparseArray('3k'))), -1,
+        'or for the names record');
+    AssertEquals(RestoreMarkerDecode(null), null, 'no text is no restore record');
+
     // Text that belongs to the first page stays there on a build.
     AssertTrue(StyleStaysOnFirstPage('text.system.page_aligned.title'), 'the title stays');
     AssertTrue(StyleStaysOnFirstPage('text.blankpage.plain'), 'blank-page text stays');
