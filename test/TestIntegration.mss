@@ -639,9 +639,10 @@ InstrumentFurniture(score, instrument) {
 // Every option ChartScore and the drawing read, for a test to vary the ones it
 // is about.
 IntegrationOptions(choices, instruments, mode, parts, remove) {
-    return CreateDictionary('chimeColor', '', 'smbColor', '',
+    return CreateDictionary('chimeColor', '', 'smbColor', '', 'pfColor', '', 'whitechapelColor', '',
         'bellHead', choices.defaultBell, 'chimeHead', choices.defaultChime,
-        'smbHead', NoNoteHead(), 'instruments', instruments, 'mode', mode,
+        'smbHead', NoNoteHead(), 'pfHead', NoNoteHead(), 'whitechapelHead', NoNoteHead(),
+        'instruments', instruments, 'mode', mode,
         'parts', parts, 'pageBreak', False, 'remove', remove);
 }
 

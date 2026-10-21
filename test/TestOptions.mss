@@ -42,26 +42,49 @@ TestOptions() {
 
     // Three instruments means three pairs to keep apart, not one.
     distinct = CreateDictionary('bellHead', 'Normal', 'chimeHead', 'Diamond',
-        'smbHead', 'Square');
+        'smbHead', 'Square',
+        'pfHead', NoNoteHead(), 'whitechapelHead', NoNoteHead());
     AssertEquals(DuplicateHead(distinct), '', 'three different heads are fine');
 
     AssertEquals(DuplicateHead(CreateDictionary('bellHead', 'Normal',
-        'chimeHead', 'Normal', 'smbHead', 'Square')), 'Normal',
+        'chimeHead', 'Normal', 'smbHead', 'Square',
+        'pfHead', NoNoteHead(), 'whitechapelHead', NoNoteHead())), 'Normal',
         'handbells and handchimes sharing a head is caught');
     AssertEquals(DuplicateHead(CreateDictionary('bellHead', 'Normal',
-        'chimeHead', 'Diamond', 'smbHead', 'Normal')), 'Normal',
+        'chimeHead', 'Diamond', 'smbHead', 'Normal',
+        'pfHead', NoNoteHead(), 'whitechapelHead', NoNoteHead())), 'Normal',
         'handbells and SMBs sharing a head is caught');
     AssertEquals(DuplicateHead(CreateDictionary('bellHead', 'Normal',
-        'chimeHead', 'Diamond', 'smbHead', 'Diamond')), 'Diamond',
+        'chimeHead', 'Diamond', 'smbHead', 'Diamond',
+        'pfHead', NoNoteHead(), 'whitechapelHead', NoNoteHead())), 'Diamond',
         'handchimes and SMBs sharing a head is caught');
+
+    AssertEquals(DuplicateHead(CreateDictionary('bellHead', 'Normal', 'chimeHead', 'Diamond',
+        'smbHead', 'Square', 'pfHead', 'Normal', 'whitechapelHead', NoNoteHead())), 'Normal',
+        'handbells and P&F bells sharing a head is caught');
+    AssertEquals(DuplicateHead(CreateDictionary('bellHead', 'Normal', 'chimeHead', 'Diamond',
+        'smbHead', 'Square', 'pfHead', 'Cross', 'whitechapelHead', 'Cross')), 'Cross',
+        'P&F and Whitechapel bells sharing a head is caught');
+    AssertEquals(DuplicateHead(CreateDictionary('bellHead', 'Normal', 'chimeHead', 'Diamond',
+        'smbHead', 'Square', 'pfHead', 'Cross', 'whitechapelHead', 'Slashed')), '',
+        'five different heads are fine');
+
+    // Each instrument with a colour field is coloured from its own.
+    colors = CreateDictionary('chimeColor', '#111111', 'smbColor', '#222222',
+        'pfColor', '#333333', 'whitechapelColor', '#444444');
+    AssertEquals(SectionColor('pf', colors), '#333333', 'P&F bells take their own colour');
+    AssertEquals(SectionColor('whitechapel', colors), '#444444', 'Whitechapel bells take their own colour');
+    AssertEquals(SectionColor('bells', colors), '', 'handbells stay black');
 
     // Any number of instruments may be absent from a piece, so the
     // no-notehead entry is the one value that may repeat.
     AssertEquals(DuplicateHead(CreateDictionary('bellHead', 'Normal',
-        'chimeHead', NoNoteHead(), 'smbHead', NoNoteHead())), '',
+        'chimeHead', NoNoteHead(), 'smbHead', NoNoteHead(),
+        'pfHead', NoNoteHead(), 'whitechapelHead', NoNoteHead())), '',
         'two instruments left on no notehead is not a clash');
     AssertEquals(DuplicateHead(CreateDictionary('bellHead', NoNoteHead(),
-        'chimeHead', NoNoteHead(), 'smbHead', NoNoteHead())), '',
+        'chimeHead', NoNoteHead(), 'smbHead', NoNoteHead(),
+        'pfHead', NoNoteHead(), 'whitechapelHead', NoNoteHead())), '',
         'a score with nothing chosen is not a clash');
 
     empty = PipeList('');

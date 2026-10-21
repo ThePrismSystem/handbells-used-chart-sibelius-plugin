@@ -63,4 +63,13 @@ TestNoteHeads() {
     AssertEquals(ColumnTick('smbs', none), 1024, 'a missing square means whole notes');
     AssertEquals(ColumnTick('chimes', made), 256, 'a hand-made diamond keeps quarter notes');
     AssertEquals(ColumnTick('smbs', made), 256, 'a hand-made square keeps quarter notes');
+
+    // P&F and Whitechapel bells are drawn as handbells are, with the stemless
+    // head every score has, so they never miss a head or fall back.
+    AssertEquals(CustomStyle('pf', made), -1, 'P&F bells have no hand-made head');
+    AssertEquals(CustomStyleName('whitechapel'), '', 'Whitechapel bells want no hand-made head');
+    AssertEquals(FallbackStyle('pf'), StemlessNoteStyle, 'P&F bells take the stemless head');
+    AssertEquals(FallbackStyle('whitechapel'), StemlessNoteStyle, 'Whitechapel bells take the stemless head');
+    AssertEquals(ColumnTick('pf', none), 256, 'P&F columns are never whole notes');
+    AssertEquals(ColumnTick('whitechapel', none), 256, 'Whitechapel columns are never whole notes');
 }

@@ -11,6 +11,12 @@ BuildPlan(records, options) {
     if (collected.smbs.Length > 0) {
         sections.Push(MakeSection('smbs', collected.smbs));
     }
+    if (collected.pf.Length > 0) {
+        sections.Push(MakeSection('pf', collected.pf));
+    }
+    if (collected.whitechapel.Length > 0) {
+        sections.Push(MakeSection('whitechapel', collected.whitechapel));
+    }
 
     warnings = CreateSparseArray();
     if (collected.unknown > 0) {
@@ -99,6 +105,12 @@ InstrumentName(kind) {
     }
     if (kind = 'smbs') {
         return 'SMBs';
+    }
+    if (kind = 'pf') {
+        return 'P&F Handbells';
+    }
+    if (kind = 'whitechapel') {
+        return 'Whitechapel Handbells';
     }
     return 'Handbells';
 }

@@ -312,15 +312,21 @@ MarkPartsOnly(bar) {
     return True;
 }
 
-// The colour belongs to the instrument, and only the two that were given a
-// dialog field for it have one. Handbells are the reference the others are
-// read against, so they stay black.
+// The colour belongs to the instrument, and only those given a dialog field
+// for it have one. Handbells are the reference the others are read against,
+// so they stay black.
 SectionColor(kind, options) {
     if (kind = 'chimes') {
         return '' & options.chimeColor;
     }
     if (kind = 'smbs') {
         return '' & options.smbColor;
+    }
+    if (kind = 'pf') {
+        return '' & options.pfColor;
+    }
+    if (kind = 'whitechapel') {
+        return '' & options.whitechapelColor;
     }
     return '';
 }
@@ -466,9 +472,10 @@ FallbackStyle(kind) {
 // off: a semibreve carries none at any notehead style, so a column falling
 // back loses its stems by being whole notes instead. It costs the filled head,
 // because a semibreve head is hollow, which is why the hand-made noteheads are
-// worth making. Handbells never need this.
+// worth making. Handbells of every maker never need this: they want no
+// hand-made head.
 ColumnTick(kind, styles) {
-    if (kind = 'bells') {
+    if (CustomStyleName(kind) = '') {
         return 256;
     }
     if (CustomStyle(kind, styles) < 0) {
