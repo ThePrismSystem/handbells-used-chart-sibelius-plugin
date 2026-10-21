@@ -39,11 +39,9 @@ Run() {
     score.Redraw = True;
     selection.RestoreSelection();
     // Unless the run deleted it: a part holding nothing but chart staves goes
-    // with the chart. Shown as well, because putting a part's title block back
-    // shows that part.
+    // with the chart.
     if (IsValid(was)) {
         score.CurrentDynamicPart = was;
-        Sibelius.ShowDynamicPart(was);
     }
 
     if (message.text != '') {

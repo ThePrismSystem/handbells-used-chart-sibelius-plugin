@@ -122,41 +122,8 @@ TestParts() {
         'a chart with no copy in the part hides every staff');
     twoCopies = CreateDictionary('copies', CreateSparseArray(CreateSparseArray(3, 4), CreateSparseArray(7)));
     AssertEquals(JoinNames(SectionCopyStaves(twoCopies)), '3, 4, 7', 'a section lists the staves of every copy');
-
-    // Title text is found again after a build by style and text, and by how
-    // many like it came first.
-    seen = CreateSparseArray();
-    AssertEquals(TitleOccurrence(seen, 'subtitle', 'x'), 1, 'the first of its kind');
-    AssertEquals(TitleOccurrence(seen, 'subtitle', 'y'), 1, 'other text is another kind');
-    AssertEquals(TitleOccurrence(seen, 'subtitle', 'x'), 2, 'the same style and text again is the second');
-    kept = CreateSparseArray(
-        TitleRecord('subtitle', 'x', 1, 0, 378),
-        TitleRecord('subtitle', 'x', 2, 0, 100),
-        TitleRecord('title', 'Test Drive', 1, 0, 496));
-    second = TitleRecordFor(kept, 'subtitle', 'x', 2);
-    AssertEquals(second.dy, 100, 'the second of two alike is its own record');
-    title = TitleRecordFor(kept, 'title', 'Test Drive', 1);
-    AssertEquals(title.dy, 496, 'a title is found by its style and text');
-    AssertEquals(TitleRecordFor(kept, 'composer', 'x', 1), null, 'text that was not there has no record');
-
-    // A line that moved during a run is reset to the full score's position
-    // when it followed the full score before the run, and is lost when the
-    // part had placed it itself.
-    fullScore = TitleRecord('title', 'Test Drive', 1, 0, 496);
-    AssertEquals(TitleRestoreAction(title, fullScore, 0, 496), 'keep', 'a line still where it was is left alone');
-    AssertEquals(TitleRestoreAction(title, fullScore, 0, 0), 'reset', 'a line that followed the score is reset');
-    AssertEquals(TitleRestoreAction(title, fullScore, 32, 496), 'reset', 'and so is one moved sideways');
-    own = TitleRecord('title', 'Test Drive', 1, 0, 100);
-    AssertEquals(TitleRestoreAction(own, fullScore, 0, 0), 'lost', 'a line placed in the part cannot be put back');
-    AssertEquals(TitleRestoreAction(own, fullScore, 0, 100), 'keep', 'unless it never moved');
-    AssertEquals(TitleRestoreAction(null, fullScore, 0, 0), 'keep', 'a line the part did not have is left alone');
-    AssertEquals(TitleRestoreAction(title, null, 0, 0), 'lost', 'a line the score did not have cannot follow it');
 }
 
 PartInfo(part, names) {
     return CreateDictionary('part', part, 'names', names);
-}
-
-TitleRecord(style, text, n, dx, dy) {
-    return CreateDictionary('style', style, 'text', text, 'n', n, 'dx', dx, 'dy', dy);
 }

@@ -76,11 +76,9 @@
     score.Redraw = True;
     selection.RestoreSelection();
     // Unless the run deleted it: a part holding nothing but chart staves goes
-    // with the chart. Shown as well, because putting a part's title block back
-    // shows that part.
+    // with the chart.
     if (IsValid(was)) {
         score.CurrentDynamicPart = was;
-        Sibelius.ShowDynamicPart(was);
     }
 
     if (message.text != '') {
@@ -377,19 +375,12 @@
         }
         // The parts warnings. A part has no name ManuScript can read, so it is
         // named by the instruments it holds.
-        if (warning.type = 'part-not-charted') {
-            line = 'Sibelius would not add the charts to the part for ' & JoinNames(warning.names)
-                & ', so that part has none';
-        }
         if (warning.type = 'no-copy-for-instrument') {
             line = 'No chart was added to the parts for ' & JoinNames(warning.names)
                 & ', as their staves cannot hold one';
         }
         if (warning.type = 'no-part-for-charts') {
             line = 'No part holds a selected instrument, so only the full score has the chart';
-        }
-        if (warning.type = 'title-not-restored') {
-            line = warning.count & ' title or copyright line(s) in the parts could not be put back where they were';
         }
         if (line != '') {
             if (lines != '') {
@@ -1918,10 +1909,8 @@
     if (plan.sections.Length = 0) {
         return result;
     }
-    ProbeParts(score, 'after-build');
     firstChartStaff = (score.StaffCount - (plan.sections.Length * 2)) + 1;
     DeleteChartOnlyParts(score, firstChartStaff);
-    ProbeParts(score, 'after-delete');
     LayOutParts(score, plan, partPlan.entries, options.pageBreak = True);
 
     // A part whose instruments could not hold a copy is named for that, rather
@@ -2081,147 +2070,6 @@
         }
     }
     return CreateDictionary('shows', shows, 'ends', ends);
-}"
-	KeepTitleText "(score) {
-    parts = score.DynamicParts;
-    found = CreateSparseArray();
-    for each part in parts {
-        if (not(part.IsFullScore)) {
-            if (part.StaveCount > 0) {
-                found.Push(part);
-            }
-        }
-    }
-    kept = CreateSparseArray();
-    for i = 0 to found.Length {
-        part = found[i];
-        score.CurrentDynamicPart = part;
-        kept.Push(CreateDictionary('part', part, 'items', TitleItems(score)));
-        score.CurrentDynamicPart = parts[0];
-    }
-    return CreateDictionary('score', TitleItems(score), 'parts', kept);
-}"
-	TitleItems "(score) {
-    items = CreateSparseArray();
-    seen = CreateSparseArray();
-    firstBar = score.SystemStaff.NthBar(1);
-    for each item in firstBar {
-        if (item.Type = 'SystemTextItem') {
-            if (StyleStaysOnFirstPage(item.StyleId)) {
-                style = '' & item.StyleId;
-                text = '' & item.Text;
-                items.Push(CreateDictionary('style', style, 'text', text,
-                    'n', TitleOccurrence(seen, style, text), 'dx', item.Dx, 'dy', item.Dy));
-            }
-        }
-    }
-    return items;
-}"
-	RestoreTitleText "(score, kept) {
-    parts = score.DynamicParts;
-    entries = kept.parts;
-    missed = 0;
-    for i = 0 to entries.Length {
-        entry = entries[i];
-        part = entry.part;
-        // A part holding nothing but chart staves is deleted with them.
-        if (IsValid(part)) {
-            score.CurrentDynamicPart = part;
-            selection = score.Selection;
-            selection.Clear();
-            reset = 0;
-            lost = 0;
-            seen = CreateSparseArray();
-            firstBar = score.SystemStaff.NthBar(1);
-            for each item in firstBar {
-                if (item.Type = 'SystemTextItem') {
-                    if (StyleStaysOnFirstPage(item.StyleId)) {
-                        style = '' & item.StyleId;
-                        text = '' & item.Text;
-                        n = TitleOccurrence(seen, style, text);
-                        action = TitleRestoreAction(TitleRecordFor(entry.items, style, text, n),
-                            TitleRecordFor(kept.score, style, text, n), item.Dx, item.Dy);
-                        if (action = 'reset') {
-                            item.Select();
-                            reset = reset + 1;
-                        }
-                        if (action = 'lost') {
-                            lost = lost + 1;
-                        }
-                    }
-                }
-            }
-            // Counted again after a reset, which takes in the lost lines.
-            if (reset > 0) {
-                Sibelius.ShowDynamicPart(part);
-                Sibelius.Execute(Cmd('Reset to Score Position'));
-                selection.Clear();
-                missed = missed + MovedTitleCount(score, entry.items);
-                ProbeLayout(score, part, 'after-reset ' & reset);
-            } else {
-                missed = missed + lost;
-            }
-            score.CurrentDynamicPart = parts[0];
-        }
-    }
-    return missed;
-}"
-	MovedTitleCount "(score, items) {
-    moved = 0;
-    seen = CreateSparseArray();
-    firstBar = score.SystemStaff.NthBar(1);
-    for each item in firstBar {
-        if (item.Type = 'SystemTextItem') {
-            if (StyleStaysOnFirstPage(item.StyleId)) {
-                style = '' & item.StyleId;
-                text = '' & item.Text;
-                was = TitleRecordFor(items, style, text, TitleOccurrence(seen, style, text));
-                if (was != null) {
-                    if ((item.Dx != was.dx) or (item.Dy != was.dy)) {
-                        moved = moved + 1;
-                    }
-                }
-            }
-        }
-    }
-    return moved;
-}"
-	TitleRestoreAction "(was, fullScore, dx, dy) {
-    if (was = null) {
-        return 'keep';
-    }
-    if ((dx = was.dx) and (dy = was.dy)) {
-        return 'keep';
-    }
-    if (fullScore = null) {
-        return 'lost';
-    }
-    if ((was.dx = fullScore.dx) and (was.dy = fullScore.dy)) {
-        return 'reset';
-    }
-    return 'lost';
-}"
-	TitleOccurrence "(seen, style, text) {
-    count = 1;
-    for i = 0 to seen.Length {
-        other = seen[i];
-        if ((other.style = style) and (other.text = text)) {
-            count = count + 1;
-        }
-    }
-    seen.Push(CreateDictionary('style', style, 'text', text));
-    return count;
-}"
-	TitleRecordFor "(records, style, text, n) {
-    for i = 0 to records.Length {
-        record = records[i];
-        if ((record.style = style) and (record.text = text)) {
-            if (record.n = n) {
-                return record;
-            }
-        }
-    }
-    return null;
 }"
 	DeleteChartOnlyParts "(score, firstChartStaff) {
     parts = score.DynamicParts;
@@ -2437,52 +2285,6 @@
     }
     return count;
 }"
-	ProbeLayout "(score, part, label) {
-    was = score.CurrentDynamicPart;
-    score.CurrentDynamicPart = part;
-    setup = score.DocumentSetup;
-    rules = score.EngravingRules;
-    top = score.NthStaff(1);
-    line = ('[layout probe] ' & label) & (' part [' & top.FullInstrumentName) & (('] staves=' & part.StaveCount));
-    line = line & (' top=' & setup.AboveTopStaveGap) & (' top2=' & setup.AboveTopStaveGapAfterFirstPage);
-    line = line & (' auto-optimize=' & score.AutoOptimizeEnabled) & (' justify=' & rules.StaffJustificationPercentage);
-    line = line & (' pages=' & score.PageCount) & ' systems=';
-    p = 1;
-    while ((p <= score.PageCount) and (p <= 8)) {
-        if (p > 1) {
-            line = line & ',';
-        }
-        line = line & score.SystemCount(p);
-        p = p + 1;
-    }
-    firstBar = score.SystemStaff.NthBar(1);
-    for each item in firstBar {
-        if (item.Type = 'SystemTextItem') {
-            if (StyleIsPageAligned(item.StyleId)) {
-                line = line & ((' ' & Substring('' & item.StyleId, 25)) & ('=' & item.Dx) & (',' & item.Dy));
-            }
-        }
-    }
-    trace(line);
-    score.CurrentDynamicPart = was;
-    return True;
-}"
-	ProbeParts "(score, label) {
-    parts = score.DynamicParts;
-    found = CreateSparseArray();
-    for each part in parts {
-        if (not(part.IsFullScore)) {
-            if (part.StaveCount > 0) {
-                found.Push(part);
-            }
-        }
-    }
-    ProbeLayout(score, parts[0], label);
-    for i = 0 to found.Length {
-        ProbeLayout(score, found[i], label);
-    }
-    return True;
-}"
 	IdentificationError "(reason) {
     return reason & ' Delete the chart staves and their bars in Sibelius, then run this again.';
 }"
@@ -2582,6 +2384,7 @@
     // renumbering that only made sense while the chart was in front.
     RelocateSystemText(score, found.sections, found.sections + 1, False);
     ClearHiddenBarNumber(score.NthStaff(1).NthBar(found.sections + 1));
+    RemoveRestores(score, found);
 
     // Bars first: removing the staves renumbers everything underneath us. The
     // marker goes with the bar that holds it.
@@ -2612,6 +2415,35 @@
     }
 
     return RemovalResult(True, '');
+}"
+	RemoveRestores "(score, found) {
+    restores = RestoreMarkerRead(score, found.firstStaff);
+    for i = 0 to restores.Length {
+        restore = restores[i];
+        bar = score.NthStaff(restore.staff).NthBar(found.sections + 1);
+        doomed = null;
+        if (restore.kind = 'k') {
+            for each KeySignature ks in bar {
+                if (doomed = null) {
+                    if (ks.Position = 0) {
+                        doomed = ks;
+                    }
+                }
+            }
+        } else {
+            for each Clef c in bar {
+                if (doomed = null) {
+                    if (c.Position = 0) {
+                        doomed = c;
+                    }
+                }
+            }
+        }
+        if (doomed != null) {
+            doomed.Delete();
+        }
+    }
+    return True;
 }"
 	RemovalResult "(removed, error) {
     return CreateDictionary('removed', removed, 'error', error);
@@ -2746,21 +2578,7 @@
         }
     }
 
-    // Adding chart staves to a part and taking them away both reset its title
-    // block, and a re-run does both, so each part's is read before the removal
-    // and put back after the build. The full score's is left to the build and
-    // the removal themselves, which keep it where it is.
-    ProbeParts(score, 'start');
-    titles = KeepTitleText(score);
-    message = ChartOrRemove(score, options);
-    ProbeParts(score, 'built');
-    missed = RestoreTitleText(score, titles);
-    ProbeParts(score, 'end');
-    if (missed > 0) {
-        message.text = WithWarnings(CreateSparseArray(
-            CreateDictionary('type', 'title-not-restored', 'count', missed)), message.text);
-    }
-    return message;
+    return ChartOrRemove(score, options);
 }"
 	ChartOrRemove "(score, options) {
     // Removal first, so a re-run replaces its own chart rather than reading it

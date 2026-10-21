@@ -331,17 +331,16 @@ TestBuildChartParts() {
         return False;
     }
 
-    // The title blocks before any chart. Sibelius resets a part's title block
-    // when staves are added to it or taken away, and where the part's had
-    // followed the full score's, the run puts it back.
+    // Every part's title block and page layout before any chart, and the first
+    // instrument's key and clef where it starts. A run with parts must leave
+    // the parts' title blocks alone, and a removal must leave every part, and
+    // the staves that held copies, exactly as they began.
     parts = score.DynamicParts;
     keyBefore = score.NthStaff(first.firstStaff).CurrentKeySignature(1).Sharps;
     fullTitle = PartTitleText(score, parts[0]);
-    titleA = PartTitleText(score, partA);
-    followsA = 0;
-    if (titleA = fullTitle) {
-        followsA = 1;
-    }
+    titlesBefore = AllPartTitles(score);
+    layoutsBefore = AllPartLayouts(score);
+    furnitureBefore = InstrumentFurniture(score, first);
 
     // Both plans from the clean score: once a chart is drawn, reading the
     // score again would read the chart's own notes back in. The labels a
@@ -357,8 +356,6 @@ TestBuildChartParts() {
 
     partsBefore = parts.NumChildren;
     staveCountsBefore = PartStaveCounts(score);
-    stavesA = partA.StaveCount;
-    stavesB = partB.StaveCount;
 
     // What a full-score build alone leaves in a part, to compare against: a
     // run without parts must leave every part exactly as that.
@@ -435,10 +432,8 @@ TestBuildChartParts() {
     // part shows its charts on copies and never gains or loses a staff.
     AssertEquals(PartStaveCounts(score), staveCountsBefore, 'no part gains or loses a staff');
     AssertEquals(parts.NumChildren, partsBefore, 'no chart-only parts are left behind');
+    AssertEquals(AllPartTitles(score), titlesBefore, 'every part keeps its title block through a run');
     carriedA = PartSections(expected.sections, CreateSparseArray(first.name));
-    if (followsA = 1) {
-        AssertEquals(PartTitleText(score, partA), titleA, 'the first part gets its title block back');
-    }
     wanted = EndOfSystemOrPage;
     if (PartEndsPage(carriedA.Length, False) = 1) {
         wanted = EndOfPage;
@@ -472,13 +467,90 @@ TestBuildChartParts() {
 
     removal = ChartScore(score, IntegrationOptions(choices, instruments, 'separate', True, True));
     AssertTrue(removal.ok, 'the chart with parts is removed: ' & removal.text);
-    AssertEquals(partA.StaveCount, stavesA, 'the chart staves leave the first part with the chart');
-    AssertEquals(partB.StaveCount, stavesB, 'the chart staves leave the second part with the chart');
+    AssertEquals(PartStaveCounts(score), staveCountsBefore, 'removal leaves every part its own staves');
     AssertEquals(parts.NumChildren, partsBefore, 'removal leaves the parts as they were');
     AssertEquals(PartTitleText(score, parts[0]), fullTitle, 'the full score title block is where it started');
-    if (followsA = 1) {
-        AssertEquals(PartTitleText(score, partA), titleA, 'removing the chart puts the first part title block back');
+    AssertEquals(AllPartTitles(score), titlesBefore, 'every part title block is where it started');
+    AssertEquals(AllPartLayouts(score), layoutsBefore, 'every part has the pages and systems it started with');
+    AssertEquals(InstrumentFurniture(score, first), furnitureBefore,
+        'the first instrument has its own key and clef back and nothing added');
+}
+
+// The parts holding staves, other than the full score, collected before any
+// is made current: the collection is not to be changed while it is walked.
+StavedParts(score) {
+    found = CreateSparseArray();
+    parts = score.DynamicParts;
+    for each part in parts {
+        if (not(part.IsFullScore)) {
+            if (part.StaveCount > 0) {
+                found.Push(part);
+            }
+        }
     }
+    return found;
+}
+
+// Every part's first-page text offsets, in part order, as one line.
+AllPartTitles(score) {
+    found = StavedParts(score);
+    line = '';
+    for i = 0 to found.Length {
+        line = line & (('[' & PartTitleText(score, found[i])) & ']');
+    }
+    return line;
+}
+
+// Every part's page count and systems per page, in part order, as one line.
+// Adding a staff to a part reset its staff spacing, which showed here first.
+AllPartLayouts(score) {
+    found = StavedParts(score);
+    line = '';
+    for i = 0 to found.Length {
+        line = line & (('[' & PartLayout(score, found[i])) & ']');
+    }
+    return line;
+}
+
+PartLayout(score, part) {
+    was = score.CurrentDynamicPart;
+    score.CurrentDynamicPart = part;
+    line = 'pages ' & score.PageCount;
+    p = 1;
+    while (p <= score.PageCount) {
+        line = line & (' ' & score.SystemCount(p));
+        p = p + 1;
+    }
+    score.CurrentDynamicPart = was;
+    return line;
+}
+
+// An instrument's key and clef at its first bar, and how many key and clef
+// objects that bar holds at its start, staff by staff.
+InstrumentFurniture(score, instrument) {
+    line = '';
+    n = instrument.firstStaff;
+    while (n <= instrument.lastStaff) {
+        staff = score.NthStaff(n);
+        bar = staff.NthBar(1);
+        clef = bar.GetClefAt(0);
+        keys = 0;
+        for each KeySignature ks in bar {
+            if (ks.Position = 0) {
+                keys = keys + 1;
+            }
+        }
+        clefs = 0;
+        for each Clef c in bar {
+            if (c.Position = 0) {
+                clefs = clefs + 1;
+            }
+        }
+        line = line & (('[key ' & staff.CurrentKeySignature(1).Sharps) & (' clef ' & clef.ConcertClefStyleId));
+        line = line & ((' keys ' & keys) & ((' clefs ' & clefs) & ']'));
+        n = n + 1;
+    }
+    return line;
 }
 
 // Every option ChartScore and the drawing read, for a test to vary the ones it

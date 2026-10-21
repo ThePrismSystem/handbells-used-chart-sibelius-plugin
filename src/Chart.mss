@@ -18,21 +18,7 @@ ChartScore(score, options) {
         }
     }
 
-    // Adding chart staves to a part and taking them away both reset its title
-    // block, and a re-run does both, so each part's is read before the removal
-    // and put back after the build. The full score's is left to the build and
-    // the removal themselves, which keep it where it is.
-    ProbeParts(score, 'start');
-    titles = KeepTitleText(score);
-    message = ChartOrRemove(score, options);
-    ProbeParts(score, 'built');
-    missed = RestoreTitleText(score, titles);
-    ProbeParts(score, 'end');
-    if (missed > 0) {
-        message.text = WithWarnings(CreateSparseArray(
-            CreateDictionary('type', 'title-not-restored', 'count', missed)), message.text);
-    }
-    return message;
+    return ChartOrRemove(score, options);
 }
 
 ChartOrRemove(score, options) {
