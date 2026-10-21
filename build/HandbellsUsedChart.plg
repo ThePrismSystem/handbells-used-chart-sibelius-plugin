@@ -1922,64 +1922,32 @@
     firstChartStaff = (score.StaffCount - (plan.sections.Length * 2)) + 1;
     DeleteChartOnlyParts(score, firstChartStaff);
     ProbeParts(score, 'after-delete');
-    partWarnings = ApplyParts(score, plan, partPlan.entries, firstChartStaff, options.pageBreak = True);
+    LayOutParts(score, plan, partPlan.entries, options.pageBreak = True);
 
+    // A part whose instruments could not hold a copy is named for that, rather
+    // than as a part holding no selected instrument, which it does.
     warnings = result.warnings;
-    for i = 0 to partWarnings.Length {
-        warnings.Push(partWarnings[i]);
+    skipped = partPlan.skipped;
+    if (skipped.Length > 0) {
+        warnings.Push(CreateDictionary('type', 'no-copy-for-instrument', 'names', skipped));
     }
     if (options.parts = True) {
-        if (partPlan.entries.Length = 0) {
+        if ((partPlan.entries.Length = 0) and (skipped.Length = 0)) {
             warnings.Push(CreateDictionary('type', 'no-part-for-charts'));
         }
     }
     return result;
 }"
-	ApplyParts "(score, plan, entries, firstChartStaff, breakForOne) {
-    barCount = score.NthStaff(1).BarCount;
-    warnings = CreateSparseArray();
+	LayOutParts "(score, plan, entries, breakForOne) {
     for e = 0 to entries.Length {
         entry = entries[e];
-        part = entry.part;
-        // Counted before anything is added, so the part's own staves are what
-        // the part held rather than what is left after taking away what was
-        // meant to be added.
-        pieceCount = part.StaveCount;
-        carried = entry.sections;
-        added = CreateSparseArray();
-        complete = 1;
-        for k = 0 to carried.Length {
-            index = carried[k];
-            treble = firstChartStaff + (index * 2);
-            if (complete = 1) {
-                complete = AddChartStaff(part, score.NthStaff(treble), added);
-            }
-            if (complete = 1) {
-                complete = AddChartStaff(part, score.NthStaff(treble + 1), added);
-            }
-        }
-        if (complete = 1) {
-            ProbeLayout(score, part, 'after-add');
-            LayOutPart(score, part, plan.sections, carried, pieceCount, barCount, breakForOne);
-        } else {
-            for a = 0 to added.Length {
-                staff = added[a];
-                part.DeleteStaffFromPart(staff);
-            }
-            warnings.Push(CreateDictionary('type', 'part-not-charted', 'names', entry.names));
-        }
+        LayOutPart(score, entry.part, plan.sections, entry.sections, breakForOne);
     }
-    return warnings;
+    return True;
 }"
-	AddChartStaff "(part, staff, added) {
-    if (part.AddStaffToPart(staff)) {
-        added.Push(staff);
-        return 1;
-    }
-    return 0;
-}"
-	LayOutPart "(score, part, sections, carried, pieceCount, barCount, breakForOne) {
+	LayOutPart "(score, part, sections, carried, breakForOne) {
     chartBars = sections.Length;
+    staffNums = PartStaffNumbers(part);
     anchor = null;
     for each staff in part {
         if (anchor = null) {
@@ -1994,6 +1962,10 @@
     score.CurrentDynamicPart = part;
     staveCount = part.StaveCount;
     endsPage = PartEndsPage(carried.Length, breakForOne);
+    shown = CreateSparseArray();
+    for s = 0 to staveCount {
+        shown.Push(0);
+    }
     for b = 1 to chartBars + 1 {
         if (ends[b - 1] = 1) {
             anchor.NthBar(b).BreakType = EndOfSystemOrPage;
@@ -2007,25 +1979,55 @@
         }
         position = shows[b - 1];
         index = carried[position];
-        section = sections[index];
-        hidden = ChartBarHiddenStaves(pieceCount, staveCount, position, UsesOneStaff(section.kind));
+        hidden = PartBarHiddenStaves(staffNums, SectionCopyStaves(sections[index]));
         for s = 0 to hidden.Length {
             if (hidden[s] = 1) {
                 score.HideEmptyStaves(s + 1, s + 1, b, b);
+            } else {
+                shown[s] = 1;
             }
         }
     }
-    if (barCount > chartBars) {
-        score.HideEmptyStaves(pieceCount + 1, staveCount, chartBars + 1, barCount);
+    // 2 is SmallSize in the reference's list of staff sizes.
+    for s = 0 to shown.Length {
+        if (shown[s] = 1) {
+            score.NthStaff(s + 1).ScaleFactorChange(2, 1, chartBars);
+        }
     }
-    ProbeLayout(score, part, 'after-hide');
-    // The charts' ledger lines reach far past their staves, and the music's
-    // first system lost whatever spacing the part had given it when the chart
-    // took the first system's place.
-    score.OptimizeStaffSpacing(1, staveCount, 1, chartBars + 1);
-    ProbeLayout(score, part, 'after-optimize');
+    score.OptimizeStaffSpacing(1, staveCount, 1, chartBars);
     score.CurrentDynamicPart = parts[0];
     return True;
+}"
+	PartStaffNumbers "(part) {
+    nums = CreateSparseArray();
+    for each staff in part {
+        nums.Push(staff.StaffNum);
+    }
+    return nums;
+}"
+	PartBarHiddenStaves "(partStaffNums, shownStaves) {
+    flags = CreateSparseArray();
+    for i = 0 to partStaffNums.Length {
+        flag = 1;
+        for j = 0 to shownStaves.Length {
+            if (shownStaves[j] = partStaffNums[i]) {
+                flag = 0;
+            }
+        }
+        flags.Push(flag);
+    }
+    return flags;
+}"
+	SectionCopyStaves "(section) {
+    staves = CreateSparseArray();
+    copies = section.copies;
+    for j = 0 to copies.Length {
+        copyStaves = copies[j];
+        for k = 0 to copyStaves.Length {
+            staves.Push(copyStaves[k]);
+        }
+    }
+    return staves;
 }"
 	PartEndsPage "(carriedCount, breakForOne) {
     if (carriedCount > 1) {
@@ -2046,25 +2048,6 @@
         positions[index] = j;
     }
     return positions;
-}"
-	ChartBarHiddenStaves "(pieceCount, staveCount, position, oneStaff) {
-    treble = (pieceCount + (position * 2)) + 1;
-    flags = CreateSparseArray();
-    s = 1;
-    while (s <= staveCount) {
-        flag = 1;
-        if (s = treble) {
-            flag = 0;
-        }
-        if (s = (treble + 1)) {
-            if (oneStaff = 0) {
-                flag = 0;
-            }
-        }
-        flags.Push(flag);
-        s = s + 1;
-    }
-    return flags;
 }"
 	PartChartSystems "(positions) {
     shows = CreateSparseArray();

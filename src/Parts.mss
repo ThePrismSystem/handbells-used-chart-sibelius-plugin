@@ -8,11 +8,12 @@ EnterFullScore(score) {
     return was;
 }
 
-// Everything a run draws: the full-score chart, then, when the parts box is
-// ticked, those same chart staves added to the parts that carry them, each
-// laid out to show only its own charts. Returns BuildChart's result, with a
-// warning for any part that could not be given its charts, and one when the
-// box was ticked but no part holds a selected instrument.
+// Everything a run draws: the full-score chart and, when the parts box is
+// ticked, a copy of each chart on its owners' staves, shown in the parts
+// alone; then each part that carries a chart is laid out to show only its
+// own. Returns BuildChart's result, with a warning naming any instrument
+// whose staves could not hold a copy, and one when the box was ticked but no
+// part holds a selected instrument.
 DrawCharts(score, plan, options) {
     partPlan = PlanParts(score, plan, options);
     result = BuildChart(score, plan, options);
@@ -26,81 +27,41 @@ DrawCharts(score, plan, options) {
     firstChartStaff = (score.StaffCount - (plan.sections.Length * 2)) + 1;
     DeleteChartOnlyParts(score, firstChartStaff);
     ProbeParts(score, 'after-delete');
-    partWarnings = ApplyParts(score, plan, partPlan.entries, firstChartStaff, options.pageBreak = True);
+    LayOutParts(score, plan, partPlan.entries, options.pageBreak = True);
 
+    // A part whose instruments could not hold a copy is named for that, rather
+    // than as a part holding no selected instrument, which it does.
     warnings = result.warnings;
-    for i = 0 to partWarnings.Length {
-        warnings.Push(partWarnings[i]);
+    skipped = partPlan.skipped;
+    if (skipped.Length > 0) {
+        warnings.Push(CreateDictionary('type', 'no-copy-for-instrument', 'names', skipped));
     }
     if (options.parts = True) {
-        if (partPlan.entries.Length = 0) {
+        if ((partPlan.entries.Length = 0) and (skipped.Length = 0)) {
             warnings.Push(CreateDictionary('type', 'no-part-for-charts'));
         }
     }
     return result;
 }
 
-// Staves first, layout after: a part is laid out once, with every chart staff
-// it will carry already in it. A part that refuses one of its staves is given
-// none of them and named in a warning, rather than laid out around a chart
-// with a staff missing. Returns the warnings.
-ApplyParts(score, plan, entries, firstChartStaff, breakForOne) {
-    barCount = score.NthStaff(1).BarCount;
-    warnings = CreateSparseArray();
+// Each part that carries a chart is laid out in its own view. Returns True.
+LayOutParts(score, plan, entries, breakForOne) {
     for e = 0 to entries.Length {
         entry = entries[e];
-        part = entry.part;
-        // Counted before anything is added, so the part's own staves are what
-        // the part held rather than what is left after taking away what was
-        // meant to be added.
-        pieceCount = part.StaveCount;
-        carried = entry.sections;
-        added = CreateSparseArray();
-        complete = 1;
-        for k = 0 to carried.Length {
-            index = carried[k];
-            treble = firstChartStaff + (index * 2);
-            if (complete = 1) {
-                complete = AddChartStaff(part, score.NthStaff(treble), added);
-            }
-            if (complete = 1) {
-                complete = AddChartStaff(part, score.NthStaff(treble + 1), added);
-            }
-        }
-        if (complete = 1) {
-            ProbeLayout(score, part, 'after-add');
-            LayOutPart(score, part, plan.sections, carried, pieceCount, barCount, breakForOne);
-        } else {
-            for a = 0 to added.Length {
-                staff = added[a];
-                part.DeleteStaffFromPart(staff);
-            }
-            warnings.Push(CreateDictionary('type', 'part-not-charted', 'names', entry.names));
-        }
+        LayOutPart(score, entry.part, plan.sections, entry.sections, breakForOne);
     }
-    return warnings;
-}
-
-// 1 when the staff went into the part, which is then listed in added.
-AddChartStaff(part, staff, added) {
-    if (part.AddStaffToPart(staff)) {
-        added.Push(staff);
-        return 1;
-    }
-    return 0;
+    return True;
 }
 
 // The same layout BuildChart gives the full score, done again in one part:
 // HideEmptyStaves numbers staves and bars within the current part, and hidden
 // staves and breaks belong to each part separately, so nothing carries over.
 //
-// Each of the part's own charts is a system of its own, showing that chart's
-// two staves only, and only the upper one for a one-staff instrument, exactly
-// as in the full score. A bar of a chart the part does not carry cannot be a
-// system of its own: Sibelius keeps one staff showing in every system, so it
-// would stand as a lone empty staff. It joins the part's chart beside it
-// instead, as a short empty bar. Through the music, the part's chart staves
-// are hidden and its own staves are left as the user had them.
+// Each of the part's own charts is a system of its own, showing the staves
+// holding that chart's copy and no others. A bar of a chart the part does not
+// carry cannot be a system of its own: Sibelius keeps one staff showing in
+// every system, so it would stand as a lone empty staff. It joins the part's
+// chart beside it instead, as a short empty bar.
 //
 // The last chart bar ends the page when the part has two or more chart
 // sections, or one and breakForOne is set, so the music starts on a page of
@@ -108,12 +69,14 @@ AddChartStaff(part, staff, added) {
 // otherwise pushes music off it, and a part's layout may hold it there
 // regardless, overlapping the systems.
 //
-// The chart staves were added at the bottom of the part in section order, so
-// they follow the part's pieceCount staves of its own, two per carried
-// section. The breaks go on a staff the part holds: the reference warns that
-// editing a staff a part does not hold creates overrides that stay invisible.
-LayOutPart(score, part, sections, carried, pieceCount, barCount, breakForOne) {
+// The breaks go on a staff the part holds: the reference warns that editing a
+// staff a part does not hold creates overrides that stay invisible. The size
+// change is made here, in the part, because one made in the full score does
+// not reach it. Spacing is optimised over the chart bars alone, so the
+// music's own spacing is the part's as it was.
+LayOutPart(score, part, sections, carried, breakForOne) {
     chartBars = sections.Length;
+    staffNums = PartStaffNumbers(part);
     anchor = null;
     for each staff in part {
         if (anchor = null) {
@@ -128,6 +91,10 @@ LayOutPart(score, part, sections, carried, pieceCount, barCount, breakForOne) {
     score.CurrentDynamicPart = part;
     staveCount = part.StaveCount;
     endsPage = PartEndsPage(carried.Length, breakForOne);
+    shown = CreateSparseArray();
+    for s = 0 to staveCount {
+        shown.Push(0);
+    }
     for b = 1 to chartBars + 1 {
         if (ends[b - 1] = 1) {
             anchor.NthBar(b).BreakType = EndOfSystemOrPage;
@@ -141,25 +108,64 @@ LayOutPart(score, part, sections, carried, pieceCount, barCount, breakForOne) {
         }
         position = shows[b - 1];
         index = carried[position];
-        section = sections[index];
-        hidden = ChartBarHiddenStaves(pieceCount, staveCount, position, UsesOneStaff(section.kind));
+        hidden = PartBarHiddenStaves(staffNums, SectionCopyStaves(sections[index]));
         for s = 0 to hidden.Length {
             if (hidden[s] = 1) {
                 score.HideEmptyStaves(s + 1, s + 1, b, b);
+            } else {
+                shown[s] = 1;
             }
         }
     }
-    if (barCount > chartBars) {
-        score.HideEmptyStaves(pieceCount + 1, staveCount, chartBars + 1, barCount);
+    // 2 is SmallSize in the reference's list of staff sizes.
+    for s = 0 to shown.Length {
+        if (shown[s] = 1) {
+            score.NthStaff(s + 1).ScaleFactorChange(2, 1, chartBars);
+        }
     }
-    ProbeLayout(score, part, 'after-hide');
-    // The charts' ledger lines reach far past their staves, and the music's
-    // first system lost whatever spacing the part had given it when the chart
-    // took the first system's place.
-    score.OptimizeStaffSpacing(1, staveCount, 1, chartBars + 1);
-    ProbeLayout(score, part, 'after-optimize');
+    score.OptimizeStaffSpacing(1, staveCount, 1, chartBars);
     score.CurrentDynamicPart = parts[0];
     return True;
+}
+
+// The full-score numbers of a part's staves, in the part's order. Read while
+// the full score is current, which is what makes them full-score numbers.
+PartStaffNumbers(part) {
+    nums = CreateSparseArray();
+    for each staff in part {
+        nums.Push(staff.StaffNum);
+    }
+    return nums;
+}
+
+// Which of a part's staves a chart bar hides, top to bottom, 1 for hidden:
+// every staff but those holding the shown chart's copies. partStaffNums and
+// shownStaves are full-score staff numbers.
+PartBarHiddenStaves(partStaffNums, shownStaves) {
+    flags = CreateSparseArray();
+    for i = 0 to partStaffNums.Length {
+        flag = 1;
+        for j = 0 to shownStaves.Length {
+            if (shownStaves[j] = partStaffNums[i]) {
+                flag = 0;
+            }
+        }
+        flags.Push(flag);
+    }
+    return flags;
+}
+
+// Every staff holding one of a section's copies.
+SectionCopyStaves(section) {
+    staves = CreateSparseArray();
+    copies = section.copies;
+    for j = 0 to copies.Length {
+        copyStaves = copies[j];
+        for k = 0 to copyStaves.Length {
+            staves.Push(copyStaves[k]);
+        }
+    }
+    return staves;
 }
 
 // 1 when a part's charts end its first page, 0 when the music may follow them
@@ -187,30 +193,6 @@ CarriedPositions(chartBars, carried) {
         positions[index] = j;
     }
     return positions;
-}
-
-// Which of a part's staves a chart bar hides, top to bottom, 1 for hidden:
-// every staff but the two of the chart shown at position among the part's
-// own, and its lower staff as well for a one-staff chart. The part's own
-// pieceCount staves come first, then two staves per chart it carries.
-ChartBarHiddenStaves(pieceCount, staveCount, position, oneStaff) {
-    treble = (pieceCount + (position * 2)) + 1;
-    flags = CreateSparseArray();
-    s = 1;
-    while (s <= staveCount) {
-        flag = 1;
-        if (s = treble) {
-            flag = 0;
-        }
-        if (s = (treble + 1)) {
-            if (oneStaff = 0) {
-                flag = 0;
-            }
-        }
-        flags.Push(flag);
-        s = s + 1;
-    }
-    return flags;
 }
 
 // Which of the part's own charts each chart bar's system shows, and whether

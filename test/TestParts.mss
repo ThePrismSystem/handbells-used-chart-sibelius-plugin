@@ -108,16 +108,20 @@ TestParts() {
         'a part numbers its own charts in order');
     AssertEquals(JoinNames(CarriedPositions(2, CreateSparseArray(0, 1))), '0, 1', 'a part carrying every chart');
 
-    // Which of a part's staves a chart bar hides, 1 for hidden: everything but
-    // the shown chart's two staves, and its lower one too for a one-staff chart.
-    AssertEquals(JoinNames(ChartBarHiddenStaves(2, 6, 0, 0)), '1, 1, 0, 0, 1, 1',
-        'the first chart shows its two staves');
-    AssertEquals(JoinNames(ChartBarHiddenStaves(2, 6, 1, 0)), '1, 1, 1, 1, 0, 0',
-        'the second chart shows the next two');
-    AssertEquals(JoinNames(ChartBarHiddenStaves(2, 6, 0, 1)), '1, 1, 0, 1, 1, 1',
-        'a one-staff chart hides its lower staff');
-    AssertEquals(JoinNames(ChartBarHiddenStaves(0, 4, 1, 0)), '1, 1, 0, 0',
-        'a part of chart staves alone hides only the other chart');
+    // Which of a part's staves a chart bar hides, 1 for hidden: every staff but
+    // those holding the shown chart's copies. Staves go by full-score number.
+    AssertEquals(JoinNames(PartBarHiddenStaves(CreateSparseArray(3, 4), CreateSparseArray(3, 4))), '0, 0',
+        'a part shows the staves holding its copy');
+    AssertEquals(JoinNames(PartBarHiddenStaves(CreateSparseArray(3, 4, 9), CreateSparseArray(3, 4))), '0, 0, 1',
+        'and hides its other staves');
+    AssertEquals(JoinNames(PartBarHiddenStaves(CreateSparseArray(3, 4), CreateSparseArray(3))), '0, 1',
+        'a one-staff copy hides the lower staff');
+    AssertEquals(JoinNames(PartBarHiddenStaves(CreateSparseArray(3, 4), CreateSparseArray(5, 6, 3, 4))), '0, 0',
+        'a combined chart shows every copy the part holds');
+    AssertEquals(JoinNames(PartBarHiddenStaves(CreateSparseArray(3, 4), CreateSparseArray())), '1, 1',
+        'a chart with no copy in the part hides every staff');
+    twoCopies = CreateDictionary('copies', CreateSparseArray(CreateSparseArray(3, 4), CreateSparseArray(7)));
+    AssertEquals(JoinNames(SectionCopyStaves(twoCopies)), '3, 4, 7', 'a section lists the staves of every copy');
 
     // Title text is found again after a build by style and text, and by how
     // many like it came first.

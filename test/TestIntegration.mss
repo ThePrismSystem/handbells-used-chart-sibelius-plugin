@@ -353,9 +353,10 @@ TestBuildChartParts() {
     newOptions = IntegrationOptions(choices, instruments, 'separate', True, False);
     oldShape = BuildChartPlan(records, oldOptions);
     expected = BuildChartPlan(records, newOptions);
-    PlanParts(score, expected, newOptions);
+    planned = PlanParts(score, expected, newOptions);
 
     partsBefore = parts.NumChildren;
+    staveCountsBefore = PartStaveCounts(score);
     stavesA = partA.StaveCount;
     stavesB = partB.StaveCount;
 
@@ -375,6 +376,11 @@ TestBuildChartParts() {
     AssertTrue(rebuilt.ok, 'the separate chart with parts replaces the combined one: ' & rebuilt.text);
     found = FindChart(score);
     AssertEquals(found.sections, expected.sections.Length, 'the re-run chart has every section');
+    skipped = planned.skipped;
+    if (skipped.Length > 0) {
+        AssertTrue(TextContains(rebuilt.text, 'No chart was added to the parts for'),
+            'the run names the instruments whose staves cannot hold a copy');
+    }
 
     // The first instrument's copy of its first chart, on its own staves: shown
     // in its part and not in the full score, where those staves stay hidden
@@ -425,95 +431,38 @@ TestBuildChartParts() {
             'the first instrument keeps its key where the music starts');
     }
 
-    onlyOwnA = True;
-    onlyOwnB = True;
-    chartsA = 0;
-    for i = 0 to expected.sections.Length {
-        section = expected.sections[i];
-        chartsA = chartsA + HeadListed(section.owners, first.name);
-        treble = score.NthStaff(found.firstStaff + (i * 2));
-        inA = 0;
-        if (partA.IncludesStaff(treble)) {
-            inA = 1;
-        }
-        inB = 0;
-        if (partB.IncludesStaff(treble)) {
-            inB = 1;
-        }
-        if (inA != HeadListed(section.owners, first.name)) {
-            onlyOwnA = False;
-        }
-        if (inB != HeadListed(section.owners, second.name)) {
-            onlyOwnB = False;
-        }
-    }
-    AssertTrue(onlyOwnA, 'the first part carries its own charts and no others');
-    AssertTrue(onlyOwnB, 'the second part carries its own charts and no others');
+    // Adding a staff to a part resets its title block and staff spacing, so a
+    // part shows its charts on copies and never gains or loses a staff.
+    AssertEquals(PartStaveCounts(score), staveCountsBefore, 'no part gains or loses a staff');
     AssertEquals(parts.NumChildren, partsBefore, 'no chart-only parts are left behind');
+    carriedA = PartSections(expected.sections, CreateSparseArray(first.name));
     if (followsA = 1) {
         AssertEquals(PartTitleText(score, partA), titleA, 'the first part gets its title block back');
     }
     wanted = EndOfSystemOrPage;
-    if (PartEndsPage(chartsA, False) = 1) {
+    if (PartEndsPage(carriedA.Length, False) = 1) {
         wanted = EndOfPage;
     }
     AssertEquals(PartBarBreak(score, partA, expected.sections.Length), wanted,
         'the first part ends its charts with a page break only when it should');
 
-    // Every chart bar in the part shows its own chart's staves and nothing
-    // else, and the chart staves are hidden through the music.
-    chartBars = expected.sections.Length;
-    carriedA = PartSections(expected.sections, CreateSparseArray(first.name));
+    // Every chart bar in the part shows the staves holding its own chart's copy
+    // and nothing else.
     systemsA = PartChartSystems(CarriedPositions(chartBars, carriedA));
+    staffNumsA = PartStaffNumbers(partA);
     showsA = systemsA.shows;
     layoutDetail = '';
     for b = 1 to chartBars + 1 {
         position = showsA[b - 1];
         index = carriedA[position];
         shown = expected.sections[index];
-        wantedHidden = JoinNames(ChartBarHiddenStaves(stavesA, partA.StaveCount, position,
-            UsesOneStaff(shown.kind)));
+        wantedHidden = JoinNames(PartBarHiddenStaves(staffNumsA, SectionCopyStaves(shown)));
         gotHidden = JoinNames(PartHiddenFlags(score, partA, b));
         if (gotHidden != wantedHidden) {
             layoutDetail = layoutDetail & ((' bar ' & b) & (' wanted ' & wantedHidden) & (' got ' & gotHidden));
         }
     }
     AssertEquals(layoutDetail, '', 'each chart bar in the first part shows only its own chart');
-    musicFlags = PartHiddenFlags(score, partA, chartBars + 1);
-    chartStavesHidden = True;
-    for s = stavesA to musicFlags.Length {
-        if (musicFlags[s] != 1) {
-            chartStavesHidden = False;
-        }
-    }
-    AssertTrue(chartStavesHidden, 'the chart staves are hidden where the music starts');
-
-    // A section carried only by one-choir parts reads its plain label there
-    // and its named label in the full score: two texts on one staff, each
-    // shown in one place.
-    splitIndex = -1;
-    for k = 0 to carriedA.Length {
-        index = carriedA[k];
-        section = expected.sections[index];
-        if (splitIndex < 0) {
-            if (section.splitLabel = 1) {
-                splitIndex = index;
-            }
-        }
-    }
-    if (splitIndex >= 0) {
-        section = expected.sections[splitIndex];
-        trebleNum = found.firstStaff + (splitIndex * 2);
-        fullScore = parts[0];
-        AssertEquals(TextHiddenIn(score, fullScore, trebleNum, splitIndex + 1, section.label), 0,
-            'the full score shows the named label');
-        AssertEquals(TextHiddenIn(score, fullScore, trebleNum, splitIndex + 1, section.plainLabel), 1,
-            'the full score hides the plain label');
-        AssertEquals(TextHiddenIn(score, partA, trebleNum, splitIndex + 1, section.label), 1,
-            'the part hides the named label');
-        AssertEquals(TextHiddenIn(score, partA, trebleNum, splitIndex + 1, section.plainLabel), 0,
-            'the part shows the plain label');
-    }
 
     // A run that would chart nothing is refused before the chart is touched.
     refused = ChartScore(score, IntegrationOptions(choices, CreateSparseArray(), 'separate', True, False));
@@ -616,6 +565,18 @@ CopyState(score, part, staffNum, barNum) {
     }
     score.CurrentDynamicPart = was;
     return state;
+}
+
+// Every part's staff count, in part order, as one line to compare.
+PartStaveCounts(score) {
+    line = '';
+    parts = score.DynamicParts;
+    for each part in parts {
+        if (not(part.IsFullScore)) {
+            line = line & (' ' & part.StaveCount);
+        }
+    }
+    return line;
 }
 
 // A bar's break as one part sees it.
