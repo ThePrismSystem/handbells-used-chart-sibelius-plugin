@@ -5,6 +5,85 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Scores with several handbell parts can chart each one separately, and put
+each chart into the Sibelius part that rings from it.
+
+### Added
+
+- An "Instruments to Chart" list in the dialog, filled from the open score,
+  chooses which instruments are read. A piano or other accompaniment written
+  with plain noteheads used to be charted as handbells; now it can be left
+  out. The plug-in remembers the instruments left out by name, so one left
+  out of one score stays out of the next score that has it. An instrument
+  it has not seen before starts selected.
+- A "Charts" choice between one combined chart, as earlier versions drew,
+  and a separate chart for each instrument. Separate charts are stacked in
+  the full score in score order and labelled with the instrument's name:
+  `Handbells I - Handbells Used: 25`. The choice applies once two or more
+  instruments are selected.
+- "Also Add Charts to Parts" gives each part the charts of the instruments
+  it holds, each chart on a system of its own. The full score always
+  carries every chart. In a part, the chart is a copy drawn on the
+  instrument's own staves, shown only in the parts and silent in playback.
+  No staff is added to a part, because Sibelius resets a part's title block
+  and staff spacing when one is, so a part keeps its layout. An instrument
+  with one staff gets no bells or handchimes chart in its part, a
+  percussion or tab staff gets none at all, and the message at the end of
+  the run names them. In a part holding one instrument the labels are the
+  plain `Handbells Used: 25`; in a part holding several they keep the
+  instrument names. Sibelius keeps a staff showing in every system, so
+  another instrument's chart can't disappear from a part entirely: it shows
+  as a short empty bar beside the part's own chart. A part holding no
+  selected instrument gets no chart, and the message at the end of the run
+  says so when the box is ticked but no part holds a selected instrument.
+- In a part given two or more chart sections, the music starts on a new
+  page, laid out as it was, because charts added in front of a full first
+  page push music off it. An instrument's bells and chimes are two
+  sections. For a part with one section, a new "Page Break After One Chart"
+  box decides.
+- With separate charts, the message at the end of a run names any selected
+  instrument that had nothing to chart.
+- Sibelius creates a part for each chart instrument the plug-in adds.
+  Building or removing a chart now deletes any part holding nothing but
+  chart staves.
+
+### Fixed
+
+- Ticking "Remove Existing Chart" did nothing, and a run with it ticked drew
+  the chart again. A ticked checkbox hands back `true`, and the plug-in only
+  counted `1` as ticked.
+- When the chart and the first system of music did not fit on one page,
+  they overlapped instead of the music moving on to the next page. Each
+  chart bar ended with a break that Sibelius allows only in the middle of a
+  page. It now ends with an ordinary system break.
+- A chart's ledger lines could run into the system above or below it.
+  Sibelius's Optimize Staff Spacing now runs over the chart and the first
+  system of music in the full score, and over the chart in each part given
+  one.
+- The chart makes the start of the music a new section, so a score set to
+  show no instrument names at new sections lost the names on its first
+  system of music. While a chart is in place, the new-section option
+  follows the first system's, and so does every other section start in the
+  piece. Removing the chart puts the score's own setting back, and so does
+  a removal that stops because the chart can no longer be identified.
+- Removing a chart reset the full score's title block to its styles'
+  default positions, so positioning done by hand was lost, including a
+  title placed partly off the top of the page. The title block now keeps
+  its positions.
+- A copyright line set in a blank-page text style was moved from the first
+  page down to the music, as if it were a tempo mark, and landed on top of
+  it. Text in blank-page styles now stays on the first page with the title
+  block.
+
+### Changed
+
+- The plug-in charts the full score even when it is run from a part, and
+  returns to that part afterwards.
+- The defaults are every instrument, one combined chart and no parts, so a
+  first run charts the same sections, under the same labels, as 1.2.0.
+
 ## [1.2.0] - 2026-08-23
 
 Silver melody bells are charted as a third instrument, and the handchime

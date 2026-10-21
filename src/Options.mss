@@ -35,9 +35,41 @@ ReadOptions(score) {
     // unremembered SMB box opens on no notehead rather than on a guess.
     dlg_smbHead = PreferredHead(choices.names, '' & dlg_smbHead, '');
 
+    // Filled the way the notehead boxes are, and for the same reason: the list
+    // comes from the open score. The selection it opens on is everything this
+    // score offers except what was left out last time.
+    instruments = ScoreInstruments(score);
+    offered = InstrumentNames(instruments);
+    excluded = PipeList(_ExcludedInstruments);
+    preselected = PreselectedNames(offered, excluded);
+    _InstrumentItems = CreateArray();
+    for i = 0 to offered.Length {
+        _InstrumentItems[i] = offered[i];
+    }
+    dlg_instruments = CreateArray();
+    for i = 0 to preselected.Length {
+        dlg_instruments[i] = preselected[i];
+    }
+    _ChartModeItems = CreateArray();
+    _ChartModeItems[0] = '' & CHART_MODE_COMBINED;
+    _ChartModeItems[1] = '' & CHART_MODE_SEPARATE;
+    if (('' & dlg_chartMode) = '') {
+        dlg_chartMode = '' & CHART_MODE_COMBINED;
+    }
+
+    // The Charts box means nothing with fewer than two instruments selected,
+    // and InstrumentsChanged only greys it out once the list is clicked.
+    // EnableControlById is only documented for a dialog already showing;
+    // EnableNthControl also works before one opens, but counts controls in
+    // their creation order, which a tools test pins to the .msd.
+    Sibelius.EnableNthControl(0 + CHART_MODE_CONTROL_INDEX, preselected.Length > 1);
+
     if (not(Sibelius.ShowDialog(_SettingsDialog, self))) {
         return null;
     }
+
+    selected = SelectedNames(dlg_instruments);
+    _ExcludedInstruments = JoinPipe(ExcludedAfterRun(excluded, offered, selected));
 
     return CreateDictionary(
         'chimeColor', UsableColor(dlg_chimeColor),
@@ -45,8 +77,156 @@ ReadOptions(score) {
         'bellHead', Trim(dlg_bellHead),
         'chimeHead', Trim(dlg_chimeHead),
         'smbHead', Trim(dlg_smbHead),
-        'remove', ('' & dlg_remove) = '1'
+        'remove', Ticked(dlg_remove),
+        'instruments', InstrumentsNamed(instruments, selected),
+        'mode', ChartModeOf(dlg_chartMode),
+        'parts', Ticked(dlg_parts),
+        'pageBreak', Ticked(dlg_pageBreak)
     );
+}
+
+// Called by the list box on every click, and greys the Charts box out while
+// fewer than two instruments are selected, since charting one instrument apart
+// is the same as charting it combined.
+InstrumentsChanged() {
+    selected = SelectedNames(dlg_instruments);
+    Sibelius.EnableControlById(Self, _SettingsDialog, 'dlg_chartMode', selected.Length > 1);
+    return True;
+}
+
+// A multi-select list box hands back an array of strings, which in a plug-in's
+// Data is a TreeNode: its entries are children, counted by NumChildren, the
+// same shape the list variables are filled in.
+SelectedNames(value) {
+    names = CreateSparseArray();
+    count = value.NumChildren;
+    for i = 0 to count {
+        names.Push('' & value[i]);
+    }
+    return names;
+}
+
+// A checkbox starts on the '0' its Data variable holds, and a ticked one can
+// hand back a Boolean, which reads as 'true', so both that and '1' count.
+Ticked(value) {
+    text = '' & value;
+    if (text = '1') {
+        return True;
+    }
+    if (text = 'true') {
+        return True;
+    }
+    return False;
+}
+
+ChartModeOf(choice) {
+    if (('' & choice) = ('' & CHART_MODE_SEPARATE)) {
+        return 'separate';
+    }
+    return 'combined';
+}
+
+// The instrument selection is remembered as the names left out, not the names
+// chosen, so an instrument the plug-in has never seen starts selected and a
+// first run charts everything, as the plug-in always has. Stored as one
+// pipe-joined string, because a plain string is the Data variable shape every
+// other remembered setting already round-trips through. A name is the user's
+// own text and may hold a pipe, so a pipe in a name is written ~p and a tilde
+// ~~.
+PipeList(text) {
+    value = '' & text;
+    names = CreateSparseArray();
+    if (value = '') {
+        return names;
+    }
+    current = '';
+    i = 0;
+    while (i < Length(value)) {
+        char = Substring(value, i, 1);
+        if (char = '~') {
+            escaped = Substring(value, i + 1, 1);
+            if (escaped = 'p') {
+                current = current & '|';
+            } else {
+                current = current & escaped;
+            }
+            i = i + 2;
+        } else {
+            if (char = '|') {
+                names.Push(current);
+                current = '';
+            } else {
+                current = current & char;
+            }
+            i = i + 1;
+        }
+    }
+    names.Push(current);
+    return names;
+}
+
+JoinPipe(names) {
+    text = '';
+    for i = 0 to names.Length {
+        if (i > 0) {
+            text = text & '|';
+        }
+        text = text & EscapePipe('' & names[i]);
+    }
+    return text;
+}
+
+EscapePipe(name) {
+    text = '';
+    for i = 0 to Length(name) {
+        char = Substring(name, i, 1);
+        if (char = '~') {
+            text = text & '~~';
+        } else {
+            if (char = '|') {
+                text = text & '~p';
+            } else {
+                text = text & char;
+            }
+        }
+    }
+    return text;
+}
+
+PreselectedNames(offered, excluded) {
+    chosen = CreateSparseArray();
+    for i = 0 to offered.Length {
+        if (HeadListed(excluded, offered[i]) = 0) {
+            chosen.Push(offered[i]);
+        }
+    }
+    return chosen;
+}
+
+// What to remember after a run. A name this score does not offer keeps
+// whatever was remembered about it, so leaving the piano out of one score
+// still leaves it out of the next score that has one. A name it does offer is
+// remembered as left out exactly when it was not selected this time.
+//
+// Except when nothing was selected at all. That run either charts nothing and
+// says so, or is a removal that never looked at the list, and remembering
+// every instrument as left out would open the next run on an empty list.
+ExcludedAfterRun(remembered, offered, selected) {
+    if (selected.Length = 0) {
+        return remembered;
+    }
+    excluded = CreateSparseArray();
+    for i = 0 to remembered.Length {
+        if (HeadListed(offered, remembered[i]) = 0) {
+            excluded.Push(remembered[i]);
+        }
+    }
+    for i = 0 to offered.Length {
+        if (HeadListed(selected, offered[i]) = 0) {
+            excluded.Push(offered[i]);
+        }
+    }
+    return excluded;
 }
 
 // The notehead two instruments share, or '' when they share none. Two

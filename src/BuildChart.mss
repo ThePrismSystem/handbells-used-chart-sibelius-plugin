@@ -6,6 +6,9 @@ BuildChart(score, plan, options) {
     sections = plan.sections;
     pieceStaves = score.StaffCount;
     metre = ReadInitialTimeSignature(score);
+    opening = score.NthStaff(1).CurrentKeySignature(1);
+    openingSharps = opening.Sharps;
+    openingMajor = opening.Major;
 
     // 1. Bars first. A Sibelius bar spans every staff, so staves created
     //    afterwards inherit the irregular lengths already set. And sizing must
@@ -37,8 +40,8 @@ BuildChart(score, plan, options) {
     // Tempo marks and the like are anchored to the score's first bar, and the
     // chart is now that bar, so a direction such as 'Allegro' would sit over
     // the chart rather than over the music it describes. They move down to the
-    // first music bar. The title block is left exactly where it is: it belongs
-    // at the top of the page, which is above the chart.
+    // first music bar. The title block, and any text in a blank-page style, is
+    // left where it is: it belongs on the first page, which is the chart's.
     RelocateSystemText(score, sections.Length, sections.Length + 1, True);
 
     // 2. Instruments.
@@ -82,6 +85,19 @@ BuildChart(score, plan, options) {
             sections[i].kind, color, styles, tick);
     }
 
+    // 4b. The parts' copies, on each owner's own staves in the same bars. Here
+    //     rather than later so their padding rests are hidden with the rest.
+    roles = CopyStaffRoles(sections);
+    if (roles.Length > 0) {
+        ChartBarsInC(score, openingSharps, openingMajor, sections.Length);
+    }
+    tokens = PrepareCopyStaves(score, roles, sections.Length);
+    WriteCopies(score, sections, options, styles);
+    if (tokens.Length > 0) {
+        record = trebleStaves[0].NthBar(1).AddText(0, RestoreMarkerEncode(tokens), LabelTextStyle());
+        record.Hidden = True;
+    }
+
     // 5. Hide the structural furniture across every staff in the chart bars.
     for b = 0 to sections.Length {
         HideBarFurniture(score, b + 1);
@@ -89,13 +105,29 @@ BuildChart(score, plan, options) {
 
     // 6. Labels, breaks and staff size.
     for i = 0 to sections.Length {
-        label = trebleStaves[i].NthBar(i + 1).AddText(0, sections[i].label, LabelTextStyle());
+        section = sections[i];
+        // The chart staves are in no part, so their label is the full score's
+        // alone. The parts read the label on their copy.
+        trebleStaves[i].NthBar(i + 1).AddText(0, section.label, LabelTextStyle());
         bar = score.NthStaff(1).NthBar(i + 1);
-        bar.BreakType = EndOfSystem;
+        bar.BreakType = EndOfSystemOrPage;
         trebleStaves[i].Small = True;
         bassStaves[i].Small = True;
     }
     score.NthStaff(1).NthBar(sections.Length).SectionEnd = True;
+
+    // The music's first system now starts a new section, and Sibelius names
+    // the instruments there by the new-section rule, which can be none where
+    // the score's first system had full names. While the chart is in place it
+    // takes the first system's rule, and the score's own is kept beside the
+    // marker for a removal to put back.
+    rules = score.EngravingRules;
+    if (rules.InstrumentNamesNewSections != rules.InstrumentNamesFirstSystem) {
+        kept = trebleStaves[0].NthBar(1).AddText(0,
+            NamesMarkerEncode(rules.InstrumentNamesNewSections), LabelTextStyle());
+        kept.Hidden = True;
+        rules.InstrumentNamesNewSections = rules.InstrumentNamesFirstSystem;
+    }
 
     NumberFromFirstMusicBar(score, sections.Length);
 
@@ -131,7 +163,153 @@ BuildChart(score, plan, options) {
 
     RestoreTimeSignature(score, metre, sections.Length);
 
+    // 8. Staff spacing, over the chart and the music's first system. A chart's
+    //    ledger lines reach far past its staves into the system above, and the
+    //    music's first system loses whatever spacing it had been given when
+    //    the chart takes its place as the first system.
+    score.OptimizeStaffSpacing(1, score.StaffCount, 1, sections.Length + 1);
+
     return CreateDictionary('ok', True, 'error', '', 'warnings', warnings);
+}
+
+// The staves PlanParts gave a copy, each once, with the clef its copy is drawn
+// in: an owner's first staff takes the treble side and its second the bass.
+// Dictionary{staff, clef} per staff. Sections PlanParts never saw have no
+// copies, and _property: reads null for them where a plain read would stop
+// the plug-in.
+CopyStaffRoles(sections) {
+    roles = CreateSparseArray();
+    seen = CreateDictionary();
+    for i = 0 to sections.Length {
+        section = sections[i];
+        copies = section._property:copies;
+        if (copies != null) {
+            for j = 0 to copies.Length {
+                staves = copies[j];
+                for k = 0 to staves.Length {
+                    num = staves[k];
+                    key = 'staff' & num;
+                    if (seen[key] = null) {
+                        seen[key] = 1;
+                        clef = 'clef.treble';
+                        if (k = 1) {
+                            clef = 'clef.bass';
+                        }
+                        roles.Push(CreateDictionary('staff', num, 'clef', clef));
+                    }
+                }
+            }
+        }
+    }
+    return roles;
+}
+
+// A copy prints with no key, so every accidental shows as it does on the
+// chart. A key with sharps or flats becomes C major in the chart bars and
+// comes back where the music starts as an ordinary key change, on every
+// staff. A removal deletes the chart bars, C major with them, and leaves that
+// change as the music's opening key, so nothing in the music is hidden and
+// nothing has to be put back. Any other key already prints no accidentals.
+// The key is the one read before the chart bars went in, as nothing added
+// since can have changed it.
+ChartBarsInC(score, sharps, major, chartBars) {
+    if ((sharps = 0) or (sharps = -8)) {
+        return False;
+    }
+    score.NthStaff(1).NthBar(1).AddKeySignature(0, 0, True, False, False, False);
+    score.NthStaff(1).NthBar(chartBars + 1).AddKeySignature(0, sharps, major, False, False, False);
+    return True;
+}
+
+// Every copy staff made ready for its chart. Returns the restore record's
+// tokens.
+PrepareCopyStaves(score, roles, chartBars) {
+    tokens = CreateSparseArray();
+    for i = 0 to roles.Length {
+        role = roles[i];
+        made = PrepareCopyStaff(score, role.staff, role.clef, chartBars);
+        for j = 0 to made.Length {
+            tokens.Push(made[j]);
+        }
+    }
+    return tokens;
+}
+
+// A copy prints in the clef it was drawn for. Where the staff's own clef
+// differs, it gets a clef change in the first chart bar, and its own clef
+// goes back where the music starts unless the music already starts with one.
+// Read before anything changes, because the change moves what the next read
+// would see. Returns a token per clef put back, for the restore record.
+PrepareCopyStaff(score, staffNum, clef, chartBars) {
+    tokens = CreateSparseArray();
+    staff = score.NthStaff(staffNum);
+    music = staff.NthBar(chartBars + 1);
+    was = music.GetClefAt(0);
+    wasConcert = '' & was.ConcertClefStyleId;
+    wasTransposing = '' & was.TransposingClefStyleId;
+    clefHere = 0;
+    for each Clef c in music {
+        if (c.Position = 0) {
+            clefHere = 1;
+        }
+    }
+
+    if (wasConcert != clef) {
+        staff.NthBar(1).AddClef(0, clef);
+        if (clefHere = 0) {
+            music.AddClef(0, wasConcert, wasTransposing);
+            tokens.Push(staffNum & 'c');
+        }
+    }
+    return tokens;
+}
+
+// Each section's copies, drawn exactly as its chart is, in its own bar, with
+// the label the parts read: the plain one when every part showing it holds a
+// single charted instrument, which PlanPartEntries marks as splitLabel.
+WriteCopies(score, sections, options, styles) {
+    for i = 0 to sections.Length {
+        section = sections[i];
+        copies = section._property:copies;
+        if (copies != null) {
+            color = SectionColor(section.kind, options);
+            tick = ColumnTick(section.kind, styles);
+            text = section.label;
+            if (section._property:splitLabel = 1) {
+                text = section.plainLabel;
+            }
+            for j = 0 to copies.Length {
+                staves = copies[j];
+                top = score.NthStaff(staves[0]);
+                WriteColumns(top, i + 1, section.treble, section.kind, color, styles, tick);
+                MarkPartsOnly(top.NthBar(i + 1));
+                if (staves.Length > 1) {
+                    lower = score.NthStaff(staves[1]);
+                    WriteColumns(lower, i + 1, section.bass, section.kind, color, styles, tick);
+                    MarkPartsOnly(lower.NthBar(i + 1));
+                }
+                label = top.NthBar(i + 1).AddText(0, text, LabelTextStyle());
+                label.ShowInParts();
+            }
+        }
+    }
+    return True;
+}
+
+// A copy shows in the parts alone and plays on no pass: the full score has
+// the chart already, and playback has no use for either.
+MarkPartsOnly(bar) {
+    for each NoteRest nr in bar {
+        if (nr.NoteCount > 0) {
+            nr.ShowInParts();
+            p = 1;
+            while (p <= 8) {
+                nr.SetPlayedOnNthPass(p, False);
+                p = p + 1;
+            }
+        }
+    }
+    return True;
 }
 
 // The colour belongs to the instrument, and only the two that were given a

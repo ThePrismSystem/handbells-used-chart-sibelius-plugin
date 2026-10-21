@@ -29,6 +29,53 @@ BuildPlan(records, options) {
     return CreateDictionary('sections', sections, 'warnings', warnings);
 }
 
+// The plan for the instruments the dialog selected, charted together or one
+// set per instrument. Every section also records its plain label and the
+// instruments it belongs to, which is what decides the parts it goes into.
+//
+// Charting apart needs two instruments to mean anything: one instrument
+// charted on its own is the combined chart with its name stuck on the front,
+// so it is charted combined.
+BuildChartPlan(records, options) {
+    instruments = options.instruments;
+    // Warnings are about notes, not instruments. Read once over everything
+    // selected, an unrecognised head is reported once rather than once for
+    // every instrument that happens to use it.
+    combined = BuildPlan(RecordsForInstruments(records, instruments), options);
+    emptyNames = CreateSparseArray();
+
+    if ((options.mode != 'separate') or (instruments.Length < 2)) {
+        owners = InstrumentNames(instruments);
+        for i = 0 to combined.sections.Length {
+            section = combined.sections[i];
+            section._property:plainLabel = section.label;
+            section._property:owners = owners;
+        }
+        return CreateDictionary('sections', combined.sections,
+            'warnings', combined.warnings, 'emptyNames', emptyNames);
+    }
+
+    sections = CreateSparseArray();
+    for i = 0 to instruments.Length {
+        instrument = instruments[i];
+        own = BuildPlan(RecordsForInstruments(records, CreateSparseArray(instrument)), options);
+        // Named rather than silently dropped: a choir the user asked for that
+        // charts nothing is usually a passage selection that missed it.
+        if (own.sections.Length = 0) {
+            emptyNames.Push(instrument.name);
+        }
+        for j = 0 to own.sections.Length {
+            section = own.sections[j];
+            section._property:plainLabel = section.label;
+            section.label = (instrument.name & LabelDash()) & section.label;
+            section._property:owners = CreateSparseArray(instrument.name);
+            sections.Push(section);
+        }
+    }
+    return CreateDictionary('sections', sections,
+        'warnings', combined.warnings, 'emptyNames', emptyNames);
+}
+
 // The label is generated and nothing overrides it. A dialog field for it was
 // one more thing to fill in for a string that is trivially retyped in the
 // score once the chart is there.

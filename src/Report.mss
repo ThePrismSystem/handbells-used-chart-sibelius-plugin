@@ -36,6 +36,15 @@ WarningLines(warnings) {
             line = (warning.instrument & ' were drawn as hollow whole notes because ')
                 & ('this score has no ' & JoinNames(warning.names)) & ' notehead';
         }
+        // The parts warnings. A part has no name ManuScript can read, so it is
+        // named by the instruments it holds.
+        if (warning.type = 'no-copy-for-instrument') {
+            line = 'No chart was added to the parts for ' & JoinNames(warning.names)
+                & ', as their staves cannot hold one';
+        }
+        if (warning.type = 'no-part-for-charts') {
+            line = 'No part holds a selected instrument, so only the full score has the chart';
+        }
         if (line != '') {
             if (lines != '') {
                 lines = lines & '\n';

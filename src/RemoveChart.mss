@@ -69,13 +69,22 @@ FindFailure(message) {
         'firstStaff', 0, 'columns', CreateSparseArray(), 'error', message);
 }
 
+// Returns Dictionary{removed, error}.
 RemoveChart(score) {
     found = FindChart(score);
     if (found.error != '') {
-        return CreateDictionary('removed', False, 'error', found.error);
+        // The chart itself cannot be removed, but the names rule its build
+        // changed can be put back now, before the bars that record it are
+        // deleted by hand. The record sits on the chart's first staff, which
+        // is exactly what is in doubt, so it is looked for on every staff.
+        recordStaff = RecordStaff(score);
+        if (recordStaff > 0) {
+            RestoreNamesRule(score, recordStaff);
+        }
+        return RemovalResult(False, found.error);
     }
     if (not(found.found)) {
-        return CreateDictionary('removed', False, 'error', '');
+        return RemovalResult(False, '');
     }
 
     // Staves the chart hid come back before the ranges stop meaning anything.
@@ -84,10 +93,15 @@ RemoveChart(score) {
     score.ShowEmptyStaves(found.firstStaff, score.StaffCount,
         found.sections + 1, score.NthStaff(1).BarCount);
 
+    // The names rule a build changed goes back to the score's own, read from
+    // the chart's first bar before that bar goes.
+    RestoreNamesRule(score, found.firstStaff);
+
     // Before any bar goes, rescue the title block it is carrying and drop the
     // renumbering that only made sense while the chart was in front.
     RelocateSystemText(score, found.sections, found.sections + 1, False);
     ClearHiddenBarNumber(score.NthStaff(1).NthBar(found.sections + 1));
+    RemoveRestores(score, found);
 
     // Bars first: removing the staves renumbers everything underneath us. The
     // marker goes with the bar that holds it.
@@ -96,10 +110,13 @@ RemoveChart(score) {
         score.NthStaff(1).NthBar(1).Delete();
     }
     if (score.NthStaff(1).BarCount != (barsBefore - found.sections)) {
-        return CreateDictionary('removed', False, 'error', IdentificationError(
+        return RemovalResult(False, IdentificationError(
             'This score records a Handbells Used chart, but Sibelius did not remove '
             & 'the chart bars.'));
     }
+
+    // While the chart staves still exist to say which parts are only theirs.
+    DeleteChartOnlyParts(score, found.firstStaff);
 
     // Bottom-up, so deleting one staff does not renumber the ones still to go.
     staffCountBefore = score.StaffCount;
@@ -109,21 +126,57 @@ RemoveChart(score) {
         n = n - 1;
     }
     if (score.StaffCount != (staffCountBefore - (found.sections * 2))) {
-        return CreateDictionary('removed', False, 'error', IdentificationError(
+        return RemovalResult(False, IdentificationError(
             'This score records a Handbells Used chart, but Sibelius did not remove '
             & 'the chart staves.'));
     }
 
-    return CreateDictionary('removed', True, 'error', '');
+    return RemovalResult(True, '');
+}
+
+// The clefs a build put back where the music starts, on the staves that held
+// the parts' copies, come off again with the chart, so the music's first bar
+// is as it was. Each is the first clef at the start of that bar, found before
+// anything is deleted.
+RemoveRestores(score, found) {
+    restores = RestoreMarkerRead(score, found.firstStaff);
+    for i = 0 to restores.Length {
+        bar = score.NthStaff(restores[i]).NthBar(found.sections + 1);
+        doomed = null;
+        for each Clef c in bar {
+            if (doomed = null) {
+                if (c.Position = 0) {
+                    doomed = c;
+                }
+            }
+        }
+        if (doomed != null) {
+            doomed.Delete();
+        }
+    }
+    return True;
+}
+
+RemovalResult(removed, error) {
+    return CreateDictionary('removed', removed, 'error', error);
+}
+
+RestoreNamesRule(score, staffNum) {
+    names = NamesMarkerRead(score, staffNum);
+    if (names >= 0) {
+        rules = score.EngravingRules;
+        rules.InstrumentNamesNewSections = names;
+    }
+    return True;
 }
 
 // Both paths relocate system text out of the chart bars, for opposite reasons,
 // so they share one routine.
 //
-// `musicalOnly` decides whether the page-aligned title block travels. On a
-// build it must not: the title belongs at the top of the page, above the
-// chart, which is where Sibelius already leaves it. On a removal it must,
-// because the bar holding it is about to be deleted.
+// `musicalOnly` decides whether the title block, and anything else that
+// belongs to the first page, travels. On a build it must not: it belongs on
+// the first page with the chart, which is where Sibelius already leaves it.
+// On a removal it must, because the bar holding it is about to be deleted.
 //
 // The delete follows the guide's documented shape: collect every item first,
 // then delete in REVERSE order. Deleting forwards while iterating desyncs the
@@ -142,7 +195,7 @@ RelocateSystemText(score, fromBars, targetBarNum, musicalOnly) {
             if (item.Type = 'SystemTextItem') {
                 take = True;
                 if (musicalOnly) {
-                    if (StyleIsPageAligned(item.StyleId)) {
+                    if (StyleStaysOnFirstPage(item.StyleId)) {
                         take = False;
                     }
                 }
@@ -184,9 +237,11 @@ RelocateSystemText(score, fromBars, targetBarNum, musicalOnly) {
     return True;
 }
 
-// A page-aligned item is positioned against the page, and its offsets were
-// measured from the system about to be deleted, so carrying them over put the
-// title and subtitle off the top of the page. Its own style knows better.
+// A page-aligned item keeps both offsets. The title block hangs from the top
+// staff of the first system, and the music's first bar starts that system
+// once the chart bars go, so the offsets mean what they meant. A score whose
+// title the user has placed partly off the page keeps it there; resetting it
+// instead moved every hand-placed title block back to its style's position.
 //
 // Everything else is staff-relative, and a staff is a staff in either bar, so
 // the vertical nudge still means what it meant. It is worth keeping: two tempo
@@ -200,19 +255,31 @@ PlaceMovedText(copy, item) {
     copy.Hidden = item.Hidden;
 
     if (StyleIsPageAligned(item.StyleId)) {
-        copy.ResetPosition();
-        return True;
+        copy.Dx = item.Dx;
     }
     copy.Dy = item.Dy;
     return True;
 }
 
-// ManuScript has no substring search, so this is a scan. The title block
-// styles are the `text.system.page_aligned.*` family: title, subtitle,
-// composer, copyright and the two instrument-name headers.
+// The title block styles are the `text.system.page_aligned.*` family: title,
+// subtitle, composer, copyright and the two instrument-name headers.
 StyleIsPageAligned(styleId) {
-    text = '' & styleId;
-    needle = 'page_aligned';
+    return TextContains('' & styleId, 'page_aligned');
+}
+
+// What a build leaves in the first bar, on the first page: the title block,
+// and text in a blank-page style, which sits on the page rather than over the
+// music. A copyright line set in one was carried down to the music like a
+// tempo mark, and landed on top of it.
+StyleStaysOnFirstPage(styleId) {
+    if (StyleIsPageAligned(styleId)) {
+        return True;
+    }
+    return TextContains('' & styleId, 'blankpage');
+}
+
+// ManuScript has no substring search, so this is a scan.
+TextContains(text, needle) {
     limit = Length(text) - Length(needle);
     if (limit < 0) {
         return False;

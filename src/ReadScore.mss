@@ -37,10 +37,13 @@ ReadBarNotes(bar, records) {
         // must be iterated untyped.
         for each n in nr {
             bell = ToBellSpace(n.Pitch, n.DiatonicPitch, staff);
+            // The staff is what ties a note to its instrument, so the plan
+            // can chart instruments apart or leave one out.
             records.Push(CreateDictionary(
                 'pitch', bell.pitch,
                 'diatonic', bell.diatonic,
-                'head', '' & n.NoteStyleName
+                'head', '' & n.NoteStyleName,
+                'staff', staff.StaffNum
             ));
         }
     }

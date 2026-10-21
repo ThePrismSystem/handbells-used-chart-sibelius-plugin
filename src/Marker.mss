@@ -95,6 +95,122 @@ MarkerFind(score) {
     return null;
 }
 
+// The score's own rule for instrument names at the start of a new section,
+// kept beside the marker when a build changes it so a removal can put it
+// back. A text of its own rather than a marker field, because the marker's
+// shape is fixed and a chart drawn before this record must still be found.
+NamesMarkerEncode(value) {
+    return ('' & NAMES_MARKER_PREFIX) & '|' & value;
+}
+
+// The rule a names record holds, 0 to 2, or -1 for any other text.
+NamesMarkerDecode(text) {
+    if (text = null) {
+        return -1;
+    }
+    parts = SplitOnPipe(text);
+    if (parts.Length != 2) {
+        return -1;
+    }
+    if (parts[0] != ('' & NAMES_MARKER_PREFIX)) {
+        return -1;
+    }
+    if (not(utils.IsNumeric(parts[1], True))) {
+        return -1;
+    }
+    value = 0 + parts[1];
+    if ((value < 0) or (value > 2)) {
+        return -1;
+    }
+    return value;
+}
+
+// The rule a build recorded in the chart's first bar, or -1 when the build
+// changed nothing or drew the chart before the record existed.
+NamesMarkerRead(score, firstStaff) {
+    bar = score.NthStaff(firstStaff).NthBar(1);
+    for each Text t in bar {
+        value = NamesMarkerDecode(t.Text);
+        if (value >= 0) {
+            return value;
+        }
+    }
+    return -1;
+}
+
+// The clef changes a build put on an owner's staves where the music starts,
+// so a removal can take them off again. A text of its own beside the marker,
+// as the names record is. Each token is a staff number followed by c.
+RestoreMarkerEncode(tokens) {
+    text = '' & RESTORE_MARKER_PREFIX;
+    for i = 0 to tokens.Length {
+        text = text & ('|' & tokens[i]);
+    }
+    return text;
+}
+
+// The staff number each token names, or null for any other text.
+RestoreMarkerDecode(text) {
+    if (text = null) {
+        return null;
+    }
+    parts = SplitOnPipe(text);
+    if (parts.Length < 2) {
+        return null;
+    }
+    if (parts[0] != ('' & RESTORE_MARKER_PREFIX)) {
+        return null;
+    }
+    restores = CreateSparseArray();
+    for i = 1 to parts.Length {
+        token = parts[i];
+        size = Length(token);
+        if (size < 2) {
+            return null;
+        }
+        kind = Substring(token, size - 1, 1);
+        staff = Substring(token, 0, size - 1);
+        if (kind != 'c') {
+            return null;
+        }
+        if (not(utils.IsNumeric(staff, True))) {
+            return null;
+        }
+        restores.Push(0 + staff);
+    }
+    return restores;
+}
+
+// The restores a build recorded in the chart's first bar, none when it made
+// none.
+RestoreMarkerRead(score, firstStaff) {
+    bar = score.NthStaff(firstStaff).NthBar(1);
+    for each Text t in bar {
+        restores = RestoreMarkerDecode(t.Text);
+        if (restores != null) {
+            return restores;
+        }
+    }
+    return CreateSparseArray();
+}
+
+// The staff whose first bar holds a names record, or 0 when none does. For a
+// chart that can no longer be identified, where the staff the record was
+// written on is exactly what is in doubt.
+RecordStaff(score) {
+    n = 1;
+    while (n <= score.StaffCount) {
+        bar = score.NthStaff(n).NthBar(1);
+        for each Text t in bar {
+            if (NamesMarkerDecode(t.Text) >= 0) {
+                return n;
+            }
+        }
+        n = n + 1;
+    }
+    return 0;
+}
+
 MarkerWrite(bar, sections, totalStaves, columnsArray) {
     text = bar.AddText(0, MarkerEncode(sections, totalStaves, columnsArray), LabelTextStyle());
     text.Hidden = True;

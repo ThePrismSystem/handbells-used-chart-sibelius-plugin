@@ -20,14 +20,23 @@ Run() {
     TestColumnsOrphan();
     TestColumnsSingleStaff();
     TestPlan();
+    TestChartPlan();
+    TestInstruments();
+    TestParts();
     TestMarker();
     TestOptions();
     TestReport();
     TestNoteHeads();
     TestReadScore();
+    TestScoreInstruments();
     TestNoteHeadScan();
     TestBuildChart();
     TestRemoveChart();
+    TestNamesRule();
+    TestBuildSeparate();
+    TestEnterFullScore();
+    TestBuildChartParts();
+    TestBuildKeyed();
     Sibelius.MessageBox(AssertReport());
     trace(AssertReport());
 }

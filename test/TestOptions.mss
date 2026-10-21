@@ -63,4 +63,58 @@ TestOptions() {
     AssertEquals(DuplicateHead(CreateDictionary('bellHead', NoNoteHead(),
         'chimeHead', NoNoteHead(), 'smbHead', NoNoteHead())), '',
         'a score with nothing chosen is not a clash');
+
+    empty = PipeList('');
+    AssertEquals(empty.Length, 0, 'an empty memory is no names');
+    AssertEquals(JoinNames(PipeList('Piano|Flute')), 'Piano, Flute', 'memory splits on the pipe');
+    AssertEquals(JoinPipe(CreateSparseArray('Piano', 'Flute')), 'Piano|Flute', 'memory joins on the pipe');
+    AssertEquals(JoinPipe(CreateSparseArray()), '', 'no names joins to nothing');
+    // An instrument name is the user's own text and may hold the separator.
+    escaped = JoinPipe(CreateSparseArray('Bells A|B', 'Bells ~5'));
+    AssertEquals(escaped, 'Bells A~pB|Bells ~~5', 'a pipe or tilde in a name is escaped');
+    back = PipeList(escaped);
+    AssertEquals(back.Length, 2, 'an escaped pipe does not split the name');
+    AssertEquals(JoinNames(back), 'Bells A|B, Bells ~5', 'escaped names read back as they were');
+
+    offered = CreateSparseArray('Handbells I', 'Handbells II', 'Piano');
+    AssertEquals(JoinNames(PreselectedNames(offered, CreateSparseArray())),
+        'Handbells I, Handbells II, Piano', 'a first run selects everything');
+    AssertEquals(JoinNames(PreselectedNames(offered, CreateSparseArray('Piano', 'Flute'))),
+        'Handbells I, Handbells II', 'a remembered exclusion applies, one absent from this score does not matter');
+    AssertEquals(JoinNames(PreselectedNames(CreateSparseArray('Bells A'), CreateSparseArray('Handbells I'))),
+        'Bells A', 'a renamed instrument is new, so it starts selected');
+
+    AssertEquals(JoinNames(ExcludedAfterRun(CreateSparseArray(), offered,
+        CreateSparseArray('Handbells I', 'Handbells II'))), 'Piano', 'leaving the piano out is remembered');
+    AssertEquals(JoinNames(ExcludedAfterRun(CreateSparseArray('Piano', 'Flute'), offered, offered)),
+        'Flute', 'selecting the piano again forgets it, and the flute is kept for a score that has one');
+    AssertEquals(JoinNames(ExcludedAfterRun(CreateSparseArray('Flute'), offered, CreateSparseArray('Piano'))),
+        'Flute, Handbells I, Handbells II', 'remembered names first, then this run in score order');
+    AssertEquals(JoinNames(ExcludedAfterRun(CreateSparseArray('Flute'), offered, CreateSparseArray())),
+        'Flute', 'a run with nothing selected changes nothing remembered');
+
+    AssertEquals(ChartModeOf('' & CHART_MODE_SEPARATE), 'separate', 'the separate choice');
+    AssertEquals(ChartModeOf('' & CHART_MODE_COMBINED), 'combined', 'the combined choice');
+    AssertEquals(ChartModeOf(''), 'combined', 'no choice yet is combined, as v1.2.0');
+    AssertEquals(ChartModeOf('something else'), 'combined', 'an unknown choice is combined');
+
+    // A ticked parts box reached the run as unticked: the read only accepted
+    // '1', and a ticked checkbox can hand back a Boolean, which reads 'true'.
+    AssertTrue(Ticked(True), 'a checkbox holding True is ticked');
+    AssertTrue(Ticked('true'), 'a checkbox reading true is ticked');
+    AssertTrue(Ticked('1'), 'a checkbox reading 1 is ticked');
+    AssertTrue(not(Ticked(False)), 'a checkbox holding False is not ticked');
+    AssertTrue(not(Ticked('0')), 'the default 0 is not ticked');
+    AssertTrue(not(Ticked('')), 'an empty checkbox value is not ticked');
+
+    // The shape ReadOptions hands the list box, which is also the shape a
+    // hand-run session saw the dialog hand back.
+    dlg_instruments = CreateArray();
+    dlg_instruments[0] = 'Handbells I';
+    dlg_instruments[1] = 'Piano';
+    AssertEquals(JoinNames(SelectedNames(dlg_instruments)), 'Handbells I, Piano',
+        'the list selection reads back as names');
+    dlg_instruments = CreateArray();
+    nothing = SelectedNames(dlg_instruments);
+    AssertEquals(nothing.Length, 0, 'an empty selection reads back as no names');
 }

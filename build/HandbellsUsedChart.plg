@@ -5,6 +5,9 @@
 	LabelTextStyle "() {
     return '' & LABEL_TEXT_STYLE;
 }"
+	LabelDash "() {
+    return '' & LABEL_DASH;
+}"
 	EnableStringSafety "() {
     if (Sibelius.ProgramVersion > 20200600) {
         SetInterpreterOption(TreatSingleCharacterAsString);
@@ -47,8 +50,14 @@
         return False;
     }
 
+    // Before the dialog, because filling it already reads the score: the
+    // instrument list and the existing chart are looked for in whichever part
+    // is current. The part that was current is made current again on every
+    // exit below.
+    was = EnterFullScore(score);
     options = ReadOptions(score);
     if (options = null) {
+        score.CurrentDynamicPart = was;
         return False;
     }
 
@@ -66,89 +75,16 @@
 
     score.Redraw = True;
     selection.RestoreSelection();
+    // Unless the run deleted it: a part holding nothing but chart staves goes
+    // with the chart.
+    if (IsValid(was)) {
+        score.CurrentDynamicPart = was;
+    }
 
     if (message.text != '') {
         ReportSay(message.kind, message.text);
     }
     return message.ok;
-}"
-	ChartScore "(score, options) {
-    // Ahead of the removal, so a score that would chart nothing useful keeps
-    // the chart it has. A removal run never reads a note, so the choice of
-    // noteheads cannot block one.
-    if (not(options.remove)) {
-        duplicate = DuplicateHead(options);
-        if (duplicate != '') {
-            return CreateDictionary('ok', False, 'kind', 'error',
-                'text', ('More than one instrument is set to the ' & duplicate)
-                    & (' notehead. ' & _SameNoteheadChosen));
-        }
-    }
-
-    // Removal first, so a re-run replaces its own chart rather than reading it
-    // back in and charting the chart.
-    removal = RemoveChart(score);
-    if (removal.error != '') {
-        return CreateDictionary('ok', False, 'kind', 'error', 'text', removal.error);
-    }
-
-    // H2 again: every Data read is coerced before it goes anywhere. These two
-    // are stored into a dictionary and compared against '' back in Run, so an
-    // uncoerced read would put a TreeNode where a string is later tested.
-    if (options.remove) {
-        if (removal.removed) {
-            return CreateDictionary('ok', True, 'kind', 'info', 'text', '' & _ChartWasRemoved);
-        }
-        return CreateDictionary('ok', False, 'kind', 'warning', 'text', '' & _NoChartToRemove);
-    }
-
-    plan = BuildPlan(ReadScoreNotes(score), options);
-
-    // Warnings are folded into the message ahead of the nothing-to-draw case,
-    // not reported after it. A score whose only bells lie outside C2-C9 plans
-    // no sections at all, and being told 'no handbells were found' is both
-    // wrong and useless when the run knows exactly which bells it skipped.
-    if (plan.sections.Length = 0) {
-        text = '' & _NoBellsFound;
-        if (removal.removed) {
-            text = text & ('\n\n' & _ChartWasRemoved);
-        }
-        lines = WarningLines(plan.warnings);
-        if (lines != '') {
-            text = (lines & '\n\n') & text;
-        }
-        return CreateDictionary('ok', False, 'kind', 'warning', 'text', text);
-    }
-
-    result = BuildChart(score, plan, options);
-    if (not(result.ok)) {
-        return CreateDictionary('ok', False, 'kind', 'error', 'text', result.error);
-    }
-
-    // The chart's own warnings join the plan's. Whether the score carries the
-    // notehead an SMB column wants is only discovered while drawing, so a
-    // planning-time list alone would leave that one unreported.
-    warnings = plan.warnings;
-    for i = 0 to result.warnings.Length {
-        warnings.Push(result.warnings[i]);
-    }
-    lines = WarningLines(warnings);
-
-    summary = '';
-    for i = 0 to plan.sections.Length {
-        if (i > 0) {
-            summary = summary & '\n';
-        }
-        summary = summary & plan.sections[i].label;
-    }
-    if (removal.removed) {
-        summary = summary & ('\n\n' & _ChartWasReplaced);
-    }
-    if (lines != '') {
-        summary = (lines & '\n\n') & summary;
-    }
-
-    return CreateDictionary('ok', True, 'kind', 'info', 'text', summary);
 }"
 	ReadOptions "(score) {
     // The notehead dropdowns are filled from the open score, so this has to
@@ -183,9 +119,41 @@
     // unremembered SMB box opens on no notehead rather than on a guess.
     dlg_smbHead = PreferredHead(choices.names, '' & dlg_smbHead, '');
 
+    // Filled the way the notehead boxes are, and for the same reason: the list
+    // comes from the open score. The selection it opens on is everything this
+    // score offers except what was left out last time.
+    instruments = ScoreInstruments(score);
+    offered = InstrumentNames(instruments);
+    excluded = PipeList(_ExcludedInstruments);
+    preselected = PreselectedNames(offered, excluded);
+    _InstrumentItems = CreateArray();
+    for i = 0 to offered.Length {
+        _InstrumentItems[i] = offered[i];
+    }
+    dlg_instruments = CreateArray();
+    for i = 0 to preselected.Length {
+        dlg_instruments[i] = preselected[i];
+    }
+    _ChartModeItems = CreateArray();
+    _ChartModeItems[0] = '' & CHART_MODE_COMBINED;
+    _ChartModeItems[1] = '' & CHART_MODE_SEPARATE;
+    if (('' & dlg_chartMode) = '') {
+        dlg_chartMode = '' & CHART_MODE_COMBINED;
+    }
+
+    // The Charts box means nothing with fewer than two instruments selected,
+    // and InstrumentsChanged only greys it out once the list is clicked.
+    // EnableControlById is only documented for a dialog already showing;
+    // EnableNthControl also works before one opens, but counts controls in
+    // their creation order, which a tools test pins to the .msd.
+    Sibelius.EnableNthControl(0 + CHART_MODE_CONTROL_INDEX, preselected.Length > 1);
+
     if (not(Sibelius.ShowDialog(_SettingsDialog, self))) {
         return null;
     }
+
+    selected = SelectedNames(dlg_instruments);
+    _ExcludedInstruments = JoinPipe(ExcludedAfterRun(excluded, offered, selected));
 
     return CreateDictionary(
         'chimeColor', UsableColor(dlg_chimeColor),
@@ -193,8 +161,124 @@
         'bellHead', Trim(dlg_bellHead),
         'chimeHead', Trim(dlg_chimeHead),
         'smbHead', Trim(dlg_smbHead),
-        'remove', ('' & dlg_remove) = '1'
+        'remove', Ticked(dlg_remove),
+        'instruments', InstrumentsNamed(instruments, selected),
+        'mode', ChartModeOf(dlg_chartMode),
+        'parts', Ticked(dlg_parts),
+        'pageBreak', Ticked(dlg_pageBreak)
     );
+}"
+	InstrumentsChanged "() {
+    selected = SelectedNames(dlg_instruments);
+    Sibelius.EnableControlById(Self, _SettingsDialog, 'dlg_chartMode', selected.Length > 1);
+    return True;
+}"
+	SelectedNames "(value) {
+    names = CreateSparseArray();
+    count = value.NumChildren;
+    for i = 0 to count {
+        names.Push('' & value[i]);
+    }
+    return names;
+}"
+	Ticked "(value) {
+    text = '' & value;
+    if (text = '1') {
+        return True;
+    }
+    if (text = 'true') {
+        return True;
+    }
+    return False;
+}"
+	ChartModeOf "(choice) {
+    if (('' & choice) = ('' & CHART_MODE_SEPARATE)) {
+        return 'separate';
+    }
+    return 'combined';
+}"
+	PipeList "(text) {
+    value = '' & text;
+    names = CreateSparseArray();
+    if (value = '') {
+        return names;
+    }
+    current = '';
+    i = 0;
+    while (i < Length(value)) {
+        char = Substring(value, i, 1);
+        if (char = '~') {
+            escaped = Substring(value, i + 1, 1);
+            if (escaped = 'p') {
+                current = current & '|';
+            } else {
+                current = current & escaped;
+            }
+            i = i + 2;
+        } else {
+            if (char = '|') {
+                names.Push(current);
+                current = '';
+            } else {
+                current = current & char;
+            }
+            i = i + 1;
+        }
+    }
+    names.Push(current);
+    return names;
+}"
+	JoinPipe "(names) {
+    text = '';
+    for i = 0 to names.Length {
+        if (i > 0) {
+            text = text & '|';
+        }
+        text = text & EscapePipe('' & names[i]);
+    }
+    return text;
+}"
+	EscapePipe "(name) {
+    text = '';
+    for i = 0 to Length(name) {
+        char = Substring(name, i, 1);
+        if (char = '~') {
+            text = text & '~~';
+        } else {
+            if (char = '|') {
+                text = text & '~p';
+            } else {
+                text = text & char;
+            }
+        }
+    }
+    return text;
+}"
+	PreselectedNames "(offered, excluded) {
+    chosen = CreateSparseArray();
+    for i = 0 to offered.Length {
+        if (HeadListed(excluded, offered[i]) = 0) {
+            chosen.Push(offered[i]);
+        }
+    }
+    return chosen;
+}"
+	ExcludedAfterRun "(remembered, offered, selected) {
+    if (selected.Length = 0) {
+        return remembered;
+    }
+    excluded = CreateSparseArray();
+    for i = 0 to remembered.Length {
+        if (HeadListed(offered, remembered[i]) = 0) {
+            excluded.Push(remembered[i]);
+        }
+    }
+    for i = 0 to offered.Length {
+        if (HeadListed(selected, offered[i]) = 0) {
+            excluded.Push(offered[i]);
+        }
+    }
+    return excluded;
 }"
 	DuplicateHead "(options) {
     heads = CreateSparseArray(options.bellHead, options.chimeHead, options.smbHead);
@@ -288,6 +372,15 @@
         if (warning.type = 'missing-notehead') {
             line = (warning.instrument & ' were drawn as hollow whole notes because ')
                 & ('this score has no ' & JoinNames(warning.names)) & ' notehead';
+        }
+        // The parts warnings. A part has no name ManuScript can read, so it is
+        // named by the instruments it holds.
+        if (warning.type = 'no-copy-for-instrument') {
+            line = 'No chart was added to the parts for ' & JoinNames(warning.names)
+                & ', as their staves cannot hold one';
+        }
+        if (warning.type = 'no-part-for-charts') {
+            line = 'No part holds a selected instrument, so only the full score has the chart';
         }
         if (line != '') {
             if (lines != '') {
@@ -779,6 +872,45 @@
 
     return CreateDictionary('sections', sections, 'warnings', warnings);
 }"
+	BuildChartPlan "(records, options) {
+    instruments = options.instruments;
+    // Warnings are about notes, not instruments. Read once over everything
+    // selected, an unrecognised head is reported once rather than once for
+    // every instrument that happens to use it.
+    combined = BuildPlan(RecordsForInstruments(records, instruments), options);
+    emptyNames = CreateSparseArray();
+
+    if ((options.mode != 'separate') or (instruments.Length < 2)) {
+        owners = InstrumentNames(instruments);
+        for i = 0 to combined.sections.Length {
+            section = combined.sections[i];
+            section._property:plainLabel = section.label;
+            section._property:owners = owners;
+        }
+        return CreateDictionary('sections', combined.sections,
+            'warnings', combined.warnings, 'emptyNames', emptyNames);
+    }
+
+    sections = CreateSparseArray();
+    for i = 0 to instruments.Length {
+        instrument = instruments[i];
+        own = BuildPlan(RecordsForInstruments(records, CreateSparseArray(instrument)), options);
+        // Named rather than silently dropped: a choir the user asked for that
+        // charts nothing is usually a passage selection that missed it.
+        if (own.sections.Length = 0) {
+            emptyNames.Push(instrument.name);
+        }
+        for j = 0 to own.sections.Length {
+            section = own.sections[j];
+            section._property:plainLabel = section.label;
+            section.label = (instrument.name & LabelDash()) & section.label;
+            section._property:owners = CreateSparseArray(instrument.name);
+            sections.Push(section);
+        }
+    }
+    return CreateDictionary('sections', sections,
+        'warnings', combined.warnings, 'emptyNames', emptyNames);
+}"
 	MakeSection "(kind, entries) {
     built = BuildColumns(entries, UsesOneStaff(kind));
     return CreateDictionary(
@@ -896,6 +1028,99 @@
     }
     return null;
 }"
+	NamesMarkerEncode "(value) {
+    return ('' & NAMES_MARKER_PREFIX) & '|' & value;
+}"
+	NamesMarkerDecode "(text) {
+    if (text = null) {
+        return -1;
+    }
+    parts = SplitOnPipe(text);
+    if (parts.Length != 2) {
+        return -1;
+    }
+    if (parts[0] != ('' & NAMES_MARKER_PREFIX)) {
+        return -1;
+    }
+    if (not(utils.IsNumeric(parts[1], True))) {
+        return -1;
+    }
+    value = 0 + parts[1];
+    if ((value < 0) or (value > 2)) {
+        return -1;
+    }
+    return value;
+}"
+	NamesMarkerRead "(score, firstStaff) {
+    bar = score.NthStaff(firstStaff).NthBar(1);
+    for each Text t in bar {
+        value = NamesMarkerDecode(t.Text);
+        if (value >= 0) {
+            return value;
+        }
+    }
+    return -1;
+}"
+	RestoreMarkerEncode "(tokens) {
+    text = '' & RESTORE_MARKER_PREFIX;
+    for i = 0 to tokens.Length {
+        text = text & ('|' & tokens[i]);
+    }
+    return text;
+}"
+	RestoreMarkerDecode "(text) {
+    if (text = null) {
+        return null;
+    }
+    parts = SplitOnPipe(text);
+    if (parts.Length < 2) {
+        return null;
+    }
+    if (parts[0] != ('' & RESTORE_MARKER_PREFIX)) {
+        return null;
+    }
+    restores = CreateSparseArray();
+    for i = 1 to parts.Length {
+        token = parts[i];
+        size = Length(token);
+        if (size < 2) {
+            return null;
+        }
+        kind = Substring(token, size - 1, 1);
+        staff = Substring(token, 0, size - 1);
+        if (kind != 'c') {
+            return null;
+        }
+        if (not(utils.IsNumeric(staff, True))) {
+            return null;
+        }
+        restores.Push(0 + staff);
+    }
+    return restores;
+}"
+	RestoreMarkerRead "(score, firstStaff) {
+    bar = score.NthStaff(firstStaff).NthBar(1);
+    for each Text t in bar {
+        restores = RestoreMarkerDecode(t.Text);
+        if (restores != null) {
+            return restores;
+        }
+    }
+    return CreateSparseArray();
+}"
+	RecordStaff "(score) {
+    n = 1;
+    while (n <= score.StaffCount) {
+        bar = score.NthStaff(n).NthBar(1);
+        for each Text t in bar {
+            if (NamesMarkerDecode(t.Text) >= 0) {
+                return n;
+            }
+        }
+        n = n + 1;
+    }
+    return 0;
+}"
 	MarkerWrite "(bar, sections, totalStaves, columnsArray) {
     text = bar.AddText(0, MarkerEncode(sections, totalStaves, columnsArray), LabelTextStyle());
     text.Hidden = True;
@@ -910,9 +1135,11 @@
     defaults = CreateDictionary('bell', '', 'chime', '');
 
     lastStaff = score.StaffCount;
+    chartBars = 0;
     found = FindChart(score);
     if (found.found) {
         lastStaff = found.firstStaff - 1;
+        chartBars = found.sections;
     }
 
     selection = score.Selection;
@@ -923,7 +1150,9 @@
             if (IsObject(bar)) {
                 staff = bar.ParentStaff;
                 if (staff.StaffNum <= lastStaff) {
-                    ScanBarHeads(bar, names, seen, defaults);
+                    if (bar.BarNumber > chartBars) {
+                        ScanBarHeads(bar, names, seen, defaults);
+                    }
                 }
             }
         }
@@ -931,7 +1160,7 @@
         n = 1;
         while (n <= lastStaff) {
             staff = score.NthStaff(n);
-            b = 1;
+            b = chartBars + 1;
             while (b <= staff.BarCount) {
                 ScanBarHeads(staff.NthBar(b), names, seen, defaults);
                 b = b + 1;
@@ -1037,14 +1266,149 @@
         // must be iterated untyped.
         for each n in nr {
             bell = ToBellSpace(n.Pitch, n.DiatonicPitch, staff);
+            // The staff is what ties a note to its instrument, so the plan
+            // can chart instruments apart or leave one out.
             records.Push(CreateDictionary(
                 'pitch', bell.pitch,
                 'diatonic', bell.diatonic,
-                'head', '' & n.NoteStyleName
+                'head', '' & n.NoteStyleName,
+                'staff', staff.StaffNum
             ));
         }
     }
     return True;
+}"
+	ScoreInstruments "(score) {
+    lastStaff = score.StaffCount;
+    found = FindChart(score);
+    if (found.found) {
+        lastStaff = found.firstStaff - 1;
+    }
+
+    staves = CreateSparseArray();
+    n = 1;
+    while (n <= lastStaff) {
+        staff = score.NthStaff(n);
+        // NumStavesInSameInstrument is documented as the stave count of the
+        // default instrument the staff was created from, not its current
+        // count, so the instrument type is read as well: GroupStaves stops a
+        // span at a staff of another type. An instrument given an extra staff
+        // by hand may still group wrong, which is why the integration test
+        // traces every grouping it finds.
+        staves.Push(CreateDictionary('num', n,
+            'name', InstrumentLabelOf(staff.FullInstrumentName, staff.InstrumentName),
+            'span', staff.NumStavesInSameInstrument,
+            'style', '' & staff.InitialStyleId));
+        n = n + 1;
+    }
+    return GroupStaves(staves);
+}"
+	GroupStaves "(staves) {
+    instruments = CreateSparseArray();
+    if (staves.Length = 0) {
+        return instruments;
+    }
+    final = staves[staves.Length - 1];
+    lastNum = final.num;
+
+    i = 0;
+    while (i < staves.Length) {
+        staff = staves[i];
+        // A span that reads as 0 still covers the staff it was read from, and
+        // one reaching past the last staff stops there rather than claiming
+        // staves that do not exist.
+        span = staff.span;
+        if (span < 1) {
+            span = 1;
+        }
+        last = (staff.num + span) - 1;
+        if (last > lastNum) {
+            last = lastNum;
+        }
+        end = staff.num;
+        j = i + 1;
+        going = 1;
+        while ((j < staves.Length) and (going = 1)) {
+            following = staves[j];
+            going = 0;
+            if (following.num <= last) {
+                if (following.style = staff.style) {
+                    end = following.num;
+                    going = 1;
+                }
+            }
+            j = j + 1;
+        }
+        instruments.Push(CreateDictionary('name', staff.name,
+            'firstStaff', staff.num, 'lastStaff', end));
+        i = (i + (end - staff.num)) + 1;
+    }
+    return UniqueInstrumentNames(instruments);
+}"
+	UniqueInstrumentNames "(instruments) {
+    original = CreateDictionary();
+    for i = 0 to instruments.Length {
+        instrument = instruments[i];
+        original['' & instrument.name] = 1;
+    }
+    used = CreateDictionary();
+    for i = 0 to instruments.Length {
+        instrument = instruments[i];
+        name = '' & instrument.name;
+        if (used[name] != null) {
+            n = 2;
+            candidate = name & (' (' & n & ')');
+            while ((original[candidate] != null) or (used[candidate] != null)) {
+                n = n + 1;
+                candidate = name & (' (' & n & ')');
+            }
+            name = candidate;
+            instrument.name = name;
+        }
+        used[name] = 1;
+    }
+    return instruments;
+}"
+	InstrumentLabelOf "(fullName, instrumentName) {
+    if (('' & fullName) != '') {
+        return '' & fullName;
+    }
+    return '' & instrumentName;
+}"
+	InstrumentNames "(instruments) {
+    names = CreateSparseArray();
+    for i = 0 to instruments.Length {
+        instrument = instruments[i];
+        names.Push(instrument.name);
+    }
+    return names;
+}"
+	InstrumentsNamed "(instruments, names) {
+    chosen = CreateSparseArray();
+    for i = 0 to instruments.Length {
+        instrument = instruments[i];
+        if (HeadListed(names, instrument.name) = 1) {
+            chosen.Push(instrument);
+        }
+    }
+    return chosen;
+}"
+	RecordsForInstruments "(records, instruments) {
+    kept = CreateSparseArray();
+    for i = 0 to records.Length {
+        record = records[i];
+        inside = 0;
+        for j = 0 to instruments.Length {
+            instrument = instruments[j];
+            if ((record.staff >= instrument.firstStaff) and (record.staff <= instrument.lastStaff)) {
+                inside = 1;
+            }
+        }
+        if (inside = 1) {
+            kept.Push(record);
+        }
+    }
+    return kept;
 }"
 	BuildChart "(score, plan, options) {
     if (plan.sections.Length = 0) {
@@ -1054,6 +1418,9 @@
     sections = plan.sections;
     pieceStaves = score.StaffCount;
     metre = ReadInitialTimeSignature(score);
+    opening = score.NthStaff(1).CurrentKeySignature(1);
+    openingSharps = opening.Sharps;
+    openingMajor = opening.Major;
 
     // 1. Bars first. A Sibelius bar spans every staff, so staves created
     //    afterwards inherit the irregular lengths already set. And sizing must
@@ -1085,8 +1452,8 @@
     // Tempo marks and the like are anchored to the score's first bar, and the
     // chart is now that bar, so a direction such as 'Allegro' would sit over
     // the chart rather than over the music it describes. They move down to the
-    // first music bar. The title block is left exactly where it is: it belongs
-    // at the top of the page, which is above the chart.
+    // first music bar. The title block, and any text in a blank-page style, is
+    // left where it is: it belongs on the first page, which is the chart's.
     RelocateSystemText(score, sections.Length, sections.Length + 1, True);
 
     // 2. Instruments.
@@ -1130,6 +1497,19 @@
             sections[i].kind, color, styles, tick);
     }
 
+    // 4b. The parts' copies, on each owner's own staves in the same bars. Here
+    //     rather than later so their padding rests are hidden with the rest.
+    roles = CopyStaffRoles(sections);
+    if (roles.Length > 0) {
+        ChartBarsInC(score, openingSharps, openingMajor, sections.Length);
+    }
+    tokens = PrepareCopyStaves(score, roles, sections.Length);
+    WriteCopies(score, sections, options, styles);
+    if (tokens.Length > 0) {
+        record = trebleStaves[0].NthBar(1).AddText(0, RestoreMarkerEncode(tokens), LabelTextStyle());
+        record.Hidden = True;
+    }
+
     // 5. Hide the structural furniture across every staff in the chart bars.
     for b = 0 to sections.Length {
         HideBarFurniture(score, b + 1);
@@ -1137,13 +1517,29 @@
 
     // 6. Labels, breaks and staff size.
     for i = 0 to sections.Length {
-        label = trebleStaves[i].NthBar(i + 1).AddText(0, sections[i].label, LabelTextStyle());
+        section = sections[i];
+        // The chart staves are in no part, so their label is the full score's
+        // alone. The parts read the label on their copy.
+        trebleStaves[i].NthBar(i + 1).AddText(0, section.label, LabelTextStyle());
         bar = score.NthStaff(1).NthBar(i + 1);
-        bar.BreakType = EndOfSystem;
+        bar.BreakType = EndOfSystemOrPage;
         trebleStaves[i].Small = True;
         bassStaves[i].Small = True;
     }
     score.NthStaff(1).NthBar(sections.Length).SectionEnd = True;
+
+    // The music's first system now starts a new section, and Sibelius names
+    // the instruments there by the new-section rule, which can be none where
+    // the score's first system had full names. While the chart is in place it
+    // takes the first system's rule, and the score's own is kept beside the
+    // marker for a removal to put back.
+    rules = score.EngravingRules;
+    if (rules.InstrumentNamesNewSections != rules.InstrumentNamesFirstSystem) {
+        kept = trebleStaves[0].NthBar(1).AddText(0,
+            NamesMarkerEncode(rules.InstrumentNamesNewSections), LabelTextStyle());
+        kept.Hidden = True;
+        rules.InstrumentNamesNewSections = rules.InstrumentNamesFirstSystem;
+    }
 
     NumberFromFirstMusicBar(score, sections.Length);
 
@@ -1179,7 +1575,122 @@
 
     RestoreTimeSignature(score, metre, sections.Length);
 
+    // 8. Staff spacing, over the chart and the music's first system. A chart's
+    //    ledger lines reach far past its staves into the system above, and the
+    //    music's first system loses whatever spacing it had been given when
+    //    the chart takes its place as the first system.
+    score.OptimizeStaffSpacing(1, score.StaffCount, 1, sections.Length + 1);
+
     return CreateDictionary('ok', True, 'error', '', 'warnings', warnings);
+}"
+	CopyStaffRoles "(sections) {
+    roles = CreateSparseArray();
+    seen = CreateDictionary();
+    for i = 0 to sections.Length {
+        section = sections[i];
+        copies = section._property:copies;
+        if (copies != null) {
+            for j = 0 to copies.Length {
+                staves = copies[j];
+                for k = 0 to staves.Length {
+                    num = staves[k];
+                    key = 'staff' & num;
+                    if (seen[key] = null) {
+                        seen[key] = 1;
+                        clef = 'clef.treble';
+                        if (k = 1) {
+                            clef = 'clef.bass';
+                        }
+                        roles.Push(CreateDictionary('staff', num, 'clef', clef));
+                    }
+                }
+            }
+        }
+    }
+    return roles;
+}"
+	ChartBarsInC "(score, sharps, major, chartBars) {
+    if ((sharps = 0) or (sharps = -8)) {
+        return False;
+    }
+    score.NthStaff(1).NthBar(1).AddKeySignature(0, 0, True, False, False, False);
+    score.NthStaff(1).NthBar(chartBars + 1).AddKeySignature(0, sharps, major, False, False, False);
+    return True;
+}"
+	PrepareCopyStaves "(score, roles, chartBars) {
+    tokens = CreateSparseArray();
+    for i = 0 to roles.Length {
+        role = roles[i];
+        made = PrepareCopyStaff(score, role.staff, role.clef, chartBars);
+        for j = 0 to made.Length {
+            tokens.Push(made[j]);
+        }
+    }
+    return tokens;
+}"
+	PrepareCopyStaff "(score, staffNum, clef, chartBars) {
+    tokens = CreateSparseArray();
+    staff = score.NthStaff(staffNum);
+    music = staff.NthBar(chartBars + 1);
+    was = music.GetClefAt(0);
+    wasConcert = '' & was.ConcertClefStyleId;
+    wasTransposing = '' & was.TransposingClefStyleId;
+    clefHere = 0;
+    for each Clef c in music {
+        if (c.Position = 0) {
+            clefHere = 1;
+        }
+    }
+
+    if (wasConcert != clef) {
+        staff.NthBar(1).AddClef(0, clef);
+        if (clefHere = 0) {
+            music.AddClef(0, wasConcert, wasTransposing);
+            tokens.Push(staffNum & 'c');
+        }
+    }
+    return tokens;
+}"
+	WriteCopies "(score, sections, options, styles) {
+    for i = 0 to sections.Length {
+        section = sections[i];
+        copies = section._property:copies;
+        if (copies != null) {
+            color = SectionColor(section.kind, options);
+            tick = ColumnTick(section.kind, styles);
+            text = section.label;
+            if (section._property:splitLabel = 1) {
+                text = section.plainLabel;
+            }
+            for j = 0 to copies.Length {
+                staves = copies[j];
+                top = score.NthStaff(staves[0]);
+                WriteColumns(top, i + 1, section.treble, section.kind, color, styles, tick);
+                MarkPartsOnly(top.NthBar(i + 1));
+                if (staves.Length > 1) {
+                    lower = score.NthStaff(staves[1]);
+                    WriteColumns(lower, i + 1, section.bass, section.kind, color, styles, tick);
+                    MarkPartsOnly(lower.NthBar(i + 1));
+                }
+                label = top.NthBar(i + 1).AddText(0, text, LabelTextStyle());
+                label.ShowInParts();
+            }
+        }
+    }
+    return True;
+}"
+	MarkPartsOnly "(bar) {
+    for each NoteRest nr in bar {
+        if (nr.NoteCount > 0) {
+            nr.ShowInParts();
+            p = 1;
+            while (p <= 8) {
+                nr.SetPlayedOnNthPass(p, False);
+                p = p + 1;
+            }
+        }
+    }
+    return True;
 }"
 	SectionColor "(kind, options) {
     if (kind = 'chimes') {
@@ -1387,6 +1898,397 @@
     }
     return True;
 }"
+	EnterFullScore "(score) {
+    was = score.CurrentDynamicPart;
+    parts = score.DynamicParts;
+    score.CurrentDynamicPart = parts[0];
+    return was;
+}"
+	DrawCharts "(score, plan, options) {
+    partPlan = PlanParts(score, plan, options);
+    result = BuildChart(score, plan, options);
+    if (not(result.ok)) {
+        return result;
+    }
+    if (plan.sections.Length = 0) {
+        return result;
+    }
+    firstChartStaff = (score.StaffCount - (plan.sections.Length * 2)) + 1;
+    DeleteChartOnlyParts(score, firstChartStaff);
+    LayOutParts(score, plan, partPlan.entries, options.pageBreak = True);
+
+    // A part whose instruments could not hold a copy is named for that, rather
+    // than as a part holding no selected instrument, which it does.
+    warnings = result.warnings;
+    skipped = partPlan.skipped;
+    if (skipped.Length > 0) {
+        warnings.Push(CreateDictionary('type', 'no-copy-for-instrument', 'names', skipped));
+    }
+    if (options.parts = True) {
+        if ((partPlan.entries.Length = 0) and (skipped.Length = 0)) {
+            warnings.Push(CreateDictionary('type', 'no-part-for-charts'));
+        }
+    }
+    return result;
+}"
+	LayOutParts "(score, plan, entries, breakForOne) {
+    for e = 0 to entries.Length {
+        entry = entries[e];
+        LayOutPart(score, entry.part, plan.sections, entry.sections, breakForOne);
+    }
+    return True;
+}"
+	LayOutPart "(score, part, sections, carried, breakForOne) {
+    chartBars = sections.Length;
+    staffNums = PartStaffNumbers(part);
+    anchor = null;
+    for each staff in part {
+        if (anchor = null) {
+            anchor = staff;
+        }
+    }
+    systems = PartChartSystems(CarriedPositions(chartBars, carried));
+    shows = systems.shows;
+    ends = systems.ends;
+
+    parts = score.DynamicParts;
+    score.CurrentDynamicPart = part;
+    staveCount = part.StaveCount;
+    endsPage = PartEndsPage(carried.Length, breakForOne);
+    shown = CreateSparseArray();
+    for s = 0 to staveCount {
+        shown.Push(0);
+    }
+    for b = 1 to chartBars + 1 {
+        if (ends[b - 1] = 1) {
+            anchor.NthBar(b).BreakType = EndOfSystemOrPage;
+            if (b = chartBars) {
+                if (endsPage = 1) {
+                    anchor.NthBar(b).BreakType = EndOfPage;
+                }
+            }
+        } else {
+            anchor.NthBar(b).BreakType = MiddleOfSystem;
+        }
+        position = shows[b - 1];
+        index = carried[position];
+        hidden = PartBarHiddenStaves(staffNums, SectionCopyStaves(sections[index]));
+        for s = 0 to hidden.Length {
+            if (hidden[s] = 1) {
+                score.HideEmptyStaves(s + 1, s + 1, b, b);
+            } else {
+                shown[s] = 1;
+            }
+        }
+    }
+    // 2 is SmallSize in the reference's list of staff sizes.
+    for s = 0 to shown.Length {
+        if (shown[s] = 1) {
+            score.NthStaff(s + 1).ScaleFactorChange(2, 1, chartBars);
+        }
+    }
+    score.OptimizeStaffSpacing(1, staveCount, 1, chartBars);
+    score.CurrentDynamicPart = parts[0];
+    return True;
+}"
+	PartStaffNumbers "(part) {
+    nums = CreateSparseArray();
+    for each staff in part {
+        nums.Push(staff.StaffNum);
+    }
+    return nums;
+}"
+	PartBarHiddenStaves "(partStaffNums, shownStaves) {
+    flags = CreateSparseArray();
+    for i = 0 to partStaffNums.Length {
+        flag = 1;
+        for j = 0 to shownStaves.Length {
+            if (shownStaves[j] = partStaffNums[i]) {
+                flag = 0;
+            }
+        }
+        flags.Push(flag);
+    }
+    return flags;
+}"
+	SectionCopyStaves "(section) {
+    staves = CreateSparseArray();
+    copies = section.copies;
+    for j = 0 to copies.Length {
+        copyStaves = copies[j];
+        for k = 0 to copyStaves.Length {
+            staves.Push(copyStaves[k]);
+        }
+    }
+    return staves;
+}"
+	PartEndsPage "(carriedCount, breakForOne) {
+    if (carriedCount > 1) {
+        return 1;
+    }
+    if (breakForOne) {
+        return 1;
+    }
+    return 0;
+}"
+	CarriedPositions "(chartBars, carried) {
+    positions = CreateSparseArray();
+    for k = 0 to chartBars {
+        positions.Push(-1);
+    }
+    for j = 0 to carried.Length {
+        index = carried[j];
+        positions[index] = j;
+    }
+    return positions;
+}"
+	PartChartSystems "(positions) {
+    shows = CreateSparseArray();
+    first = -1;
+    previous = -1;
+    for k = 0 to positions.Length {
+        if (positions[k] >= 0) {
+            previous = positions[k];
+            if (first < 0) {
+                first = previous;
+            }
+        }
+        shows.Push(previous);
+    }
+    for k = 0 to shows.Length {
+        if (shows[k] < 0) {
+            shows[k] = first;
+        }
+    }
+    ends = CreateSparseArray();
+    last = shows.Length - 1;
+    for k = 0 to shows.Length {
+        if (k = last) {
+            ends.Push(1);
+        } else {
+            if (shows[k + 1] != shows[k]) {
+                ends.Push(1);
+            } else {
+                ends.Push(0);
+            }
+        }
+    }
+    return CreateDictionary('shows', shows, 'ends', ends);
+}"
+	DeleteChartOnlyParts "(score, firstChartStaff) {
+    parts = score.DynamicParts;
+    counter = 0;
+    for each part in parts {
+        if (not(part.IsFullScore)) {
+            if (part.StaveCount > 0) {
+                chartOnly = 1;
+                for each staff in part {
+                    if (staff.StaffNum < firstChartStaff) {
+                        chartOnly = 0;
+                    }
+                }
+                if (chartOnly = 1) {
+                    name = 'chartpart' & counter;
+                    @name = part;
+                    counter = counter + 1;
+                }
+            }
+        }
+    }
+
+    while (counter > 0) {
+        counter = counter - 1;
+        name = 'chartpart' & counter;
+        part = @name;
+        parts.DeletePart(part);
+    }
+    return True;
+}"
+	PlanParts "(score, plan, options) {
+    infos = CreateSparseArray();
+    held = CreateSparseArray();
+    if (options.parts = True) {
+        parts = score.DynamicParts;
+        for each part in parts {
+            if (not(part.IsFullScore)) {
+                if (part.StaveCount > 0) {
+                    names = PartInstrumentNames(score, part, options.instruments);
+                    infos.Push(CreateDictionary('part', part, 'names', names));
+                    for i = 0 to names.Length {
+                        if (HeadListed(held, names[i]) = 0) {
+                            held.Push(names[i]);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    skipped = PlanCopies(score, plan.sections, options.instruments, held);
+    return CreateDictionary('entries', PlanPartEntries(plan.sections, infos), 'skipped', skipped);
+}"
+	PlanCopies "(score, sections, instruments, held) {
+    skipped = CreateSparseArray();
+    for i = 0 to sections.Length {
+        section = sections[i];
+        owners = section.owners;
+        copyOwners = CreateSparseArray();
+        copies = CreateSparseArray();
+        for j = 0 to owners.Length {
+            name = owners[j];
+            if (HeadListed(held, name) = 1) {
+                instrument = InstrumentNamed(instruments, name);
+                staves = CopyStaves(instrument.firstStaff, instrument.lastStaff, UsesOneStaff(section.kind),
+                    StaffPitchedFlags(score, instrument.firstStaff, instrument.lastStaff));
+                if (staves.Length > 0) {
+                    copyOwners.Push(name);
+                    copies.Push(staves);
+                } else {
+                    if (HeadListed(skipped, name) = 0) {
+                        skipped.Push(name);
+                    }
+                }
+            }
+        }
+        section._property:copyOwners = copyOwners;
+        section._property:copies = copies;
+    }
+    return skipped;
+}"
+	CopyStaves "(firstStaff, lastStaff, oneStaff, pitched) {
+    staves = CreateSparseArray();
+    need = 2;
+    if (oneStaff = 1) {
+        need = 1;
+    }
+    if (((lastStaff - firstStaff) + 1) < need) {
+        return staves;
+    }
+    for k = 0 to need {
+        if (pitched[k] != 1) {
+            return CreateSparseArray();
+        }
+        staves.Push(firstStaff + k);
+    }
+    return staves;
+}"
+	StaffPitchedFlags "(score, firstStaff, lastStaff) {
+    flags = CreateSparseArray();
+    n = firstStaff;
+    while (n <= lastStaff) {
+        type = score.NthStaff(n).InitialInstrumentType;
+        flag = 0;
+        if ((type.Category = 0) and (type.NumStaveLines = 5)) {
+            flag = 1;
+        }
+        flags.Push(flag);
+        n = n + 1;
+    }
+    return flags;
+}"
+	InstrumentNamed "(instruments, name) {
+    for i = 0 to instruments.Length {
+        instrument = instruments[i];
+        if (instrument.name = name) {
+            return instrument;
+        }
+    }
+    return null;
+}"
+	PartInstrumentNames "(score, part, instruments) {
+    names = CreateSparseArray();
+    for i = 0 to instruments.Length {
+        instrument = instruments[i];
+        inside = 0;
+        n = instrument.firstStaff;
+        while (n <= instrument.lastStaff) {
+            if (part.IncludesStaff(score.NthStaff(n))) {
+                inside = 1;
+            }
+            n = n + 1;
+        }
+        if (inside = 1) {
+            names.Push(instrument.name);
+        }
+    }
+    return names;
+}"
+	PlanPartEntries "(sections, partInfos) {
+    inPart = CreateSparseArray();
+    named = CreateSparseArray();
+    for i = 0 to sections.Length {
+        inPart.Push(0);
+        named.Push(0);
+    }
+
+    entries = CreateSparseArray();
+    for p = 0 to partInfos.Length {
+        info = partInfos[p];
+        carried = PartSections(sections, info.names);
+        if (carried.Length > 0) {
+            entries.Push(CreateDictionary('part', info.part,
+                'names', info.names, 'sections', carried));
+            several = 0;
+            if (DistinctOwnerCount(sections, carried) > 1) {
+                several = 1;
+            }
+            for k = 0 to carried.Length {
+                index = carried[k];
+                inPart[index] = 1;
+                if (several = 1) {
+                    named[index] = 1;
+                }
+            }
+        }
+    }
+
+    for i = 0 to sections.Length {
+        section = sections[i];
+        split = 0;
+        if (inPart[i] = 1) {
+            if (named[i] = 0) {
+                if (section.label != section.plainLabel) {
+                    split = 1;
+                }
+            }
+        }
+        section._property:splitLabel = split;
+    }
+    return entries;
+}"
+	PartSections "(sections, partNames) {
+    carried = CreateSparseArray();
+    for i = 0 to sections.Length {
+        section = sections[i];
+        owners = section.copyOwners;
+        hit = 0;
+        for j = 0 to owners.Length {
+            if (HeadListed(partNames, owners[j]) = 1) {
+                hit = 1;
+            }
+        }
+        if (hit = 1) {
+            carried.Push(i);
+        }
+    }
+    return carried;
+}"
+	DistinctOwnerCount "(sections, indexes) {
+    seen = CreateDictionary();
+    count = 0;
+    for k = 0 to indexes.Length {
+        index = indexes[k];
+        section = sections[index];
+        owners = section.copyOwners;
+        for j = 0 to owners.Length {
+            name = '' & owners[j];
+            if (seen[name] = null) {
+                seen[name] = 1;
+                count = count + 1;
+            }
+        }
+    }
+    return count;
+}"
 	IdentificationError "(reason) {
     return reason & ' Delete the chart staves and their bars in Sibelius, then run this again.';
 }"
@@ -1458,10 +2360,18 @@
 	RemoveChart "(score) {
     found = FindChart(score);
     if (found.error != '') {
-        return CreateDictionary('removed', False, 'error', found.error);
+        // The chart itself cannot be removed, but the names rule its build
+        // changed can be put back now, before the bars that record it are
+        // deleted by hand. The record sits on the chart's first staff, which
+        // is exactly what is in doubt, so it is looked for on every staff.
+        recordStaff = RecordStaff(score);
+        if (recordStaff > 0) {
+            RestoreNamesRule(score, recordStaff);
+        }
+        return RemovalResult(False, found.error);
     }
     if (not(found.found)) {
-        return CreateDictionary('removed', False, 'error', '');
+        return RemovalResult(False, '');
     }
 
     // Staves the chart hid come back before the ranges stop meaning anything.
@@ -1470,10 +2380,15 @@
     score.ShowEmptyStaves(found.firstStaff, score.StaffCount,
         found.sections + 1, score.NthStaff(1).BarCount);
 
+    // The names rule a build changed goes back to the score's own, read from
+    // the chart's first bar before that bar goes.
+    RestoreNamesRule(score, found.firstStaff);
+
     // Before any bar goes, rescue the title block it is carrying and drop the
     // renumbering that only made sense while the chart was in front.
     RelocateSystemText(score, found.sections, found.sections + 1, False);
     ClearHiddenBarNumber(score.NthStaff(1).NthBar(found.sections + 1));
+    RemoveRestores(score, found);
 
     // Bars first: removing the staves renumbers everything underneath us. The
     // marker goes with the bar that holds it.
@@ -1482,10 +2397,13 @@
         score.NthStaff(1).NthBar(1).Delete();
     }
     if (score.NthStaff(1).BarCount != (barsBefore - found.sections)) {
-        return CreateDictionary('removed', False, 'error', IdentificationError(
+        return RemovalResult(False, IdentificationError(
             'This score records a Handbells Used chart, but Sibelius did not remove '
             & 'the chart bars.'));
     }
+
+    // While the chart staves still exist to say which parts are only theirs.
+    DeleteChartOnlyParts(score, found.firstStaff);
 
     // Bottom-up, so deleting one staff does not renumber the ones still to go.
     staffCountBefore = score.StaffCount;
@@ -1495,12 +2413,41 @@
         n = n - 1;
     }
     if (score.StaffCount != (staffCountBefore - (found.sections * 2))) {
-        return CreateDictionary('removed', False, 'error', IdentificationError(
+        return RemovalResult(False, IdentificationError(
             'This score records a Handbells Used chart, but Sibelius did not remove '
             & 'the chart staves.'));
     }
 
-    return CreateDictionary('removed', True, 'error', '');
+    return RemovalResult(True, '');
+}"
+	RemoveRestores "(score, found) {
+    restores = RestoreMarkerRead(score, found.firstStaff);
+    for i = 0 to restores.Length {
+        bar = score.NthStaff(restores[i]).NthBar(found.sections + 1);
+        doomed = null;
+        for each Clef c in bar {
+            if (doomed = null) {
+                if (c.Position = 0) {
+                    doomed = c;
+                }
+            }
+        }
+        if (doomed != null) {
+            doomed.Delete();
+        }
+    }
+    return True;
+}"
+	RemovalResult "(removed, error) {
+    return CreateDictionary('removed', removed, 'error', error);
+}"
+	RestoreNamesRule "(score, staffNum) {
+    names = NamesMarkerRead(score, staffNum);
+    if (names >= 0) {
+        rules = score.EngravingRules;
+        rules.InstrumentNamesNewSections = names;
+    }
+    return True;
 }"
 	RelocateSystemText "(score, fromBars, targetBarNum, musicalOnly) {
     system = score.SystemStaff;
@@ -1515,7 +2462,7 @@
             if (item.Type = 'SystemTextItem') {
                 take = True;
                 if (musicalOnly) {
-                    if (StyleIsPageAligned(item.StyleId)) {
+                    if (StyleStaysOnFirstPage(item.StyleId)) {
                         take = False;
                     }
                 }
@@ -1563,15 +2510,21 @@
     copy.Hidden = item.Hidden;
 
     if (StyleIsPageAligned(item.StyleId)) {
-        copy.ResetPosition();
-        return True;
+        copy.Dx = item.Dx;
     }
     copy.Dy = item.Dy;
     return True;
 }"
 	StyleIsPageAligned "(styleId) {
-    text = '' & styleId;
-    needle = 'page_aligned';
+    return TextContains('' & styleId, 'page_aligned');
+}"
+	StyleStaysOnFirstPage "(styleId) {
+    if (StyleIsPageAligned(styleId)) {
+        return True;
+    }
+    return TextContains('' & styleId, 'blankpage');
+}"
+	TextContains "(text, needle) {
     limit = Length(text) - Length(needle);
     if (limit < 0) {
         return False;
@@ -1601,20 +2554,204 @@
     }
     return True;
 }"
+	ChartScore "(score, options) {
+    // Ahead of the removal, so a score that would chart nothing useful keeps
+    // the chart it has. A removal run never reads a note, so the choice of
+    // noteheads cannot block one.
+    if (not(options.remove)) {
+        duplicate = DuplicateHead(options);
+        if (duplicate != '') {
+            return CreateDictionary('ok', False, 'kind', 'error',
+                'text', ('More than one instrument is set to the ' & duplicate)
+                    & (' notehead. ' & _SameNoteheadChosen));
+        }
+        if (options.instruments.Length = 0) {
+            return CreateDictionary('ok', False, 'kind', 'error',
+                'text', '' & _NoInstrumentSelected);
+        }
+    }
+
+    return ChartOrRemove(score, options);
+}"
+	ChartOrRemove "(score, options) {
+    // Removal first, so a re-run replaces its own chart rather than reading it
+    // back in and charting the chart.
+    removal = RemoveChart(score);
+    warnings = CreateSparseArray();
+    if (removal.error != '') {
+        return CreateDictionary('ok', False, 'kind', 'error', 'text', WithWarnings(warnings, removal.error));
+    }
+
+    // H2 again: every Data read is coerced before it goes anywhere. These two
+    // are stored into a dictionary and compared against '' back in Run, so an
+    // uncoerced read would put a TreeNode where a string is later tested.
+    if (options.remove) {
+        if (removal.removed) {
+            return CreateDictionary('ok', True, 'kind', 'info',
+                'text', WithWarnings(warnings, '' & _ChartWasRemoved));
+        }
+        return CreateDictionary('ok', False, 'kind', 'warning', 'text', '' & _NoChartToRemove);
+    }
+
+    plan = BuildChartPlan(ReadScoreNotes(score), options);
+    planWarnings = plan.warnings;
+    for i = 0 to planWarnings.Length {
+        warnings.Push(planWarnings[i]);
+    }
+
+    // Warnings are folded into the message ahead of the nothing-to-draw case,
+    // not reported after it. A score whose only bells lie outside C2-C9 plans
+    // no sections at all, and being told 'no handbells were found' is both
+    // wrong and useless when the run knows exactly which bells it skipped.
+    if (plan.sections.Length = 0) {
+        text = '' & _NoBellsFound;
+        if (removal.removed) {
+            text = text & ('\n\n' & _ChartWasRemoved);
+        }
+        return CreateDictionary('ok', False, 'kind', 'warning', 'text', WithWarnings(warnings, text));
+    }
+
+    result = DrawCharts(score, plan, options);
+    if (not(result.ok)) {
+        return CreateDictionary('ok', False, 'kind', 'error', 'text', result.error);
+    }
+
+    // The chart's own warnings join the plan's. Whether the score carries the
+    // notehead an SMB column wants is only discovered while drawing, so a
+    // planning-time list alone would leave that one unreported.
+    drawWarnings = result.warnings;
+    for i = 0 to drawWarnings.Length {
+        warnings.Push(drawWarnings[i]);
+    }
+
+    summary = '';
+    for i = 0 to plan.sections.Length {
+        if (i > 0) {
+            summary = summary & '\n';
+        }
+        summary = summary & plan.sections[i].label;
+    }
+    if (plan.emptyNames.Length > 0) {
+        summary = summary & ('\n' & (('' & _NothingToChartFor) & ' ' & JoinNames(plan.emptyNames)));
+    }
+    if (removal.removed) {
+        summary = summary & ('\n\n' & _ChartWasReplaced);
+    }
+
+    return CreateDictionary('ok', True, 'kind', 'info', 'text', WithWarnings(warnings, summary));
+}"
+	WithWarnings "(warnings, text) {
+    lines = WarningLines(warnings);
+    if (lines = '') {
+        return text;
+    }
+    return (lines & '\n\n') & text;
+}"
 _SettingsDialog "Dialog"
 	{
 		Title "Create a Handbells/Handchimes/SMBs Used Chart"
 		X "333"
 		Y "271"
 		Width "198"
-		Height "180"
+		Height "328"
 		Controls
 		{
 			Text
 			{
-				Title "Handbell Notehead Type"
+				Title "Instruments to Chart"
 				X "22"
 				Y "16"
+				Width "74"
+				Height "14"
+				RightAlign "0"
+				ID "IDC_INSTRUMENTS_STATIC"
+				Value
+				Method
+				SetFocus "0"
+			}
+			ListBox
+			{
+				Title
+				X "98"
+				Y "12"
+				Width "92"
+				Height "56"
+				ListVar "_InstrumentItems"
+				AllowMultipleSelections "1"
+				ID "dlg_instruments"
+				Value "dlg_instruments"
+				Method "InstrumentsChanged"
+				SetFocus "0"
+			}
+			Text
+			{
+				Title "Cmd-click (Ctrl-click on Windows) to pick more than one."
+				X "98"
+				Y "70"
+				Width "92"
+				Height "22"
+				RightAlign "0"
+				ID "IDC_INSTRUMENTS_HINT"
+				Value
+				Method
+				SetFocus "0"
+			}
+			Text
+			{
+				Title "Charts"
+				X "22"
+				Y "98"
+				Width "74"
+				Height "14"
+				RightAlign "0"
+				ID "IDC_CHARTMODE_STATIC"
+				Value
+				Method
+				SetFocus "0"
+			}
+			ComboBox
+			{
+				Title
+				X "98"
+				Y "94"
+				Width "92"
+				Height "21"
+				ListVar "_ChartModeItems"
+				AllowMultipleSelections "0"
+				ID "dlg_chartMode"
+				Value "dlg_chartMode"
+				Method
+				SetFocus "0"
+			}
+			CheckBox
+			{
+				Title "Also Add Charts to Parts"
+				X "98"
+				Y "118"
+				Width "92"
+				Height "14"
+				ID "dlg_parts"
+				Value "dlg_parts"
+				Method
+				SetFocus "0"
+			}
+			CheckBox
+			{
+				Title "Page Break After One Chart"
+				X "98"
+				Y "134"
+				Width "92"
+				Height "22"
+				ID "dlg_pageBreak"
+				Value "dlg_pageBreak"
+				Method
+				SetFocus "0"
+			}
+			Text
+			{
+				Title "Handbell Notehead Type"
+				X "22"
+				Y "164"
 				Width "74"
 				Height "14"
 				RightAlign "0"
@@ -1627,7 +2764,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "98"
-				Y "12"
+				Y "160"
 				Width "92"
 				Height "21"
 				ListVar "_BellHeadItems"
@@ -1641,7 +2778,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "Handchime Notehead Type"
 				X "22"
-				Y "38"
+				Y "186"
 				Width "74"
 				Height "14"
 				RightAlign "0"
@@ -1654,7 +2791,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "98"
-				Y "34"
+				Y "182"
 				Width "92"
 				Height "21"
 				ListVar "_ChimeHeadItems"
@@ -1668,7 +2805,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "SMBs Notehead Type"
 				X "22"
-				Y "60"
+				Y "208"
 				Width "74"
 				Height "14"
 				RightAlign "0"
@@ -1681,7 +2818,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "98"
-				Y "56"
+				Y "204"
 				Width "92"
 				Height "21"
 				ListVar "_SmbHeadItems"
@@ -1695,7 +2832,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "Handchime Color"
 				X "22"
-				Y "86"
+				Y "234"
 				Width "74"
 				Height "14"
 				RightAlign "0"
@@ -1708,7 +2845,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "98"
-				Y "82"
+				Y "230"
 				Width "92"
 				Height "14"
 				ID "dlg_chimeColor"
@@ -1720,7 +2857,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "SMBs Color"
 				X "22"
-				Y "106"
+				Y "254"
 				Width "74"
 				Height "14"
 				RightAlign "0"
@@ -1733,7 +2870,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "98"
-				Y "102"
+				Y "250"
 				Width "92"
 				Height "14"
 				ID "dlg_smbColor"
@@ -1745,7 +2882,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "Remove Existing Chart"
 				X "98"
-				Y "124"
+				Y "272"
 				Width "92"
 				Height "14"
 				ID "dlg_remove"
@@ -1757,7 +2894,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "Cancel"
 				X "84"
-				Y "146"
+				Y "294"
 				Width "50"
 				Height "14"
 				DefaultButton "0"
@@ -1771,7 +2908,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "OK"
 				X "140"
-				Y "146"
+				Y "294"
 				Width "50"
 				Height "14"
 				DefaultButton "0"
@@ -1786,8 +2923,11 @@ _SettingsDialog "Dialog"
 	_PluginMenuName "Handbells Used Chart"
 	CHART_INSTRUMENT "instrument.other.trebleclef"
 	LABEL_TEXT_STYLE "text.staff.plain"
+	LABEL_DASH " - "
 	MARKER_PREFIX "HBUC"
 	MARKER_VERSION "1"
+	NAMES_MARKER_PREFIX "HBUCNAMES"
+	RESTORE_MARKER_PREFIX "HBUCRESTORE"
 	STEMLESS_DIAMOND "Diamond (stemless)"
 	SQUARE_STEMLESS "Square (stemless)"
 	NO_NOTEHEAD "(no notehead)"
@@ -1805,6 +2945,22 @@ _SettingsDialog "Dialog"
 	_SmbHeadItems
 	{
 	}
+	CHART_MODE_COMBINED "One combined chart"
+	CHART_MODE_SEPARATE "A separate chart for each instrument"
+	CHART_MODE_CONTROL_INDEX "4"
+	dlg_instruments
+	{
+	}
+	dlg_chartMode ""
+	dlg_parts "0"
+	dlg_pageBreak "0"
+	_InstrumentItems
+	{
+	}
+	_ChartModeItems
+	{
+	}
+	_ExcludedInstruments ""
 	dlg_remove "0"
 	_ScoreError "Open a score with one or more staves and run the plug-in again."
 	_NoBellsFound "No handbells or handchimes were found in this score."
@@ -1812,4 +2968,6 @@ _SettingsDialog "Dialog"
 	_ChartWasReplaced "An existing chart was replaced."
 	_NoChartToRemove "This score carries no chart that this plug-in made."
 	_SameNoteheadChosen "Choose a different notehead for one of them and run the plug-in again."
+	_NoInstrumentSelected "Select at least one instrument to chart, then run the plug-in again."
+	_NothingToChartFor "Nothing to chart for:"
 }

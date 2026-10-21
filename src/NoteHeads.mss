@@ -3,7 +3,8 @@
 // a score arranged with any other notehead charted nothing at all until the
 // user could say which head means which.
 //
-// This runs before the chart is removed, so it skips the chart's own staves.
+// This runs before the chart is removed, so it skips the chart's own staves,
+// and the chart bars, where the parts' copies sit on the music's staves.
 // Without that, a re-run would offer the chart's noteheads back as if the
 // music used them, and the stemless diamond it draws chimes with is exactly
 // the kind of head a user would then pick by mistake.
@@ -16,9 +17,11 @@ ScoreHeadChoices(score) {
     defaults = CreateDictionary('bell', '', 'chime', '');
 
     lastStaff = score.StaffCount;
+    chartBars = 0;
     found = FindChart(score);
     if (found.found) {
         lastStaff = found.firstStaff - 1;
+        chartBars = found.sections;
     }
 
     selection = score.Selection;
@@ -29,7 +32,9 @@ ScoreHeadChoices(score) {
             if (IsObject(bar)) {
                 staff = bar.ParentStaff;
                 if (staff.StaffNum <= lastStaff) {
-                    ScanBarHeads(bar, names, seen, defaults);
+                    if (bar.BarNumber > chartBars) {
+                        ScanBarHeads(bar, names, seen, defaults);
+                    }
                 }
             }
         }
@@ -37,7 +42,7 @@ ScoreHeadChoices(score) {
         n = 1;
         while (n <= lastStaff) {
             staff = score.NthStaff(n);
-            b = 1;
+            b = chartBars + 1;
             while (b <= staff.BarCount) {
                 ScanBarHeads(staff.NthBar(b), names, seen, defaults);
                 b = b + 1;
