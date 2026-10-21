@@ -29,18 +29,15 @@ each chart into the Sibelius part that rings from it.
   plain `Handbells Used: 25`; in a part holding several they keep the
   instrument names. Sibelius keeps a staff showing in every system, so
   another instrument's chart can't disappear from a part entirely: it shows
-  as a short empty bar beside the part's own chart. A part's title block
-  stays where it was through a build, a re-run and a removal, and a part
+  as a short empty bar beside the part's own chart. Sibelius resets a
+  part's title block when chart staves are added to the part or taken
+  away. Where the part's title block followed the full score's, the
+  plug-in puts it back with Sibelius's Reset to Score Position; the message
+  at the end of the run says how many lines it couldn't put back. A part
   holding no selected instrument gets no chart staves. The message at the
   end of the run names any part Sibelius wouldn't add the chart staves to,
   and says so when the box is ticked but no part holds a selected
   instrument.
-- In each part given a chart, the first page's top staff margin grows by as
-  far as the part's first chart reaches above its staff, to keep the
-  chart's label and high bells clear of the title block. Only the first
-  page changes,
-  and removing the chart puts the margin back. The full score's margin is
-  never changed.
 - In a part given two or more chart sections, the music starts on a new
   page, laid out as it was, because charts added in front of a full first
   page push music off it. An instrument's bells and chimes are two
@@ -70,6 +67,10 @@ each chart into the Sibelius part that rings from it.
   follows the first system's, and so does every other section start in the
   piece. Removing the chart puts the score's own setting back, and so does
   a removal that stops because the chart can no longer be identified.
+- Removing a chart reset the full score's title block to its styles'
+  default positions, so positioning done by hand was lost, including a
+  title placed partly off the top of the page. The title block now keeps
+  its positions.
 - A copyright line set in a blank-page text style was moved from the first
   page down to the music, as if it were a tempo mark, and landed on top of
   it. Text in blank-page styles now stays on the first page with the title

@@ -46,15 +46,15 @@ score, build a chart into it and its parts, and remove it again.
 
 Two rough edges worth knowing before you run it on work you care about:
 
-- Removing a chart returns the full score's title block to Sibelius's
-  default positions for those text styles. The content, styling and
-  visibility all survive; hand positioning does not. A build leaves the
-  title block where it is, and the parts keep theirs through a build, a
-  re-run and a removal.
-- In the full score, the gap between the title block and the chart is
-  whatever Sibelius's automatic spacing gives it. In a part, the plugin
-  moves the first page's music down to make room for the chart; see
-  [Charts in parts](#charts-in-parts).
+- In a part, Sibelius resets the title block whenever chart staves are
+  added to the part or taken away. The plugin puts it back with Sibelius's
+  Reset to Score Position, which works where the part's title block
+  followed the full score's. A title line placed by hand in the part itself
+  goes back to its style's default position, and the message at the end of
+  the run says how many lines the plugin couldn't put back.
+- The gap between the title block and the chart is whatever Sibelius's
+  automatic spacing gives it, in the full score and in the parts. See
+  [Known limitations](#known-limitations).
 
 ## Installation
 
@@ -176,19 +176,16 @@ than the old first page did, as every left-hand page in the part already
 does. To keep the music on the same left- or right-hand pages as before, add
 a blank page after the chart in Sibelius.
 
-A part's title block stays where it was, through a build, a re-run and a
-removal. If Sibelius won't take a position back, the message at the end of
-the run says how many title lines it couldn't restore.
-
-A part's first staff sits at the first-page top staff margin, which leaves
-room for the title block above ordinary music. A chart reaches higher than
-that, with its label and with high bells on ledger lines, so in each part
-given a chart the plugin raises that margin by as far as the part's first
-chart reaches above its staff. The chart's highest point then sits no higher
-than the part's first staff line did. Only the first page changes. If the
-part used one top margin for every page, the plugin gives the first page a
-margin of its own to do this. Removing the chart puts the part's margin back
-as it was, and the full score's margin is never changed.
+Sibelius resets a part's title block to its styles' default positions
+whenever staves are added to the part or taken away, so a build, a re-run
+and a removal all reset it. ManuScript can't set a title line's position in
+a part. Instead, the plugin selects each line that moved and runs Sibelius's
+Reset to Score Position on it, which puts the line where the full score has
+it. That restores a part whose title block followed the full score's. A line
+placed by hand in the part itself stays at its style's default position, and
+the message at the end of the run counts it. Each part shows on screen while
+its title block is put back, and the plugin returns to the part or score you
+started from.
 
 Sibelius gives every instrument the plugin adds a part of its own, so any
 part holding nothing but chart staves is deleted, on a build and on a
@@ -274,7 +271,9 @@ and leaves that part open afterwards.
 The title block stays on the first page with the chart, and so does any text
 in a blank-page style, such as a copyright line. Tempo marks and other
 directions at the start of the piece move down to its first bar of music,
-and the piece keeps its own bar numbers.
+and the piece keeps its own bar numbers. Removing the chart moves the title
+block to the first bar of music with the positions it had, including a title
+placed partly off the page.
 
 The chart makes the music start a new section, and Sibelius takes the
 instrument names there from a separate Engraving Rules option, the one for
@@ -283,8 +282,7 @@ that option to match the one for the first system, so the first system of
 music is named as the score's first system would be. Any other section
 starts in the piece follow it too. Removing the chart puts the score's own
 setting back. If a chart can no longer be identified, the plugin still puts
-this setting and the parts' first-page margins back before asking you to
-delete the chart by hand.
+this setting back before asking you to delete the chart by hand.
 
 ## Testing
 
@@ -329,10 +327,10 @@ need two instruments that each have a part of their own.
 - Sibelius's Optimize Staff Spacing is run over the chart and the first
   system of music, which replaces any staff spacing set on those systems by
   hand.
-- The room a part's first page makes for its chart comes from an estimate:
-  about four spaces for the label, or more for bells high on ledger lines.
-  A title block that reaches unusually far down the page can still meet the
-  chart; drag the chart's system down in Sibelius if it does.
+- The plugin doesn't make room between the title block and a chart. A
+  chart's label, or high bells on ledger lines, can reach the composer lines
+  in the full score or in a part. If they do, select the title lines in
+  Sibelius and move them up.
 - One notehead per kind of bell, and three kinds at most. A score
   marking its handchimes with two different diamond styles has to be charted
   twice, or normalised first; notes carrying the head that was not chosen
