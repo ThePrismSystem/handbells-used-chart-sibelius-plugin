@@ -605,14 +605,13 @@ PartInstrumentNames(score, part, instruments) {
 // Pure, so it can be tested with strings standing in for parts. partInfos is
 // Dictionary{part, names} per part, and each entry carries both on.
 //
-// It also marks each section's splitLabel. A label sits on a chart staff that
-// the full score and every part holding it share, so a section can only read
-// differently in the parts by carrying two labels, one shown in the score and
-// one in the parts. That is wanted when the full-score label names the
-// instrument and every part carrying the section is one choir's part. A part
-// holding several choirs needs the names to tell its charts apart, and one
-// staff cannot be plain in one part and named in another, so a section in any
-// such part keeps its named label everywhere.
+// It also marks each section's splitLabel: 1 when the parts read the plain
+// label rather than the full score's named one. The parts read the label on
+// a copy, which sits on its owner's staff in every part holding that staff.
+// Plain is wanted when every part carrying the section is one choir's part. A
+// part holding several choirs needs the names to tell its charts apart, and
+// one staff cannot be plain in one part and named in another, so a section in
+// any such part is named in every part.
 PlanPartEntries(sections, partInfos) {
     inPart = CreateSparseArray();
     named = CreateSparseArray();

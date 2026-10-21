@@ -82,6 +82,15 @@ BuildChart(score, plan, options) {
             sections[i].kind, color, styles, tick);
     }
 
+    // 4b. The parts' copies, on each owner's own staves in the same bars. Here
+    //     rather than later so their padding rests are hidden with the rest.
+    tokens = PrepareCopyStaves(score, sections);
+    WriteCopies(score, sections, options, styles);
+    if (tokens.Length > 0) {
+        record = trebleStaves[0].NthBar(1).AddText(0, RestoreMarkerEncode(tokens), LabelTextStyle());
+        record.Hidden = True;
+    }
+
     // 5. Hide the structural furniture across every staff in the chart bars.
     for b = 0 to sections.Length {
         HideBarFurniture(score, b + 1);
@@ -90,19 +99,9 @@ BuildChart(score, plan, options) {
     // 6. Labels, breaks and staff size.
     for i = 0 to sections.Length {
         section = sections[i];
-        labelBar = trebleStaves[i].NthBar(i + 1);
-        label = labelBar.AddText(0, section.label, LabelTextStyle());
-        // The full score names the instrument and a one-choir part does not
-        // need to, but the staff is the same staff in both. So the section
-        // carries two labels, each shown in one of them. PlanPartEntries
-        // decides, and only it sets the property: read through _property:, which
-        // is null when it was never set, because a plain read of a property
-        // that does not exist stops the plug-in.
-        if (section._property:splitLabel = 1) {
-            label.ShowInScore();
-            plain = labelBar.AddText(0, section.plainLabel, LabelTextStyle());
-            plain.ShowInParts();
-        }
+        // The chart staves are in no part, so their label is the full score's
+        // alone. The parts read the label on their copy.
+        trebleStaves[i].NthBar(i + 1).AddText(0, section.label, LabelTextStyle());
         bar = score.NthStaff(1).NthBar(i + 1);
         bar.BreakType = EndOfSystemOrPage;
         trebleStaves[i].Small = True;
@@ -164,6 +163,147 @@ BuildChart(score, plan, options) {
     score.OptimizeStaffSpacing(1, score.StaffCount, 1, sections.Length + 1);
 
     return CreateDictionary('ok', True, 'error', '', 'warnings', warnings);
+}
+
+// The staves PlanParts gave a copy, each once, with the clef its copy is drawn
+// in: an owner's first staff takes the treble side and its second the bass.
+// Dictionary{staff, clef} per staff. Sections PlanParts never saw have no
+// copies, and _property: reads null for them where a plain read would stop
+// the plug-in.
+CopyStaffRoles(sections) {
+    roles = CreateSparseArray();
+    seen = CreateDictionary();
+    for i = 0 to sections.Length {
+        section = sections[i];
+        copies = section._property:copies;
+        if (copies != null) {
+            for j = 0 to copies.Length {
+                staves = copies[j];
+                for k = 0 to staves.Length {
+                    num = staves[k];
+                    key = 'staff' & num;
+                    if (seen[key] = null) {
+                        seen[key] = 1;
+                        clef = 'clef.treble';
+                        if (k = 1) {
+                            clef = 'clef.bass';
+                        }
+                        roles.Push(CreateDictionary('staff', num, 'clef', clef));
+                    }
+                }
+            }
+        }
+    }
+    return roles;
+}
+
+// Every copy staff made ready for its chart. Returns the restore record's
+// tokens.
+PrepareCopyStaves(score, sections) {
+    tokens = CreateSparseArray();
+    roles = CopyStaffRoles(sections);
+    for i = 0 to roles.Length {
+        role = roles[i];
+        made = PrepareCopyStaff(score, role.staff, role.clef, sections.Length);
+        for j = 0 to made.Length {
+            tokens.Push(made[j]);
+        }
+    }
+    return tokens;
+}
+
+// A copy prints with no key, so every accidental shows as it does on the
+// chart, and in the clef it was drawn for. The staff gets the chart staves'
+// hidden no-key change in the first chart bar, and a clef change there when
+// its own clef differs. Both are put back where the music starts, unless the
+// music already starts with its own: the key always, since the no-key change
+// would otherwise run on into the music, and the clef when it was changed.
+// Read before anything changes, because each change moves what the next read
+// would see. Returns a token per change put back, for the restore record.
+PrepareCopyStaff(score, staffNum, clef, chartBars) {
+    tokens = CreateSparseArray();
+    staff = score.NthStaff(staffNum);
+    music = staff.NthBar(chartBars + 1);
+    key = staff.CurrentKeySignature(chartBars + 1);
+    sharps = key.Sharps;
+    major = key.Major;
+    was = music.GetClefAt(0);
+    wasConcert = '' & was.ConcertClefStyleId;
+    wasTransposing = '' & was.TransposingClefStyleId;
+    keyHere = 0;
+    for each KeySignature ks in music {
+        if (ks.Position = 0) {
+            keyHere = 1;
+        }
+    }
+    clefHere = 0;
+    for each Clef c in music {
+        if (c.Position = 0) {
+            clefHere = 1;
+        }
+    }
+
+    SilenceKeySignature(staff);
+    if (keyHere = 0) {
+        music.AddKeySignature(0, sharps, major, False, False, True);
+        tokens.Push(staffNum & 'k');
+    }
+    if (wasConcert != clef) {
+        staff.NthBar(1).AddClef(0, clef);
+        if (clefHere = 0) {
+            music.AddClef(0, wasConcert, wasTransposing);
+            tokens.Push(staffNum & 'c');
+        }
+    }
+    return tokens;
+}
+
+// Each section's copies, drawn exactly as its chart is, in its own bar, with
+// the label the parts read: the plain one when every part showing it holds a
+// single charted instrument, which PlanPartEntries marks as splitLabel.
+WriteCopies(score, sections, options, styles) {
+    for i = 0 to sections.Length {
+        section = sections[i];
+        copies = section._property:copies;
+        if (copies != null) {
+            color = SectionColor(section.kind, options);
+            tick = ColumnTick(section.kind, styles);
+            text = section.label;
+            if (section._property:splitLabel = 1) {
+                text = section.plainLabel;
+            }
+            for j = 0 to copies.Length {
+                staves = copies[j];
+                top = score.NthStaff(staves[0]);
+                WriteColumns(top, i + 1, section.treble, section.kind, color, styles, tick);
+                MarkPartsOnly(top.NthBar(i + 1));
+                if (staves.Length > 1) {
+                    lower = score.NthStaff(staves[1]);
+                    WriteColumns(lower, i + 1, section.bass, section.kind, color, styles, tick);
+                    MarkPartsOnly(lower.NthBar(i + 1));
+                }
+                label = top.NthBar(i + 1).AddText(0, text, LabelTextStyle());
+                label.ShowInParts();
+            }
+        }
+    }
+    return True;
+}
+
+// A copy shows in the parts alone and plays on no pass: the full score has
+// the chart already, and playback has no use for either.
+MarkPartsOnly(bar) {
+    for each NoteRest nr in bar {
+        if (nr.NoteCount > 0) {
+            nr.ShowInParts();
+            p = 1;
+            while (p <= 8) {
+                nr.SetPlayedOnNthPass(p, False);
+                p = p + 1;
+            }
+        }
+    }
+    return True;
 }
 
 // The colour belongs to the instrument, and only the two that were given a

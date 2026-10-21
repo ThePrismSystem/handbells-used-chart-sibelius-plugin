@@ -138,6 +138,23 @@ TestBuildChart() {
     offered = ScoreInstruments(score);
     lastOffered = offered[offered.Length - 1];
     AssertEquals(lastOffered.lastStaff, staffCountBefore, 'the chart is not offered as an instrument');
+
+    // A plan the parts were never planned for copies nothing onto the piece's
+    // own staves and has nothing to restore.
+    AssertEquals(NotesInBar(score.NthStaff(1).NthBar(1)), 0, 'a build without parts draws no copies');
+    restores = RestoreMarkerRead(score, staffCountBefore + 1);
+    AssertEquals(restores.Length, 0, 'and records no restores');
+}
+
+// How many NoteRests in a bar hold notes.
+NotesInBar(bar) {
+    count = 0;
+    for each NoteRest nr in bar {
+        if (nr.NoteCount > 0) {
+            count = count + 1;
+        }
+    }
+    return count;
 }
 
 // How many text items in the first bar belong to the first page rather than
@@ -318,6 +335,7 @@ TestBuildChartParts() {
     // when staves are added to it or taken away, and where the part's had
     // followed the full score's, the run puts it back.
     parts = score.DynamicParts;
+    keyBefore = score.NthStaff(first.firstStaff).CurrentKeySignature(1).Sharps;
     fullTitle = PartTitleText(score, parts[0]);
     titleA = PartTitleText(score, partA);
     followsA = 0;
@@ -357,6 +375,55 @@ TestBuildChartParts() {
     AssertTrue(rebuilt.ok, 'the separate chart with parts replaces the combined one: ' & rebuilt.text);
     found = FindChart(score);
     AssertEquals(found.sections, expected.sections.Length, 'the re-run chart has every section');
+
+    // The first instrument's copy of its first chart, on its own staves: shown
+    // in its part and not in the full score, where those staves stay hidden
+    // through every chart bar. The key it had goes back where the music
+    // starts.
+    fullScore = parts[0];
+    chartBars = expected.sections.Length;
+    copyBar = 0;
+    copyStaff = 0;
+    copyLabel = '';
+    for i = 0 to chartBars {
+        section = expected.sections[i];
+        copyOwners = section.copyOwners;
+        for j = 0 to copyOwners.Length {
+            if (copyBar = 0) {
+                if (copyOwners[j] = first.name) {
+                    copies = section.copies;
+                    staves = copies[j];
+                    copyBar = i + 1;
+                    copyStaff = staves[0];
+                    copyLabel = section.label;
+                    if (section.splitLabel = 1) {
+                        copyLabel = section.plainLabel;
+                    }
+                }
+            }
+        }
+    }
+    if (copyBar = 0) {
+        AssertTrue(False, 'fixture: the first instrument needs a chart its staves can hold');
+    } else {
+        AssertEquals(CopyState(score, fullScore, copyStaff, copyBar), 'hidden',
+            'the full score does not show the copy');
+        AssertEquals(CopyState(score, partA, copyStaff, copyBar), 'shown', 'the first part shows its copy');
+        AssertEquals(TextHiddenIn(score, fullScore, copyStaff, copyBar, copyLabel), 1,
+            'the full score hides the copy label');
+        AssertEquals(TextHiddenIn(score, partA, copyStaff, copyBar, copyLabel), 0,
+            'the first part shows the copy label');
+        shownInScore = 0;
+        for b = 1 to chartBars + 1 {
+            scoreFlags = PartHiddenFlags(score, fullScore, b);
+            if (scoreFlags[copyStaff - 1] != 1) {
+                shownInScore = shownInScore + 1;
+            }
+        }
+        AssertEquals(shownInScore, 0, 'the full score hides the copy staves in every chart bar');
+        AssertEquals(score.NthStaff(first.firstStaff).CurrentKeySignature(chartBars + 1).Sharps, keyBefore,
+            'the first instrument keeps its key where the music starts');
+    }
 
     onlyOwnA = True;
     onlyOwnB = True;
@@ -438,13 +505,13 @@ TestBuildChartParts() {
         section = expected.sections[splitIndex];
         trebleNum = found.firstStaff + (splitIndex * 2);
         fullScore = parts[0];
-        AssertEquals(TextHiddenIn(score, fullScore, trebleNum, section.label), 0,
+        AssertEquals(TextHiddenIn(score, fullScore, trebleNum, splitIndex + 1, section.label), 0,
             'the full score shows the named label');
-        AssertEquals(TextHiddenIn(score, fullScore, trebleNum, section.plainLabel), 1,
+        AssertEquals(TextHiddenIn(score, fullScore, trebleNum, splitIndex + 1, section.plainLabel), 1,
             'the full score hides the plain label');
-        AssertEquals(TextHiddenIn(score, partA, trebleNum, section.label), 1,
+        AssertEquals(TextHiddenIn(score, partA, trebleNum, splitIndex + 1, section.label), 1,
             'the part hides the named label');
-        AssertEquals(TextHiddenIn(score, partA, trebleNum, section.plainLabel), 0,
+        AssertEquals(TextHiddenIn(score, partA, trebleNum, splitIndex + 1, section.plainLabel), 0,
             'the part shows the plain label');
     }
 
@@ -491,11 +558,11 @@ PartHoldingStaff(score, staffNum) {
 
 // A part's first-page top staff margin and whether its first page has margins
 // of its own, read in the part.
-// 1 when the text in the first bar of a staff is hidden where the given part
-// or the full score shows it, 0 when it is shown, -1 when there is no such
-// text. The staff is found while the full score is current.
-TextHiddenIn(score, part, staffNum, text) {
-    bar = score.NthStaff(staffNum).NthBar(1);
+// 1 when the text in a bar of a staff is hidden where the given part or the
+// full score shows it, 0 when it is shown, -1 when there is no such text. The
+// staff is found while the full score is current.
+TextHiddenIn(score, part, staffNum, barNum, text) {
+    bar = score.NthStaff(staffNum).NthBar(barNum);
     was = score.CurrentDynamicPart;
     score.CurrentDynamicPart = part;
     hidden = -1;
@@ -527,6 +594,28 @@ PartTitleText(score, part) {
     }
     score.CurrentDynamicPart = was;
     return line;
+}
+
+// 'shown' or 'hidden' for the first NoteRest with notes in a bar of a staff,
+// as the given part or the full score shows it, or 'none' when the bar has no
+// notes. The staff is found while the full score is current.
+CopyState(score, part, staffNum, barNum) {
+    bar = score.NthStaff(staffNum).NthBar(barNum);
+    was = score.CurrentDynamicPart;
+    score.CurrentDynamicPart = part;
+    state = 'none';
+    for each NoteRest nr in bar {
+        if (state = 'none') {
+            if (nr.NoteCount > 0) {
+                state = 'shown';
+                if (nr.Hidden) {
+                    state = 'hidden';
+                }
+            }
+        }
+    }
+    score.CurrentDynamicPart = was;
+    return state;
 }
 
 // A bar's break as one part sees it.
