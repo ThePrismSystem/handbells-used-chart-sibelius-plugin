@@ -22,8 +22,10 @@ DrawCharts(score, plan, options) {
     if (plan.sections.Length = 0) {
         return result;
     }
+    ProbeParts(score, 'after-build');
     firstChartStaff = (score.StaffCount - (plan.sections.Length * 2)) + 1;
     DeleteChartOnlyParts(score, firstChartStaff);
+    ProbeParts(score, 'after-delete');
     applied = ApplyParts(score, plan, partPlan.entries, firstChartStaff, options.pageBreak = True);
     MarginMarkersWrite(score.NthStaff(firstChartStaff).NthBar(1), applied.margins);
 
@@ -70,6 +72,7 @@ ApplyParts(score, plan, entries, firstChartStaff, breakForOne) {
             }
         }
         if (complete = 1) {
+            ProbeLayout(score, part, 'after-add');
             kept = LayOutPart(score, part, plan.sections, carried, pieceCount, barCount, breakForOne);
             margins.Push(CreateDictionary('key', entry.key, 'gap', kept.gap, 'unique', kept.unique));
         } else {
@@ -157,11 +160,14 @@ LayOutPart(score, part, sections, carried, pieceCount, barCount, breakForOne) {
     if (barCount > chartBars) {
         score.HideEmptyStaves(pieceCount + 1, staveCount, chartBars + 1, barCount);
     }
+    ProbeLayout(score, part, 'after-hide');
     // The charts' ledger lines reach far past their staves, and the music's
     // first system lost whatever spacing the part had given it when the chart
     // took the first system's place.
     score.OptimizeStaffSpacing(1, staveCount, 1, chartBars + 1);
+    ProbeLayout(score, part, 'after-optimize');
     kept = LowerFirstPage(score, ChartReach(firstSection));
+    ProbeLayout(score, part, 'after-lower');
     score.CurrentDynamicPart = parts[0];
     return kept;
 }
@@ -466,8 +472,11 @@ RestoreTitleText(score, kept) {
                         was = TitleRecordFor(records, style, text, TitleOccurrence(seen, style, text));
                         if (was != null) {
                             if ((item.Dx != was.dx) or (item.Dy != was.dy)) {
+                                before = item.Dy;
                                 item.Dx = was.dx;
                                 item.Dy = was.dy;
+                                trace(('[layout probe] restore ' & style) & (' from ' & before)
+                                    & (' to ' & was.dy) & (' got ' & item.Dy));
                                 if ((item.Dx != was.dx) or (item.Dy != was.dy)) {
                                     missed = missed + 1;
                                 }
@@ -681,4 +690,91 @@ DistinctOwnerCount(sections, indexes) {
         }
     }
     return count;
+}
+
+// Diagnostic, kept until the title block and the first-page margin in parts
+// are understood: a run moved a part's title block down with its chart, and
+// squashed its music from page 3 on. One part's staff margins and the offsets
+// of its page-aligned text, read in the part's own context.
+ProbeLayout(score, part, label) {
+    was = score.CurrentDynamicPart;
+    score.CurrentDynamicPart = part;
+    setup = score.DocumentSetup;
+    rules = score.EngravingRules;
+    line = ('[layout probe] ' & label) & (' part ' & PartSignature(part, 1000));
+    line = line & (' top=' & setup.AboveTopStaveGap) & (' bottom=' & setup.BelowBottomStaveGap);
+    line = line & (' unique=' & setup.FirstPageHasUniqueVerticalStaveMargins);
+    line = line & (' top2=' & setup.AboveTopStaveGapAfterFirstPage);
+    line = line & (' bottom2=' & setup.BelowBottomStaveGapAfterFirstPage);
+    line = line & (' staff=' & setup.StaffSize) & (' justify=' & rules.StaffJustificationPercentage);
+    line = line & (' systems=' & rules.SpacesBetweenSystems);
+    firstBar = score.SystemStaff.NthBar(1);
+    for each item in firstBar {
+        if (item.Type = 'SystemTextItem') {
+            if (StyleIsPageAligned(item.StyleId)) {
+                line = line & ((' ' & Substring('' & item.StyleId, 25)) & ('=' & item.Dx) & (',' & item.Dy));
+            }
+        }
+    }
+    trace(line);
+    score.CurrentDynamicPart = was;
+    return True;
+}
+
+// Diagnostic: the full score, then every part holding staves. Collected first,
+// as KeepTitleText does.
+ProbeParts(score, label) {
+    parts = score.DynamicParts;
+    found = CreateSparseArray();
+    for each part in parts {
+        if (not(part.IsFullScore)) {
+            if (part.StaveCount > 0) {
+                found.Push(part);
+            }
+        }
+    }
+    ProbeLayout(score, parts[0], label);
+    for i = 0 to found.Length {
+        ProbeLayout(score, found[i], label);
+    }
+    return True;
+}
+
+// Diagnostic: whether a title offset written in a part takes, written plainly
+// and again with the item selected, put back after each.
+ProbeTitleWrites(score, label) {
+    parts = score.DynamicParts;
+    found = CreateSparseArray();
+    for each part in parts {
+        if (not(part.IsFullScore)) {
+            if (part.StaveCount > 0) {
+                found.Push(part);
+            }
+        }
+    }
+    for i = 0 to found.Length {
+        part = found[i];
+        score.CurrentDynamicPart = part;
+        firstBar = score.SystemStaff.NthBar(1);
+        for each item in firstBar {
+            if (item.Type = 'SystemTextItem') {
+                if (('' & item.StyleId) = 'text.system.page_aligned.title') {
+                    dy = item.Dy;
+                    item.Dy = dy + 32;
+                    plain = item.Dy;
+                    item.Dy = dy;
+                    item.Select();
+                    item.Dy = dy + 32;
+                    selected = item.Dy;
+                    item.Dy = dy;
+                    item.Deselect();
+                    trace(('[layout probe] ' & label) & (' part ' & PartSignature(part, 1000))
+                        & (' title write: dy=' & dy) & (' plain=' & plain)
+                        & (' selected=' & selected) & (' back=' & item.Dy));
+                }
+            }
+        }
+        score.CurrentDynamicPart = parts[0];
+    }
+    return True;
 }

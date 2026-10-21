@@ -22,9 +22,14 @@ ChartScore(score, options) {
     // block, and a re-run does both, so each part's is kept from before the
     // removal and put back after the build. The full score's is left to the
     // build and the removal themselves.
+    ProbeParts(score, 'start');
+    ProbeTitleWrites(score, 'start');
     titles = KeepTitleText(score);
     message = ChartOrRemove(score, options);
+    ProbeParts(score, 'built');
+    ProbeTitleWrites(score, 'built');
     missed = RestoreTitleText(score, titles);
+    ProbeParts(score, 'end');
     if (missed > 0) {
         message.text = WithWarnings(CreateSparseArray(
             CreateDictionary('type', 'title-not-restored', 'count', missed)), message.text);
