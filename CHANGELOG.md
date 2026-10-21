@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 Scores with several handbell parts can chart each one separately, and put
-each chart into the Sibelius part that rings from it.
+each chart into the Sibelius part that rings from it. P&F and Whitechapel
+handbells get charts of their own.
 
 ### Added
 
@@ -48,6 +49,13 @@ each chart into the Sibelius part that rings from it.
 - Sibelius creates a part for each chart instrument the plug-in adds.
   Building or removing a chart now deletes any part holding nothing but
   chart staves.
+- P&F and Whitechapel handbells are charted as instruments of their own,
+  after the SMBs, each on a treble and a bass staff and labelled
+  `P&F Handbells Used: 6` and `Whitechapel Handbells Used: 4`. Each has a
+  notehead box and a colour field in the dialog. As with SMBs, the notehead
+  boxes open on `(no notehead)` until one is picked, and the last choice is
+  remembered. The charts use the plain stemless handbell head, in the
+  instrument's own colour when one is set.
 
 ### Fixed
 
@@ -83,6 +91,8 @@ each chart into the Sibelius part that rings from it.
   returns to that part afterwards.
 - The defaults are every instrument, one combined chart and no parts, so a
   first run charts the same sections, under the same labels, as 1.2.0.
+- The dialog is wider and set out in two columns. The notehead boxes, the
+  colour fields and "Remove Existing Chart" are on the right.
 
 ## [1.2.0] - 2026-08-23
 
