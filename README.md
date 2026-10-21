@@ -46,12 +46,10 @@ score, build a chart into it and its parts, and remove it again.
 
 Two rough edges worth knowing before you run it on work you care about:
 
-- In a part, Sibelius resets the title block whenever chart staves are
-  added to the part or taken away. The plugin puts it back with Sibelius's
-  Reset to Score Position, which works where the part's title block
-  followed the full score's. A title line placed by hand in the part itself
-  goes back to its style's default position, and the message at the end of
-  the run says how many lines the plugin couldn't put back.
+- In a part, the chart is drawn on the instrument's own staves, so an
+  instrument with only one staff gets no bells or handchimes chart in its
+  part. The message at the end of the run names it. See
+  [Charts in parts](#charts-in-parts).
 - The gap between the title block and the chart is whatever Sibelius's
   automatic spacing gives it, in the full score and in the parts. See
   [Known limitations](#known-limitations).
@@ -143,21 +141,41 @@ at the end of the run.
 
 ### Charts in parts
 
-With "Also add charts to parts" ticked, each chart also goes into the parts
-that hold its instrument. A part holding two choirs gets both choirs'
-charts, an instrument with no part of its own appears only in the full
-score, and a part holding no selected instrument gets no chart staves. The
-full score always carries every chart, because the chart bars are bars of
-the whole score.
+With "Also add charts to parts" ticked, each part shows the charts of the
+instruments it holds. A part holding two choirs gets both choirs' charts, an
+instrument with no part of its own appears only in the full score, and a
+part holding no selected instrument gets no chart. The full score always
+carries every chart, because the chart bars are bars of the whole score.
+
+The chart in a part is a copy, drawn on the instrument's own staves in the
+chart bars, shown only in the parts and silent in playback. The full score
+keeps its chart on staves of its own and hides the copies. The plugin never
+adds a staff to a part. Sibelius resets a part's title block and its staff
+spacing whenever a staff is added to the part, so leaving the part's staves
+alone is what keeps its layout and title block as they were, through a
+build, a re-run and a removal.
+
+A copy needs staves that can hold it. Bells and handchimes charts use a
+treble and a bass staff, so they go on an instrument's top two staves, and
+an instrument with one staff gets none. A silver melody bells chart needs
+one staff. A percussion or tab staff can't hold a chart at all. The message
+at the end of the run names any instrument left without a chart in its part
+for this reason.
+
+The copy prints with no key signature and in treble and bass clefs, as the
+chart does. Where the instrument's own key or clef differs, the plugin
+changes it for the chart bars and puts the original back where the music
+starts. Removing the chart takes those changes off again.
 
 In a part that carries one instrument's charts, the labels are the plain
 "Handbells Used: 25", since the part's name already says whose they are. In
-a part holding several instruments they keep the instrument names. A chart
-staff is the same staff in the score and in every part that shows it, so a
-chart that sits in both kinds of part keeps its names in all of them.
+a part holding several instruments they keep the instrument names. A copy
+sits on the instrument's own staff, which is the same staff in every part
+that holds it, so a chart that sits in both kinds of part keeps its names in
+all of them.
 
-In a part, each chart is a system of its own showing only that chart's
-staves. Another instrument's chart can't disappear from a part completely,
+In a part, each chart is a system of its own showing only the staves that
+hold it. Another instrument's chart can't disappear from a part completely,
 because Sibelius keeps at least one staff showing in every system, so its
 bar joins the part's own chart as a short empty bar.
 
@@ -175,17 +193,6 @@ Document Setup, that page takes the left-hand margins and sits further left
 than the old first page did, as every left-hand page in the part already
 does. To keep the music on the same left- or right-hand pages as before, add
 a blank page after the chart in Sibelius.
-
-Sibelius resets a part's title block to its styles' default positions
-whenever staves are added to the part or taken away, so a build, a re-run
-and a removal all reset it. ManuScript can't set a title line's position in
-a part. Instead, the plugin selects each line that moved and runs Sibelius's
-Reset to Score Position on it, which puts the line where the full score has
-it. That restores a part whose title block followed the full score's. A line
-placed by hand in the part itself stays at its style's default position, and
-the message at the end of the run counts it. Each part shows on screen while
-its title block is put back, and the plugin returns to the part or score you
-started from.
 
 Sibelius gives every instrument the plugin adds a part of its own, so any
 part holding nothing but chart staves is deleted, on a build and on a
@@ -324,9 +331,15 @@ need two instruments that each have a part of their own.
 - In a part, another instrument's chart shows as a short empty bar beside
   the part's own chart, because Sibelius keeps a staff showing in every
   system.
-- Sibelius's Optimize Staff Spacing is run over the chart and the first
-  system of music, which replaces any staff spacing set on those systems by
-  hand.
+- In a part, the chart is drawn on the instrument's own staves, so the
+  instrument's brace shows beside it. Sibelius sets braces for a whole part,
+  not for one system.
+- With one combined chart, a part holding two charted instruments shows the
+  chart twice, once on each instrument's staves. A part can't hide a staff
+  that holds notes it shows.
+- Sibelius's Optimize Staff Spacing is run over the chart and, in the full
+  score, the first system of music, which replaces any staff spacing set on
+  those systems by hand. In a part it runs over the chart alone.
 - The plugin doesn't make room between the title block and a chart. A
   chart's label, or high bells on ledger lines, can reach the composer lines
   in the full score or in a part. If they do, select the title lines in

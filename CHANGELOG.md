@@ -23,21 +23,21 @@ each chart into the Sibelius part that rings from it.
   the full score in score order and labelled with the instrument's name:
   `Handbells I - Handbells Used: 25`. The choice applies once two or more
   instruments are selected.
-- "Also Add Charts to Parts" puts each instrument's charts into the parts
-  that hold it, each chart on a system of its own. The full score always
-  carries every chart. In a part holding one instrument the labels are the
+- "Also Add Charts to Parts" gives each part the charts of the instruments
+  it holds, each chart on a system of its own. The full score always
+  carries every chart. In a part, the chart is a copy drawn on the
+  instrument's own staves, shown only in the parts and silent in playback.
+  No staff is added to a part, because Sibelius resets a part's title block
+  and staff spacing when one is, so a part keeps its layout. An instrument
+  with one staff gets no bells or handchimes chart in its part, a
+  percussion or tab staff gets none at all, and the message at the end of
+  the run names them. In a part holding one instrument the labels are the
   plain `Handbells Used: 25`; in a part holding several they keep the
   instrument names. Sibelius keeps a staff showing in every system, so
   another instrument's chart can't disappear from a part entirely: it shows
-  as a short empty bar beside the part's own chart. Sibelius resets a
-  part's title block when chart staves are added to the part or taken
-  away. Where the part's title block followed the full score's, the
-  plug-in puts it back with Sibelius's Reset to Score Position; the message
-  at the end of the run says how many lines it couldn't put back. A part
-  holding no selected instrument gets no chart staves. The message at the
-  end of the run names any part Sibelius wouldn't add the chart staves to,
-  and says so when the box is ticked but no part holds a selected
-  instrument.
+  as a short empty bar beside the part's own chart. A part holding no
+  selected instrument gets no chart, and the message at the end of the run
+  says so when the box is ticked but no part holds a selected instrument.
 - In a part given two or more chart sections, the music starts on a new
   page, laid out as it was, because charts added in front of a full first
   page push music off it. An instrument's bells and chimes are two
@@ -60,7 +60,8 @@ each chart into the Sibelius part that rings from it.
   page. It now ends with an ordinary system break.
 - A chart's ledger lines could run into the system above or below it.
   Sibelius's Optimize Staff Spacing now runs over the chart and the first
-  system of music, in the full score and in each part given a chart.
+  system of music in the full score, and over the chart in each part given
+  one.
 - The chart makes the start of the music a new section, so a score set to
   show no instrument names at new sections lost the names on its first
   system of music. While a chart is in place, the new-section option
