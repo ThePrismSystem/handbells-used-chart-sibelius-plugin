@@ -34,11 +34,10 @@ handbells get charts of their own.
   percussion or tab staff gets none at all, and the message at the end of
   the run names them. In a part holding one instrument the labels are the
   plain `Handbells Used: 25`; in a part holding several they keep the
-  instrument names. Other instruments' charts ahead of a part's last chart
-  drop out of the part, because its staves change to "No instrument
-  (hidden)" for those bars. One after its last chart shows as a short empty
-  bar beside it, since Sibelius keeps a staff showing in every system. A
-  part holding no
+  instrument names. Other instruments' charts drop out of a part, because
+  its staves change to "No instrument (hidden)" for those bars. In a part
+  with a staff that holds no chart, they show as short empty bars instead,
+  since Sibelius keeps a staff showing in every system. A part holding no
   selected instrument gets no chart, and the message at the end of the run
   says so when the box is ticked but no part holds a selected instrument.
 - In a part given two or more chart sections, the music starts on a new

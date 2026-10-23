@@ -1132,7 +1132,8 @@
     if (parts[0] != ('' & RESTORE_MARKER_PREFIX)) {
         return null;
     }
-    restores = CreateSparseArray();
+    clefs = CreateSparseArray();
+    changes = CreateSparseArray();
     for i = 1 to parts.Length {
         token = parts[i];
         size = Length(token);
@@ -1141,15 +1142,20 @@
         }
         kind = Substring(token, size - 1, 1);
         staff = Substring(token, 0, size - 1);
-        if (kind != 'c') {
-            return null;
-        }
         if (not(utils.IsNumeric(staff, True))) {
             return null;
         }
-        restores.Push(0 + staff);
+        if (kind = 'c') {
+            clefs.Push(0 + staff);
+        } else {
+            if (kind = 'i') {
+                changes.Push(0 + staff);
+            } else {
+                return null;
+            }
+        }
     }
-    return restores;
+    return CreateDictionary('clefs', clefs, 'changes', changes);
 }"
 	RestoreMarkerRead "(score, firstStaff) {
     bar = score.NthStaff(firstStaff).NthBar(1);
@@ -1159,7 +1165,7 @@
             return restores;
         }
     }
-    return CreateSparseArray();
+    return CreateDictionary('clefs', CreateSparseArray(), 'changes', CreateSparseArray());
 }"
 	RecordStaff "(score) {
     n = 1;
@@ -1558,7 +1564,10 @@
     }
     tokens = PrepareCopyStaves(score, roles, sections.Length);
     WriteCopies(score, sections, options, styles);
-    HideBeforeCopies(score, roles, sections, sections.Length);
+    changed = HideOutsideCopies(score, roles, sections, sections.Length);
+    for i = 0 to changed.Length {
+        tokens.Push(changed[i]);
+    }
     if (tokens.Length > 0) {
         record = trebleStaves[0].NthBar(1).AddText(0, RestoreMarkerEncode(tokens), LabelTextStyle());
         record.Hidden = True;
@@ -1733,14 +1742,16 @@
     }
     return True;
 }"
-	HideBeforeCopies "(score, roles, sections, chartBars) {
+	HideOutsideCopies "(score, roles, sections, chartBars) {
+    tokens = CreateSparseArray();
     for i = 0 to roles.Length {
         staffNum = roles[i].staff;
         staff = score.NthStaff(staffNum);
         own = staff.InitialStyleId;
         hidden = StaffHiddenBars(CopyBarsOfStaff(sections, staffNum), chartBars);
+        hidden.Push(0);
         previous = 0;
-        for b = 1 to chartBars + 1 {
+        for b = 1 to chartBars + 2 {
             flag = hidden[b - 1];
             if (flag != previous) {
                 bar = staff.NthBar(b);
@@ -1750,12 +1761,15 @@
                         target = HiddenInstrument();
                     }
                     bar.AddInstrumentChange(0, target, False, False, '', False);
+                    if (b > chartBars) {
+                        tokens.Push(staffNum & 'i');
+                    }
                 }
             }
             previous = flag;
         }
     }
-    return True;
+    return tokens;
 }"
 	MarkPartsOnly "(bar) {
     for each NoteRest nr in bar {
@@ -2046,8 +2060,8 @@
         shown.Push(0);
     }
     for b = 1 to chartBars + 1 {
-        // The last chart bar always ends a system: no staff is hidden after
-        // its last copy, so it is never a bar the part loses.
+        // The last chart bar always ends a system, so the page break can
+        // take its place.
         breakType = breaks[b - 1];
         if ((b = chartBars) and (endsPage = 1)) {
             breakType = EndOfPage;
@@ -2183,16 +2197,10 @@
     return bars;
 }"
 	StaffHiddenBars "(copyBars, chartBars) {
-    last = 0;
-    for i = 0 to copyBars.Length {
-        if (copyBars[i] > last) {
-            last = copyBars[i];
-        }
-    }
     flags = CreateSparseArray();
     for b = 1 to chartBars + 1 {
         flag = 0;
-        if (b < last) {
+        if (copyBars.Length > 0) {
             flag = 1;
             for i = 0 to copyBars.Length {
                 if (copyBars[i] = b) {
@@ -2232,7 +2240,19 @@
     j = 0;
     for k = 0 to positions.Length {
         if (vanishing[k] = 1) {
-            breaks.Push(Default);
+            // Nested, not joined with and: the guide documents no
+            // short-circuiting, and the last bar has no next one to read.
+            runEnds = 1;
+            if (k < (positions.Length - 1)) {
+                if (vanishing[k + 1] = 1) {
+                    runEnds = 0;
+                }
+            }
+            if (runEnds = 1) {
+                breaks.Push(EndOfSystemOrPage);
+            } else {
+                breaks.Push(MiddleOfSystem);
+            }
         } else {
             if (ends[j] = 1) {
                 breaks.Push(EndOfSystemOrPage);
@@ -2599,13 +2619,29 @@
 }"
 	RemoveRestores "(score, found) {
     restores = RestoreMarkerRead(score, found.firstStaff);
-    for i = 0 to restores.Length {
-        bar = score.NthStaff(restores[i]).NthBar(found.sections + 1);
+    clefs = restores.clefs;
+    for i = 0 to clefs.Length {
+        bar = score.NthStaff(clefs[i]).NthBar(found.sections + 1);
         doomed = null;
         for each Clef c in bar {
             if (doomed = null) {
                 if (c.Position = 0) {
                     doomed = c;
+                }
+            }
+        }
+        if (doomed != null) {
+            doomed.Delete();
+        }
+    }
+    changes = restores.changes;
+    for i = 0 to changes.Length {
+        bar = score.NthStaff(changes[i]).NthBar(found.sections + 1);
+        doomed = null;
+        for each InstrumentChange change in bar {
+            if (doomed = null) {
+                if (change.Position = 0) {
+                    doomed = change;
                 }
             }
         }

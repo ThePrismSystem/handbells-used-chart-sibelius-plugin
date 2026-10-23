@@ -57,12 +57,13 @@ LayOutParts(score, plan, entries, breakForOne) {
 //
 // Each of the part's own charts is a system of its own, showing the staves
 // holding that chart's copy and no others. A bar of a chart the part does not
-// carry cannot be a system of its own: Sibelius keeps one staff showing in
-// every system, so it would stand as a lone empty staff. Where every staff of
-// the part is No instrument (hidden) in that bar, which HideBeforeCopies makes
-// them ahead of the part's last chart, there is no staff left to show and the
-// bar takes no room, so it gets no break. Otherwise it joins the part's chart
-// beside it, as a short empty bar.
+// carry would stand as a lone empty staff if it were a system of its own,
+// since Sibelius keeps one staff showing in every system. Unless every staff
+// of the part is No instrument (hidden) there, which HideOutsideCopies makes
+// a staff wherever it holds no copy: then there is no staff left to show, and
+// a run of such bars is a system of its own that draws nothing. A part with a
+// staff holding no copy has one left, so the bar joins the part's chart
+// beside it instead, as a short empty bar.
 //
 // The last chart bar ends the page when the part has two or more chart
 // sections, or one and breakForOne is set, so the music starts on a page of
@@ -99,8 +100,8 @@ LayOutPart(score, part, sections, carried, breakForOne) {
         shown.Push(0);
     }
     for b = 1 to chartBars + 1 {
-        // The last chart bar always ends a system: no staff is hidden after
-        // its last copy, so it is never a bar the part loses.
+        // The last chart bar always ends a system, so the page break can
+        // take its place.
         breakType = breaks[b - 1];
         if ((b = chartBars) and (endsPage = 1)) {
             breakType = EndOfPage;
@@ -263,20 +264,13 @@ CopyBarsOfStaff(sections, staffNum) {
 }
 
 // Per chart bar, 1 where a staff holding copies in copyBars is No instrument
-// (hidden): every bar before its last copy that holds none. The bars after its
-// last copy are left alone, because the change back would have to go in the
-// music's first bar.
+// (hidden): every chart bar in which it holds none. A staff holding no copy
+// is never hidden.
 StaffHiddenBars(copyBars, chartBars) {
-    last = 0;
-    for i = 0 to copyBars.Length {
-        if (copyBars[i] > last) {
-            last = copyBars[i];
-        }
-    }
     flags = CreateSparseArray();
     for b = 1 to chartBars + 1 {
         flag = 0;
-        if (b < last) {
+        if (copyBars.Length > 0) {
             flag = 1;
             for i = 0 to copyBars.Length {
                 if (copyBars[i] = b) {
@@ -308,9 +302,11 @@ PartVanishingBars(partStaffNums, sections, chartBars) {
     return flags;
 }
 
-// Per chart bar, the break a part gives it. A bar the part loses gets none,
-// and the rest are laid out by PartChartSystems as if the lost bars were not
-// there at all. positions are as CarriedPositions gives them.
+// Per chart bar, the break a part gives it. Each run of bars the part loses
+// is a system of its own, which draws nothing, so the chart after it starts a
+// system of its own with clefs at its head. The rest are laid out by
+// PartChartSystems as if the lost bars were not there at all. positions are
+// as CarriedPositions gives them.
 PartBarBreaks(positions, vanishing) {
     kept = CreateSparseArray();
     for k = 0 to positions.Length {
@@ -324,7 +320,19 @@ PartBarBreaks(positions, vanishing) {
     j = 0;
     for k = 0 to positions.Length {
         if (vanishing[k] = 1) {
-            breaks.Push(Default);
+            // Nested, not joined with and: the guide documents no
+            // short-circuiting, and the last bar has no next one to read.
+            runEnds = 1;
+            if (k < (positions.Length - 1)) {
+                if (vanishing[k + 1] = 1) {
+                    runEnds = 0;
+                }
+            }
+            if (runEnds = 1) {
+                breaks.Push(EndOfSystemOrPage);
+            } else {
+                breaks.Push(MiddleOfSystem);
+            }
         } else {
             if (ends[j] = 1) {
                 breaks.Push(EndOfSystemOrPage);

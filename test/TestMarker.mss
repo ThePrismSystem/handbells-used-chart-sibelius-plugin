@@ -25,15 +25,16 @@ TestMarker() {
     AssertEquals(NamesMarkerDecode('HBUCNAMES|3'), -1, 'a setting past the last is refused');
     AssertEquals(NamesMarkerDecode(null), -1, 'no text is no record');
 
-    // The clef changes a build puts on an owner's staves where the music
-    // starts are recorded beside the marker too, so a removal can take them
-    // back off. A key never needs one: the music's key goes back as an
+    // The clef and instrument changes a build puts on an owner's staves where
+    // the music starts are recorded beside the marker too, so a removal can
+    // take them back off. A key never needs one: the music's key goes back as an
     // ordinary key change, which a removal leaves as its opening key.
-    restores = RestoreMarkerDecode(RestoreMarkerEncode(CreateSparseArray('3c', '4c')));
-    AssertEquals(JoinNames(restores), '3, 4', 'the restore record round-trips the staves it names');
+    restores = RestoreMarkerDecode(RestoreMarkerEncode(CreateSparseArray('3c', '4c', '3i')));
+    AssertEquals(JoinNames(restores.clefs), '3, 4', 'the restore record round-trips the clefs it names');
+    AssertEquals(JoinNames(restores.changes), '3', 'and the instrument changes');
     AssertEquals(RestoreMarkerDecode('HBUCRESTORE'), null, 'a restore record restores something');
     AssertEquals(RestoreMarkerDecode('HBUCRESTORE|x'), null, 'a restore names a staff');
-    AssertEquals(RestoreMarkerDecode('HBUCRESTORE|3k'), null, 'and puts back a clef, never a key');
+    AssertEquals(RestoreMarkerDecode('HBUCRESTORE|3k'), null, 'and takes off a clef or an instrument change, never a key');
     AssertEquals(RestoreMarkerDecode('HBUC|1|1|4|12'), null, 'the chart marker is not a restore record');
     AssertEquals(RestoreMarkerDecode(NamesMarkerEncode(2)), null, 'nor is the names record');
     AssertEquals(MarkerDecode(RestoreMarkerEncode(CreateSparseArray('3c'))), null,

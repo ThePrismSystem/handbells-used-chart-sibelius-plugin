@@ -93,7 +93,10 @@ BuildChart(score, plan, options) {
     }
     tokens = PrepareCopyStaves(score, roles, sections.Length);
     WriteCopies(score, sections, options, styles);
-    HideBeforeCopies(score, roles, sections, sections.Length);
+    changed = HideOutsideCopies(score, roles, sections, sections.Length);
+    for i = 0 to changed.Length {
+        tokens.Push(changed[i]);
+    }
     if (tokens.Length > 0) {
         record = trebleStaves[0].NthBar(1).AddText(0, RestoreMarkerEncode(tokens), LabelTextStyle());
         record.Hidden = True;
@@ -299,21 +302,25 @@ WriteCopies(score, sections, options, styles) {
 
 // A copy staff is No instrument (hidden) in the chart bars StaffHiddenBars
 // names, and its own instrument again where they end, so a part loses the
-// bars of charts it does not carry instead of showing them as empty bars in
-// front of its own. Every change falls inside the chart bars and goes when
-// they are deleted. The labels and warnings are hidden, there is no clef
-// change, and the names are left as they are.
+// bars of charts it does not carry instead of showing them as empty bars
+// beside its own. The labels and warnings are hidden, there is no clef
+// change, and the names are left as they are. A change inside the chart bars
+// goes when they are deleted; one where the music starts is returned as a
+// token for the restore record, so a removal can take it off.
 //
 // Two staves of one instrument may share a change: where a staff's bar
-// already holds one at its start, it is not given another.
-HideBeforeCopies(score, roles, sections, chartBars) {
+// already holds one at its start, it is not given another. That includes a
+// change the music already starts with, which then brings the staff back.
+HideOutsideCopies(score, roles, sections, chartBars) {
+    tokens = CreateSparseArray();
     for i = 0 to roles.Length {
         staffNum = roles[i].staff;
         staff = score.NthStaff(staffNum);
         own = staff.InitialStyleId;
         hidden = StaffHiddenBars(CopyBarsOfStaff(sections, staffNum), chartBars);
+        hidden.Push(0);
         previous = 0;
-        for b = 1 to chartBars + 1 {
+        for b = 1 to chartBars + 2 {
             flag = hidden[b - 1];
             if (flag != previous) {
                 bar = staff.NthBar(b);
@@ -323,12 +330,15 @@ HideBeforeCopies(score, roles, sections, chartBars) {
                         target = HiddenInstrument();
                     }
                     bar.AddInstrumentChange(0, target, False, False, '', False);
+                    if (b > chartBars) {
+                        tokens.Push(staffNum & 'i');
+                    }
                 }
             }
             previous = flag;
         }
     }
-    return True;
+    return tokens;
 }
 
 // A copy shows in the parts alone and plays on no pass: the full score has

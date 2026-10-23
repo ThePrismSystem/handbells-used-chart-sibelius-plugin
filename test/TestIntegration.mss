@@ -143,7 +143,9 @@ TestBuildChart() {
     // own staves and has nothing to restore.
     AssertEquals(NotesInBar(score.NthStaff(1).NthBar(1)), 0, 'a build without parts draws no copies');
     restores = RestoreMarkerRead(score, staffCountBefore + 1);
-    AssertEquals(restores.Length, 0, 'and records no restores');
+    restoredClefs = restores.clefs;
+    restoredChanges = restores.changes;
+    AssertEquals(restoredClefs.Length + restoredChanges.Length, 0, 'and records no restores');
 }
 
 // How many NoteRests in a bar hold notes.
@@ -422,10 +424,13 @@ TestBuildChartParts() {
             'the full score hides the copy label');
         AssertEquals(TextHiddenIn(score, partA, copyStaff, copyBar, copyLabel), 0,
             'the first part shows the copy label');
+        // A bar where the staff is No instrument (hidden) draws nothing at all,
+        // whatever the full score's hiding says of it.
+        hiddenCopy = StaffHiddenBars(CopyBarsOfStaff(expected.sections, copyStaff), chartBars);
         shownInScore = 0;
         for b = 1 to chartBars + 1 {
             scoreFlags = PartHiddenFlags(score, fullScore, b);
-            if (scoreFlags[copyStaff - 1] != 1) {
+            if ((scoreFlags[copyStaff - 1] != 1) and (hiddenCopy[b - 1] = 0)) {
                 shownInScore = shownInScore + 1;
             }
         }
@@ -448,22 +453,38 @@ TestBuildChartParts() {
         'the first part ends its charts with a page break only when it should');
 
     // Every chart bar in the part shows the staves holding its own chart's copy
-    // and nothing else.
+    // and nothing else. A bar the part loses shows nothing at all.
     systemsA = PartChartSystems(CarriedPositions(chartBars, carriedA));
     staffNumsA = PartStaffNumbers(partA);
     showsA = systemsA.shows;
+    vanishingA = PartVanishingBars(staffNumsA, expected.sections, chartBars);
     layoutDetail = '';
     for b = 1 to chartBars + 1 {
-        position = showsA[b - 1];
-        index = carriedA[position];
-        shown = expected.sections[index];
-        wantedHidden = JoinNames(PartBarHiddenStaves(staffNumsA, SectionCopyStaves(shown)));
-        gotHidden = JoinNames(PartHiddenFlags(score, partA, b));
-        if (gotHidden != wantedHidden) {
-            layoutDetail = layoutDetail & ((' bar ' & b) & (' wanted ' & wantedHidden) & (' got ' & gotHidden));
+        if (vanishingA[b - 1] = 0) {
+            position = showsA[b - 1];
+            index = carriedA[position];
+            shown = expected.sections[index];
+            wantedHidden = JoinNames(PartBarHiddenStaves(staffNumsA, SectionCopyStaves(shown)));
+            gotHidden = JoinNames(PartHiddenFlags(score, partA, b));
+            if (gotHidden != wantedHidden) {
+                layoutDetail = layoutDetail & ((' bar ' & b) & (' wanted ' & wantedHidden) & (' got ' & gotHidden));
+            }
         }
     }
     AssertEquals(layoutDetail, '', 'each chart bar in the first part shows only its own chart');
+
+    // The first instrument's staves are No instrument (hidden) through the
+    // second instrument's charts after its own, and come back where the music
+    // starts. The removal below takes that change off again.
+    hiddenA = StaffHiddenBars(CopyBarsOfStaff(expected.sections, first.firstStaff), chartBars);
+    if (hiddenA[chartBars - 1] = 1) {
+        AssertTrue(HasInstrumentChange(score.NthStaff(first.firstStaff).NthBar(chartBars + 1)),
+            'the first instrument comes back where the music starts');
+        if (vanishingA[chartBars - 1] = 1) {
+            AssertEquals(PartBarBreak(score, partA, carriedA[carriedA.Length - 1] + 1), EndOfSystemOrPage,
+                'its last chart ends its system ahead of the bars its part loses');
+        }
+    }
 
     // The second instrument's staves are No instrument (hidden) through the
     // first instrument's charts and come back for its own, so its part loses
