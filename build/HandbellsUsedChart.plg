@@ -1738,6 +1738,11 @@
         staffNum = roles[i].staff;
         staff = score.NthStaff(staffNum);
         own = staff.InitialStyleId;
+        names = CreateDictionary(
+            'full', staff.FullInstrumentNameWithFormatting,
+            'short', staff.ShortInstrumentNameWithFormatting,
+            'fullStaff', staff.FullStaffNameWithFormatting,
+            'shortStaff', staff.ShortStaffNameWithFormatting);
         hidden = StaffHiddenBars(CopyBarsOfStaff(sections, staffNum), chartBars);
         hidden.Push(0);
         previous = 0;
@@ -1749,15 +1754,28 @@
                     target = HiddenInstrument();
                 }
                 if (b = 1) {
-                    staff.NthBar(1).AddInstrumentChange(0, target, False, False, '', False);
+                    change = staff.NthBar(1).AddInstrumentChange(0, target, False, False, '', False);
                 } else {
                     before = staff.NthBar(b - 1);
-                    before.AddInstrumentChange(before.Length, target, False, False, '', False);
+                    change = before.AddInstrumentChange(before.Length, target, False, False, '', False);
+                }
+                if (flag = 0) {
+                    KeepStaffNames(change, names);
                 }
             }
             previous = flag;
         }
     }
+    return True;
+}"
+	KeepStaffNames "(change, names) {
+    if (not(IsObject(change))) {
+        return False;
+    }
+    change.FullInstrumentNameWithFormatting = names.full;
+    change.ShortInstrumentNameWithFormatting = names.short;
+    change.FullStaffNameWithFormatting = names.fullStaff;
+    change.ShortStaffNameWithFormatting = names.shortStaff;
     return True;
 }"
 	MarkPartsOnly "(bar) {

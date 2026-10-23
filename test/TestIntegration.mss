@@ -342,6 +342,8 @@ TestBuildChartParts() {
     layoutsBefore = AllPartLayouts(score);
     furnitureBefore = InstrumentFurniture(score, first);
     furnitureBeforeB = InstrumentFurniture(score, second);
+    nameA = score.NthStaff(first.firstStaff).FullInstrumentName;
+    nameB = score.NthStaff(second.firstStaff).FullInstrumentName;
 
     // Both plans from the clean score: once a chart is drawn, reading the
     // score again would read the chart's own notes back in. The labels a
@@ -486,6 +488,8 @@ TestBuildChartParts() {
         endA = topA.NthBar(chartBars);
         AssertTrue(InstrumentChangeAt(endA, endA.Length),
             'and comes back at the end of the chart bars:' & BarObjects(endA));
+        AssertEquals(InstrumentChangeName(endA, endA.Length), nameA,
+            'under its own name, not its instrument type');
         if (vanishingA[chartBars - 1] = 1) {
             AssertEquals(PartBarBreak(score, partA, copyBarsA[copyBarsA.Length - 1]), EndOfSystemOrPage,
                 'its last chart ends its system ahead of the bars its part loses');
@@ -508,6 +512,8 @@ TestBuildChartParts() {
         beforeB = topB.NthBar(firstB - 1);
         AssertTrue(InstrumentChangeAt(beforeB, beforeB.Length),
             'and comes back at the end of the bar before it:' & BarObjects(beforeB));
+        AssertEquals(InstrumentChangeName(beforeB, beforeB.Length), nameB,
+            'under its own name, not its instrument type');
         vanishingB = PartVanishingBars(PartStaffNumbers(partB), expected.sections, chartBars);
         if (vanishingB[firstB - 2] = 1) {
             AssertEquals(PartBarBreak(score, partB, firstB - 1), EndOfSystemOrPage,
@@ -729,6 +735,19 @@ InstrumentChangeAt(bar, pos) {
         }
     }
     return False;
+}
+
+// The full instrument name an instrument change at the given position gives
+// the systems after it, or '' when the bar holds none there.
+InstrumentChangeName(bar, pos) {
+    for each item in bar {
+        if (item.Type = 'InstrumentChange') {
+            if (item.Position = pos) {
+                return item.FullInstrumentName;
+            }
+        }
+    }
+    return '';
 }
 
 // What a bar holds, as Type@Position for each object, for a failure message.

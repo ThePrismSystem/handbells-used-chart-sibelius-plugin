@@ -301,7 +301,9 @@ WriteCopies(score, sections, options, styles) {
 // names, and its own instrument again where they end, so a part loses the
 // bars of charts it does not carry instead of showing them as empty bars
 // beside its own. The labels and warnings are hidden, there is no clef
-// change, and the names are left as they are.
+// change. Sibelius names the staff after the instrument type it changes back
+// to, Piano for a handbell staff made from one, so the change back carries the
+// staff's own names, read before any change is made.
 //
 // Each change goes at the end of the bar before, as Sibelius puts the change
 // back after a passage. One at the start of a bar that begins a system comes
@@ -315,6 +317,11 @@ HideOutsideCopies(score, roles, sections, chartBars) {
         staffNum = roles[i].staff;
         staff = score.NthStaff(staffNum);
         own = staff.InitialStyleId;
+        names = CreateDictionary(
+            'full', staff.FullInstrumentNameWithFormatting,
+            'short', staff.ShortInstrumentNameWithFormatting,
+            'fullStaff', staff.FullStaffNameWithFormatting,
+            'shortStaff', staff.ShortStaffNameWithFormatting);
         hidden = StaffHiddenBars(CopyBarsOfStaff(sections, staffNum), chartBars);
         hidden.Push(0);
         previous = 0;
@@ -326,15 +333,32 @@ HideOutsideCopies(score, roles, sections, chartBars) {
                     target = HiddenInstrument();
                 }
                 if (b = 1) {
-                    staff.NthBar(1).AddInstrumentChange(0, target, False, False, '', False);
+                    change = staff.NthBar(1).AddInstrumentChange(0, target, False, False, '', False);
                 } else {
                     before = staff.NthBar(b - 1);
-                    before.AddInstrumentChange(before.Length, target, False, False, '', False);
+                    change = before.AddInstrumentChange(before.Length, target, False, False, '', False);
+                }
+                if (flag = 0) {
+                    KeepStaffNames(change, names);
                 }
             }
             previous = flag;
         }
     }
+    return True;
+}
+
+// A change back takes the names the staff had before any change. A change
+// that made no object, which AddInstrumentChange reports with null, has
+// nothing to take them.
+KeepStaffNames(change, names) {
+    if (not(IsObject(change))) {
+        return False;
+    }
+    change.FullInstrumentNameWithFormatting = names.full;
+    change.ShortInstrumentNameWithFormatting = names.short;
+    change.FullStaffNameWithFormatting = names.fullStaff;
+    change.ShortStaffNameWithFormatting = names.shortStaff;
     return True;
 }
 
