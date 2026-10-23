@@ -81,7 +81,8 @@ LayOutPart(score, part, sections, carried, breakForOne) {
             anchor = staff;
         }
     }
-    systems = PartChartSystems(CarriedPositions(chartBars, carried));
+    positions = CarriedPositions(chartBars, carried);
+    systems = PartChartSystems(positions);
     shows = systems.shows;
     ends = systems.ends;
 
@@ -115,10 +116,20 @@ LayOutPart(score, part, sections, carried, breakForOne) {
             }
         }
     }
-    // 2 is SmallSize in the reference's list of staff sizes.
+    // 3 is ExtraSmallSize in the reference's list of staff sizes: a size below
+    // the full score's charts, which narrows the empty bars beside a part's
+    // own chart along with it.
     for s = 0 to shown.Length {
         if (shown[s] = 1) {
-            score.NthStaff(s + 1).ScaleFactorChange(2, 1, chartBars);
+            score.NthStaff(s + 1).ScaleFactorChange(3, 1, chartBars);
+        }
+    }
+    // A chart bar the part does not carry holds nothing but hidden rests, yet
+    // takes an empty bar's full width. Respaced after the size change, which
+    // may respace it again, and without its hidden rests.
+    for b = 1 to chartBars + 1 {
+        if (positions[b - 1] < 0) {
+            anchor.NthBar(b).RespaceIgnoreHiddenNotes();
         }
     }
     score.OptimizeStaffSpacing(1, staveCount, 1, chartBars);
