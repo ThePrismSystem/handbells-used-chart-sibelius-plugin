@@ -1161,6 +1161,58 @@
     }
     return CreateSparseArray();
 }"
+	StartsMarkerEncode "(starts) {
+    text = '' & STARTS_MARKER_PREFIX;
+    for i = 0 to starts.Length {
+        start = starts[i];
+        text = text & (('|' & start.staff) & ('|' & start.style));
+    }
+    return text;
+}"
+	StartsMarkerDecode "(text) {
+    if (text = null) {
+        return null;
+    }
+    parts = SplitOnPipe(text);
+    if (parts.Length < 3) {
+        return null;
+    }
+    if (parts[0] != ('' & STARTS_MARKER_PREFIX)) {
+        return null;
+    }
+    starts = CreateSparseArray();
+    i = 1;
+    while (i < parts.Length) {
+        if ((i + 1) >= parts.Length) {
+            return null;
+        }
+        staff = parts[i];
+        style = '' & parts[i + 1];
+        if (not(utils.IsNumeric(staff, True))) {
+            return null;
+        }
+        if (style = '') {
+            return null;
+        }
+        starts.Push(CreateDictionary('staff', 0 + staff, 'style', style));
+        i = i + 2;
+    }
+    return starts;
+}"
+	StartsMarkerRead "(score) {
+    n = 1;
+    while (n <= score.StaffCount) {
+        bar = score.NthStaff(n).NthBar(1);
+        for each Text t in bar {
+            starts = StartsMarkerDecode(t.Text);
+            if (starts != null) {
+                return starts;
+            }
+        }
+        n = n + 1;
+    }
+    return CreateSparseArray();
+}"
 	RecordStaff "(score) {
     n = 1;
     while (n <= score.StaffCount) {
@@ -1558,10 +1610,14 @@
     }
     tokens = PrepareCopyStaves(score, roles, sections.Length);
     WriteCopies(score, sections, options, styles);
-    HideOutsideCopies(score, roles, sections, sections.Length);
+    starts = HideOutsideCopies(score, roles, sections, sections.Length);
     if (tokens.Length > 0) {
         record = trebleStaves[0].NthBar(1).AddText(0, RestoreMarkerEncode(tokens), LabelTextStyle());
         record.Hidden = True;
+    }
+    if (starts.Length > 0) {
+        startsRecord = trebleStaves[0].NthBar(1).AddText(0, StartsMarkerEncode(starts), LabelTextStyle());
+        startsRecord.Hidden = True;
     }
 
     // 5. Hide the structural furniture across every staff in the chart bars.
@@ -1734,6 +1790,7 @@
     return True;
 }"
 	HideOutsideCopies "(score, roles, sections, chartBars) {
+    starts = CreateSparseArray();
     for i = 0 to roles.Length {
         staffNum = roles[i].staff;
         staff = score.NthStaff(staffNum);
@@ -1744,6 +1801,9 @@
             'fullStaff', staff.FullStaffNameWithFormatting,
             'shortStaff', staff.ShortStaffNameWithFormatting);
         hidden = StaffHiddenBars(CopyBarsOfStaff(sections, staffNum), chartBars);
+        if (hidden[0] = 1) {
+            starts.Push(CreateDictionary('staff', staffNum, 'style', own));
+        }
         hidden.Push(0);
         previous = 0;
         for b = 1 to chartBars + 2 {
@@ -1766,7 +1826,7 @@
             previous = flag;
         }
     }
-    return True;
+    return starts;
 }"
 	KeepStaffNames "(change, names) {
     if (not(IsObject(change))) {
@@ -2564,6 +2624,9 @@
         if (recordStaff > 0) {
             RestoreNamesRule(score, recordStaff);
         }
+        // The staves hidden from bar 1 too: deleting the chart bars by hand
+        // would otherwise leave them hidden through the music.
+        RestoreStarts(score, StartsMarkerRead(score));
         return RemovalResult(False, found.error);
     }
     if (not(found.found)) {
@@ -2585,6 +2648,7 @@
     RelocateSystemText(score, found.sections, found.sections + 1, False);
     ClearHiddenBarNumber(score.NthStaff(1).NthBar(found.sections + 1));
     RemoveRestores(score, found);
+    starts = StartsMarkerRead(score);
 
     // Bars first: removing the staves renumbers everything underneath us. The
     // marker goes with the bar that holds it.
@@ -2597,6 +2661,7 @@
             'This score records a Handbells Used chart, but Sibelius did not remove '
             & 'the chart bars.'));
     }
+    RestoreStarts(score, starts);
 
     // While the chart staves still exist to say which parts are only theirs.
     DeleteChartOnlyParts(score, found.firstStaff);
@@ -2631,6 +2696,13 @@
         if (doomed != null) {
             doomed.Delete();
         }
+    }
+    return True;
+}"
+	RestoreStarts "(score, starts) {
+    for i = 0 to starts.Length {
+        start = starts[i];
+        score.NthStaff(start.staff).NthBar(1).AddInstrumentChange(0, start.style, False, False, '', False);
     }
     return True;
 }"
@@ -3229,6 +3301,7 @@ _SettingsDialog "Dialog"
 	MARKER_VERSION "1"
 	NAMES_MARKER_PREFIX "HBUCNAMES"
 	RESTORE_MARKER_PREFIX "HBUCRESTORE"
+	STARTS_MARKER_PREFIX "HBUCSTARTS"
 	STEMLESS_DIAMOND "Diamond (stemless)"
 	SQUARE_STEMLESS "Square (stemless)"
 	NO_NOTEHEAD "(no notehead)"

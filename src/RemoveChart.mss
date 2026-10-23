@@ -81,6 +81,9 @@ RemoveChart(score) {
         if (recordStaff > 0) {
             RestoreNamesRule(score, recordStaff);
         }
+        // The staves hidden from bar 1 too: deleting the chart bars by hand
+        // would otherwise leave them hidden through the music.
+        RestoreStarts(score, StartsMarkerRead(score));
         return RemovalResult(False, found.error);
     }
     if (not(found.found)) {
@@ -102,6 +105,7 @@ RemoveChart(score) {
     RelocateSystemText(score, found.sections, found.sections + 1, False);
     ClearHiddenBarNumber(score.NthStaff(1).NthBar(found.sections + 1));
     RemoveRestores(score, found);
+    starts = StartsMarkerRead(score);
 
     // Bars first: removing the staves renumbers everything underneath us. The
     // marker goes with the bar that holds it.
@@ -114,6 +118,7 @@ RemoveChart(score) {
             'This score records a Handbells Used chart, but Sibelius did not remove '
             & 'the chart bars.'));
     }
+    RestoreStarts(score, starts);
 
     // While the chart staves still exist to say which parts are only theirs.
     DeleteChartOnlyParts(score, found.firstStaff);
@@ -153,6 +158,18 @@ RemoveRestores(score, found) {
         if (doomed != null) {
             doomed.Delete();
         }
+    }
+    return True;
+}
+
+// Each staff the build hid from bar 1 starts as its own instrument again. A
+// change at the start of bar 1 changes the instrument a staff starts as,
+// which is how the build hid it. The piece's staves come before the chart's,
+// so their numbers hold through the removal.
+RestoreStarts(score, starts) {
+    for i = 0 to starts.Length {
+        start = starts[i];
+        score.NthStaff(start.staff).NthBar(1).AddInstrumentChange(0, start.style, False, False, '', False);
     }
     return True;
 }

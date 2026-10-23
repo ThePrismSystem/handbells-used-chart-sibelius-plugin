@@ -93,10 +93,14 @@ BuildChart(score, plan, options) {
     }
     tokens = PrepareCopyStaves(score, roles, sections.Length);
     WriteCopies(score, sections, options, styles);
-    HideOutsideCopies(score, roles, sections, sections.Length);
+    starts = HideOutsideCopies(score, roles, sections, sections.Length);
     if (tokens.Length > 0) {
         record = trebleStaves[0].NthBar(1).AddText(0, RestoreMarkerEncode(tokens), LabelTextStyle());
         record.Hidden = True;
+    }
+    if (starts.Length > 0) {
+        startsRecord = trebleStaves[0].NthBar(1).AddText(0, StartsMarkerEncode(starts), LabelTextStyle());
+        startsRecord.Hidden = True;
     }
 
     // 5. Hide the structural furniture across every staff in the chart bars.
@@ -309,10 +313,16 @@ WriteCopies(score, sections, options, styles) {
 // back after a passage. One at the start of a bar that begins a system comes
 // after that system's opening clef, which is then drawn, with the start of
 // its staff lines, in the instrument before the change: a hidden one draws
-// neither. Only the change into bar 1 has no bar before it, and that system
-// is meant to draw nothing. So every change sits inside the chart bars, the
-// music's first bar is untouched, and removing the chart bars removes them.
+// neither. So every change but one sits inside the chart bars, the music's
+// first bar is untouched, and removing the chart bars removes them.
+//
+// The one is the change into bar 1, which has no bar before it. It makes no
+// object at all: it changes the instrument the staff starts as, and deleting
+// the chart bars would leave the staff hidden through the music. Returns
+// those staves, each with the instrument it started as, for the starts record
+// a removal reads to put them back.
 HideOutsideCopies(score, roles, sections, chartBars) {
+    starts = CreateSparseArray();
     for i = 0 to roles.Length {
         staffNum = roles[i].staff;
         staff = score.NthStaff(staffNum);
@@ -323,6 +333,9 @@ HideOutsideCopies(score, roles, sections, chartBars) {
             'fullStaff', staff.FullStaffNameWithFormatting,
             'shortStaff', staff.ShortStaffNameWithFormatting);
         hidden = StaffHiddenBars(CopyBarsOfStaff(sections, staffNum), chartBars);
+        if (hidden[0] = 1) {
+            starts.Push(CreateDictionary('staff', staffNum, 'style', own));
+        }
         hidden.Push(0);
         previous = 0;
         for b = 1 to chartBars + 2 {
@@ -345,7 +358,7 @@ HideOutsideCopies(score, roles, sections, chartBars) {
             previous = flag;
         }
     }
-    return True;
+    return starts;
 }
 
 // A change back takes the names the staff had before any change. A change

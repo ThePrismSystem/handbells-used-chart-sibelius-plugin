@@ -42,6 +42,28 @@ TestMarker() {
         'or for the names record');
     AssertEquals(RestoreMarkerDecode(null), null, 'no text is no restore record');
 
+    // A staff hidden from bar 1 has its starting instrument changed, which no
+    // chart bar takes with it, so the build records the staff and the type it
+    // had for a removal to put back.
+    starts = StartsMarkerDecode(StartsMarkerEncode(CreateSparseArray(
+        CreateDictionary('staff', 3, 'style', 'instrument.keyboard.piano'),
+        CreateDictionary('staff', 4, 'style', 'instrument.keyboard.piano'))));
+    AssertEquals(starts.Length, 2, 'the starts record round-trips every staff');
+    second = starts[1];
+    AssertEquals(second.staff, 4, 'with its number');
+    AssertEquals(second.style, 'instrument.keyboard.piano', 'and the instrument it started as');
+    AssertEquals(StartsMarkerDecode('HBUCSTARTS'), null, 'a starts record names a staff');
+    AssertEquals(StartsMarkerDecode('HBUCSTARTS|3'), null, 'and its instrument');
+    AssertEquals(StartsMarkerDecode('HBUCSTARTS|x|instrument.keyboard.piano'), null, 'by number');
+    AssertEquals(StartsMarkerDecode('HBUC|1|1|4|12'), null, 'the chart marker is not a starts record');
+    AssertEquals(StartsMarkerDecode(RestoreMarkerEncode(CreateSparseArray('3c'))), null,
+        'nor is the restore record');
+    AssertEquals(StartsMarkerDecode(null), null, 'no text is no starts record');
+    startsText = StartsMarkerEncode(CreateSparseArray(CreateDictionary('staff', 3, 'style', 'instrument.keyboard.piano')));
+    AssertEquals(MarkerDecode(startsText), null, 'a starts record is not taken for the chart');
+    AssertEquals(NamesMarkerDecode(startsText), -1, 'or for the names record');
+    AssertEquals(RestoreMarkerDecode(startsText), null, 'or for the restore record');
+
     // Text that belongs to the first page stays there on a build.
     AssertTrue(StyleStaysOnFirstPage('text.system.page_aligned.title'), 'the title stays');
     AssertTrue(StyleStaysOnFirstPage('text.blankpage.plain'), 'blank-page text stays');

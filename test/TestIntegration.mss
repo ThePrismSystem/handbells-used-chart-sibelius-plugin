@@ -506,9 +506,10 @@ TestBuildChartParts() {
     if (hiddenB[0] = 1) {
         firstB = copyBarsB[0];
         topB = score.NthStaff(second.firstStaff);
-        AssertTrue(InstrumentChangeAt(topB.NthBar(1), 0),
-            ('the second instrument is hidden ahead of its first chart:' & BarObjects(topB.NthBar(1)))
-            & (' starting instrument ' & topB.InitialStyleId));
+        // A change at the start of bar 1 is no object: it changes the
+        // instrument the staff starts as, which the removal puts back.
+        AssertEquals(topB.InitialStyleId, HiddenInstrument(),
+            'the second instrument starts hidden ahead of its first chart');
         beforeB = topB.NthBar(firstB - 1);
         AssertTrue(InstrumentChangeAt(beforeB, beforeB.Length),
             'and comes back at the end of the bar before it:' & BarObjects(beforeB));
@@ -608,10 +609,16 @@ TestBuildKeyed() {
     // A failure says what the system staff held where the music started, and
     // what it holds once the chart bars are gone, and each staff's starting
     // instrument before and after.
-    keyTrace = (' system bar ' & (found.sections + 1)) & (' before:' & BarObjects(score.SystemStaff.NthBar(found.sections + 1)));
+    musicBar = found.sections + 1;
+    keyTrace = (' system bar ' & musicBar) & (' before:' & BarObjects(score.SystemStaff.NthBar(musicBar)));
+    keyTrace = keyTrace & ((' staff 1 before:' & BarObjects(score.NthStaff(1).NthBar(musicBar)))
+        & ((' staff ' & pieceStaves) & (' before:' & BarObjects(score.NthStaff(pieceStaves).NthBar(musicBar)))));
+    keyTrace = keyTrace & (' staff 1 last chart bar:' & BarObjects(score.NthStaff(1).NthBar(found.sections)));
     typesBuilt = StaffTypes(score, pieceStaves);
     RemoveChart(score);
     keyTrace = keyTrace & (' system bar 1 after:' & BarObjects(score.SystemStaff.NthBar(1)));
+    keyTrace = keyTrace & ((' staff 1 after:' & BarObjects(score.NthStaff(1).NthBar(1)))
+        & ((' staff ' & pieceStaves) & (' after:' & BarObjects(score.NthStaff(pieceStaves).NthBar(1)))));
     keyTrace = keyTrace & ((' types before [' & typesBefore) & ('] built [' & typesBuilt));
     keyTrace = keyTrace & (('] after [' & StaffTypes(score, pieceStaves)) & ']');
     AssertEquals(StaffKeys(score, pieceStaves, 1), keysBefore,
@@ -688,9 +695,9 @@ PartLayout(score, part) {
     return line;
 }
 
-// An instrument's starting instrument, its key and clef at its first bar, and
-// how many key, clef and instrument change objects that bar holds at its
-// start, staff by staff.
+// An instrument's starting instrument and name, its key and clef at its first
+// bar, and how many key, clef and instrument change objects that bar holds at
+// its start, staff by staff.
 InstrumentFurniture(score, instrument) {
     line = '';
     n = instrument.firstStaff;
@@ -714,7 +721,8 @@ InstrumentFurniture(score, instrument) {
         if (InstrumentChangeAt(bar, 0)) {
             changes = 1;
         }
-        line = line & (('[' & staff.InitialStyleId) & (' key ' & staff.CurrentKeySignature(1).Sharps));
+        line = line & (('[' & staff.InitialStyleId) & (' ' & staff.FullInstrumentName));
+        line = line & (' key ' & staff.CurrentKeySignature(1).Sharps);
         line = line & (' clef ' & clef.ConcertClefStyleId);
         line = line & ((' keys ' & keys) & ((' clefs ' & clefs) & (' changes ' & changes)));
         line = line & ']';
