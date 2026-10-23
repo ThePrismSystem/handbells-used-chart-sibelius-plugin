@@ -95,6 +95,44 @@ TestParts() {
     joined = PartChartSystems(CreateSparseArray(0));
     AssertEquals(JoinNames(joined.ends), '1', 'a part carrying the only chart ends its system');
 
+    // A staff holding copies is No instrument (hidden) in the chart bars before
+    // its last copy that hold none, and a part whose staves are all hidden in a
+    // bar loses that bar altogether. Two choirs, each charting two sections.
+    choirs = CreateSparseArray(
+        CreateDictionary('copies', CreateSparseArray(CreateSparseArray(1, 2))),
+        CreateDictionary('copies', CreateSparseArray(CreateSparseArray(1, 2))),
+        CreateDictionary('copies', CreateSparseArray(CreateSparseArray(3, 4))),
+        CreateDictionary('copies', CreateSparseArray(CreateSparseArray(3))));
+    AssertEquals(JoinNames(CopyBarsOfStaff(choirs, 3)), '3, 4', 'a staff holds copies in the bars of its own charts');
+    AssertEquals(JoinNames(CopyBarsOfStaff(choirs, 4)), '3', 'and only where its copy uses it');
+    AssertEquals(JoinNames(CopyBarsOfStaff(choirs, 9)), '', 'a staff with no copy holds none');
+    AssertEquals(JoinNames(StaffHiddenBars(CreateSparseArray(3, 4), 4)), '1, 1, 0, 0',
+        'a staff is hidden ahead of its first copy');
+    AssertEquals(JoinNames(StaffHiddenBars(CreateSparseArray(1, 3), 4)), '0, 1, 0, 0',
+        'and between its copies, but not after its last');
+    AssertEquals(JoinNames(StaffHiddenBars(CreateSparseArray(1, 2), 4)), '0, 0, 0, 0',
+        'a staff whose copies come first is never hidden');
+    AssertEquals(JoinNames(StaffHiddenBars(CreateSparseArray(), 3)), '0, 0, 0', 'nor is a staff with no copy');
+    AssertEquals(JoinNames(PartVanishingBars(CreateSparseArray(3, 4), choirs, 4)), '1, 1, 0, 0',
+        'the part of the second choir loses the bars of the first');
+    AssertEquals(JoinNames(PartVanishingBars(CreateSparseArray(1, 2), choirs, 4)), '0, 0, 0, 0',
+        'the part of the first choir loses none');
+    AssertEquals(JoinNames(PartVanishingBars(CreateSparseArray(3, 4, 9), choirs, 4)), '0, 0, 0, 0',
+        'nor does a part with a staff that holds no copy');
+
+    // A bar a part loses carries no break, so it takes no room; the part's own
+    // charts end their systems as before, and a bar after its last chart still
+    // joins that chart.
+    AssertEquals(JoinNames(PartBarBreaks(CreateSparseArray(-1, -1, 0, 1), CreateSparseArray(1, 1, 0, 0))),
+        JoinNames(CreateSparseArray(Default, Default, EndOfSystemOrPage, EndOfSystemOrPage)),
+        'lost bars ahead of the charts of a part have no break');
+    AssertEquals(JoinNames(PartBarBreaks(CreateSparseArray(0, -1, 1), CreateSparseArray(0, 1, 0))),
+        JoinNames(CreateSparseArray(EndOfSystemOrPage, Default, EndOfSystemOrPage)),
+        'a lost bar between charts leaves the chart before it a system of its own');
+    AssertEquals(JoinNames(PartBarBreaks(CreateSparseArray(0, 1, -1), CreateSparseArray(0, 0, 0))),
+        JoinNames(CreateSparseArray(EndOfSystemOrPage, MiddleOfSystem, EndOfSystemOrPage)),
+        'a bar after the charts of a part still joins the last');
+
     // The music starts on a new page after two or more charts, and after one
     // only when the box asks for it.
     AssertEquals(PartEndsPage(2, False), 1, 'two charts always end the page');

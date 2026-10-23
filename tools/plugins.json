@@ -28,6 +28,7 @@
       "data": {
         "_PluginMenuName": "Handbells Used Chart",
         "CHART_INSTRUMENT": "instrument.other.trebleclef",
+        "HIDDEN_INSTRUMENT": "instrument.other.none.hidden",
         "LABEL_TEXT_STYLE": "text.staff.plain",
         "LABEL_DASH": " - ",
         "MARKER_PREFIX": "HBUC",
@@ -113,6 +114,7 @@
         "g_failed": "",
         "g_failures": "",
         "CHART_INSTRUMENT": "instrument.other.trebleclef",
+        "HIDDEN_INSTRUMENT": "instrument.other.none.hidden",
         "LABEL_TEXT_STYLE": "text.staff.plain",
         "LABEL_DASH": " - ",
         "MARKER_PREFIX": "HBUC",

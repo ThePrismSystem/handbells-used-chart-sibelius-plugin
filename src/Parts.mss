@@ -58,8 +58,11 @@ LayOutParts(score, plan, entries, breakForOne) {
 // Each of the part's own charts is a system of its own, showing the staves
 // holding that chart's copy and no others. A bar of a chart the part does not
 // carry cannot be a system of its own: Sibelius keeps one staff showing in
-// every system, so it would stand as a lone empty staff. It joins the part's
-// chart beside it instead, as a short empty bar.
+// every system, so it would stand as a lone empty staff. Where every staff of
+// the part is No instrument (hidden) in that bar, which HideBeforeCopies makes
+// them ahead of the part's last chart, there is no staff left to show and the
+// bar takes no room, so it gets no break. Otherwise it joins the part's chart
+// beside it, as a short empty bar.
 //
 // The last chart bar ends the page when the part has two or more chart
 // sections, or one and breakForOne is set, so the music starts on a page of
@@ -81,9 +84,11 @@ LayOutPart(score, part, sections, carried, breakForOne) {
             anchor = staff;
         }
     }
-    systems = PartChartSystems(CarriedPositions(chartBars, carried));
+    positions = CarriedPositions(chartBars, carried);
+    systems = PartChartSystems(positions);
     shows = systems.shows;
-    ends = systems.ends;
+    vanishing = PartVanishingBars(staffNums, sections, chartBars);
+    breaks = PartBarBreaks(positions, vanishing);
 
     parts = score.DynamicParts;
     score.CurrentDynamicPart = part;
@@ -94,24 +99,23 @@ LayOutPart(score, part, sections, carried, breakForOne) {
         shown.Push(0);
     }
     for b = 1 to chartBars + 1 {
-        if (ends[b - 1] = 1) {
-            anchor.NthBar(b).BreakType = EndOfSystemOrPage;
-            if (b = chartBars) {
-                if (endsPage = 1) {
-                    anchor.NthBar(b).BreakType = EndOfPage;
-                }
-            }
-        } else {
-            anchor.NthBar(b).BreakType = MiddleOfSystem;
+        // The last chart bar always ends a system: no staff is hidden after
+        // its last copy, so it is never a bar the part loses.
+        breakType = breaks[b - 1];
+        if ((b = chartBars) and (endsPage = 1)) {
+            breakType = EndOfPage;
         }
-        position = shows[b - 1];
-        index = carried[position];
-        hidden = PartBarHiddenStaves(staffNums, SectionCopyStaves(sections[index]));
-        for s = 0 to hidden.Length {
-            if (hidden[s] = 1) {
-                score.HideEmptyStaves(s + 1, s + 1, b, b);
-            } else {
-                shown[s] = 1;
+        anchor.NthBar(b).BreakType = breakType;
+        if (vanishing[b - 1] = 0) {
+            position = shows[b - 1];
+            index = carried[position];
+            hidden = PartBarHiddenStaves(staffNums, SectionCopyStaves(sections[index]));
+            for s = 0 to hidden.Length {
+                if (hidden[s] = 1) {
+                    score.HideEmptyStaves(s + 1, s + 1, b, b);
+                } else {
+                    shown[s] = 1;
+                }
             }
         }
     }
@@ -231,6 +235,116 @@ PartChartSystems(positions) {
         }
     }
     return CreateDictionary('shows', shows, 'ends', ends);
+}
+
+// The chart bars, 1-based, in which a staff holds a copy. sections carry the
+// copies PlanCopies gave them.
+CopyBarsOfStaff(sections, staffNum) {
+    bars = CreateSparseArray();
+    for i = 0 to sections.Length {
+        section = sections[i];
+        copies = section._property:copies;
+        held = 0;
+        if (copies != null) {
+            for j = 0 to copies.Length {
+                staves = copies[j];
+                for k = 0 to staves.Length {
+                    if (staves[k] = staffNum) {
+                        held = 1;
+                    }
+                }
+            }
+        }
+        if (held = 1) {
+            bars.Push(i + 1);
+        }
+    }
+    return bars;
+}
+
+// Per chart bar, 1 where a staff holding copies in copyBars is No instrument
+// (hidden): every bar before its last copy that holds none. The bars after its
+// last copy are left alone, because the change back would have to go in the
+// music's first bar.
+StaffHiddenBars(copyBars, chartBars) {
+    last = 0;
+    for i = 0 to copyBars.Length {
+        if (copyBars[i] > last) {
+            last = copyBars[i];
+        }
+    }
+    flags = CreateSparseArray();
+    for b = 1 to chartBars + 1 {
+        flag = 0;
+        if (b < last) {
+            flag = 1;
+            for i = 0 to copyBars.Length {
+                if (copyBars[i] = b) {
+                    flag = 0;
+                }
+            }
+        }
+        flags.Push(flag);
+    }
+    return flags;
+}
+
+// Per chart bar, 1 where every one of a part's staves is No instrument
+// (hidden), so the part has nothing to show there. partStaffNums are
+// full-score staff numbers.
+PartVanishingBars(partStaffNums, sections, chartBars) {
+    flags = CreateSparseArray();
+    for b = 0 to chartBars {
+        flags.Push(1);
+    }
+    for s = 0 to partStaffNums.Length {
+        hidden = StaffHiddenBars(CopyBarsOfStaff(sections, partStaffNums[s]), chartBars);
+        for b = 0 to chartBars {
+            if (hidden[b] = 0) {
+                flags[b] = 0;
+            }
+        }
+    }
+    return flags;
+}
+
+// Per chart bar, the break a part gives it. A bar the part loses gets none,
+// and the rest are laid out by PartChartSystems as if the lost bars were not
+// there at all. positions are as CarriedPositions gives them.
+PartBarBreaks(positions, vanishing) {
+    kept = CreateSparseArray();
+    for k = 0 to positions.Length {
+        if (vanishing[k] = 0) {
+            kept.Push(positions[k]);
+        }
+    }
+    systems = PartChartSystems(kept);
+    ends = systems.ends;
+    breaks = CreateSparseArray();
+    j = 0;
+    for k = 0 to positions.Length {
+        if (vanishing[k] = 1) {
+            breaks.Push(Default);
+        } else {
+            if (ends[j] = 1) {
+                breaks.Push(EndOfSystemOrPage);
+            } else {
+                breaks.Push(MiddleOfSystem);
+            }
+            j = j + 1;
+        }
+    }
+    return breaks;
+}
+
+// True when a bar holds an instrument change at its start.
+HasInstrumentChange(bar) {
+    for each InstrumentChange change in bar {
+        if (change.Position = 0) {
+            return True;
+        }
+    }
+    return False;
 }
 
 // Sibelius gives each instrument the plug-in adds a part of its own, the way

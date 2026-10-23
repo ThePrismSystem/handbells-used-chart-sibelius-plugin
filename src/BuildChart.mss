@@ -93,6 +93,7 @@ BuildChart(score, plan, options) {
     }
     tokens = PrepareCopyStaves(score, roles, sections.Length);
     WriteCopies(score, sections, options, styles);
+    HideBeforeCopies(score, roles, sections, sections.Length);
     if (tokens.Length > 0) {
         record = trebleStaves[0].NthBar(1).AddText(0, RestoreMarkerEncode(tokens), LabelTextStyle());
         record.Hidden = True;
@@ -291,6 +292,40 @@ WriteCopies(score, sections, options, styles) {
                 label = top.NthBar(i + 1).AddText(0, text, LabelTextStyle());
                 label.ShowInParts();
             }
+        }
+    }
+    return True;
+}
+
+// A copy staff is No instrument (hidden) in the chart bars StaffHiddenBars
+// names, and its own instrument again where they end, so a part loses the
+// bars of charts it does not carry instead of showing them as empty bars in
+// front of its own. Every change falls inside the chart bars and goes when
+// they are deleted. The labels and warnings are hidden, there is no clef
+// change, and the names are left as they are.
+//
+// Two staves of one instrument may share a change: where a staff's bar
+// already holds one at its start, it is not given another.
+HideBeforeCopies(score, roles, sections, chartBars) {
+    for i = 0 to roles.Length {
+        staffNum = roles[i].staff;
+        staff = score.NthStaff(staffNum);
+        own = staff.InitialStyleId;
+        hidden = StaffHiddenBars(CopyBarsOfStaff(sections, staffNum), chartBars);
+        previous = 0;
+        for b = 1 to chartBars + 1 {
+            flag = hidden[b - 1];
+            if (flag != previous) {
+                bar = staff.NthBar(b);
+                if (not(HasInstrumentChange(bar))) {
+                    target = own;
+                    if (flag = 1) {
+                        target = HiddenInstrument();
+                    }
+                    bar.AddInstrumentChange(0, target, False, False, '', False);
+                }
+            }
+            previous = flag;
         }
     }
     return True;

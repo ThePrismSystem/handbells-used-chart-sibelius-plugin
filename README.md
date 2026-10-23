@@ -187,9 +187,14 @@ that holds it, so a chart that sits in both kinds of part keeps its names in
 all of them.
 
 In a part, each chart is a system of its own showing only the staves that
-hold it. Another instrument's chart can't disappear from a part completely,
-because Sibelius keeps at least one staff showing in every system, so its
-bar joins the part's own chart as a short empty bar.
+hold it. Other instruments' charts that come before the part's last chart
+drop out of the part: its staves change to "No instrument (hidden)" for
+those bars and back again for its own chart, with the change labels hidden.
+A chart after the part's last chart can't drop out that way, because the
+change back would land in the music. Sibelius keeps at least one staff
+showing in every system, so that chart's bar joins the part's last chart as
+a short empty bar. The same goes for every other instrument's chart in a
+part with a staff that holds no chart.
 
 A part's first page is often laid out by hand, with its page turns planned,
 and charts in front of it push music off that page. Each chart section is a
@@ -345,9 +350,9 @@ need two instruments that each have a part of their own.
   own before the music, so five instruments with bells and chimes put ten
   systems ahead of bar 1 in the full score, running onto later pages. A part
   carries only its own.
-- In a part, another instrument's chart shows as a short empty bar beside
-  the part's own chart, because Sibelius keeps a staff showing in every
-  system.
+- In a part, another instrument's chart that comes after the part's own
+  charts shows as a short empty bar beside the last of them, because
+  Sibelius keeps a staff showing in every system.
 - In a part, the chart is drawn on the instrument's own staves, so the
   instrument's brace shows beside it. Sibelius sets braces for a whole part,
   not for one system.

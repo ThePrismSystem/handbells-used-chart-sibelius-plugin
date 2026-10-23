@@ -341,6 +341,7 @@ TestBuildChartParts() {
     titlesBefore = AllPartTitles(score);
     layoutsBefore = AllPartLayouts(score);
     furnitureBefore = InstrumentFurniture(score, first);
+    furnitureBeforeB = InstrumentFurniture(score, second);
 
     // Both plans from the clean score: once a chart is drawn, reading the
     // score again would read the chart's own notes back in. The labels a
@@ -464,6 +465,28 @@ TestBuildChartParts() {
     }
     AssertEquals(layoutDetail, '', 'each chart bar in the first part shows only its own chart');
 
+    // The second instrument's staves are No instrument (hidden) through the
+    // first instrument's charts and come back for its own, so its part loses
+    // those bars: they carry no break and take no room. The full score still
+    // hides the staves where they come back.
+    hiddenB = StaffHiddenBars(CopyBarsOfStaff(expected.sections, second.firstStaff), chartBars);
+    if (hiddenB[0] = 1) {
+        carriedB = PartSections(expected.sections, CreateSparseArray(second.name));
+        firstB = carriedB[0] + 1;
+        topB = score.NthStaff(second.firstStaff);
+        AssertTrue(HasInstrumentChange(topB.NthBar(1)),
+            'the staves of the second instrument are hidden ahead of its first chart');
+        AssertTrue(HasInstrumentChange(topB.NthBar(firstB)), 'and come back for it');
+        vanishingB = PartVanishingBars(PartStaffNumbers(partB), expected.sections, chartBars);
+        if (vanishingB[firstB - 2] = 1) {
+            AssertEquals(PartBarBreak(score, partB, firstB - 1), Default,
+                'the bars its part loses leave its first chart a system of its own');
+        }
+        scoreFlags = PartHiddenFlags(score, fullScore, firstB);
+        AssertEquals(scoreFlags[second.firstStaff - 1], 1,
+            'the full score hides the second instrument where it comes back');
+    }
+
     // A run that would chart nothing is refused before the chart is touched.
     refused = ChartScore(score, IntegrationOptions(choices, CreateSparseArray(), 'separate', True, False));
     AssertTrue(not(refused.ok), 'a run with no instrument selected is refused');
@@ -479,6 +502,8 @@ TestBuildChartParts() {
     AssertEquals(AllPartLayouts(score), layoutsBefore, 'every part has the pages and systems it started with');
     AssertEquals(InstrumentFurniture(score, first), furnitureBefore,
         'the first instrument has its own key and clef back and nothing added');
+    AssertEquals(InstrumentFurniture(score, second), furnitureBeforeB,
+        'the second instrument is left no instrument change');
 }
 
 // The open score given a key with sharps, and its own key put back after.
@@ -608,8 +633,8 @@ PartLayout(score, part) {
     return line;
 }
 
-// An instrument's key and clef at its first bar, and how many key and clef
-// objects that bar holds at its start, staff by staff.
+// An instrument's key and clef at its first bar, and how many key, clef and
+// instrument change objects that bar holds at its start, staff by staff.
 InstrumentFurniture(score, instrument) {
     line = '';
     n = instrument.firstStaff;
@@ -629,8 +654,13 @@ InstrumentFurniture(score, instrument) {
                 clefs = clefs + 1;
             }
         }
+        changes = 0;
+        if (HasInstrumentChange(bar)) {
+            changes = 1;
+        }
         line = line & (('[key ' & staff.CurrentKeySignature(1).Sharps) & (' clef ' & clef.ConcertClefStyleId));
-        line = line & ((' keys ' & keys) & ((' clefs ' & clefs) & ']'));
+        line = line & ((' keys ' & keys) & ((' clefs ' & clefs) & (' changes ' & changes)));
+        line = line & ']';
         n = n + 1;
     }
     return line;
@@ -735,11 +765,17 @@ PartStaveCounts(score) {
     return line;
 }
 
-// A bar's break as one part sees it.
+// A bar's break as one part sees it, read on a staff the part holds.
 PartBarBreak(score, part, barNum) {
+    anchor = null;
+    for each staff in part {
+        if (anchor = null) {
+            anchor = staff;
+        }
+    }
     was = score.CurrentDynamicPart;
     score.CurrentDynamicPart = part;
-    breakType = score.NthStaff(1).NthBar(barNum).BreakType;
+    breakType = anchor.NthBar(barNum).BreakType;
     score.CurrentDynamicPart = was;
     return breakType;
 }
