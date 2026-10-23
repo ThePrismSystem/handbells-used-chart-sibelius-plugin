@@ -345,16 +345,6 @@ PartBarBreaks(positions, vanishing) {
     return breaks;
 }
 
-// True when a bar holds an instrument change at its start.
-HasInstrumentChange(bar) {
-    for each InstrumentChange change in bar {
-        if (change.Position = 0) {
-            return True;
-        }
-    }
-    return False;
-}
-
 // Sibelius gives each instrument the plug-in adds a part of its own, the way
 // it does for an instrument added by hand, which would leave a part per chart
 // section that nobody asked for. A part holding nothing but chart staves is

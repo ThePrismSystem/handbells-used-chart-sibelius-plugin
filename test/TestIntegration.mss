@@ -143,9 +143,7 @@ TestBuildChart() {
     // own staves and has nothing to restore.
     AssertEquals(NotesInBar(score.NthStaff(1).NthBar(1)), 0, 'a build without parts draws no copies');
     restores = RestoreMarkerRead(score, staffCountBefore + 1);
-    restoredClefs = restores.clefs;
-    restoredChanges = restores.changes;
-    AssertEquals(restoredClefs.Length + restoredChanges.Length, 0, 'and records no restores');
+    AssertEquals(restores.Length, 0, 'and records no restores');
 }
 
 // How many NoteRests in a bar hold notes.
@@ -474,34 +472,45 @@ TestBuildChartParts() {
     AssertEquals(layoutDetail, '', 'each chart bar in the first part shows only its own chart');
 
     // The first instrument's staves are No instrument (hidden) through the
-    // second instrument's charts after its own, and come back where the music
-    // starts. The removal below takes that change off again.
-    hiddenA = StaffHiddenBars(CopyBarsOfStaff(expected.sections, first.firstStaff), chartBars);
+    // second instrument's charts after its own: the change in goes at the end
+    // of its last chart's bar and the change back at the end of the last
+    // chart bar, both inside the chart bars, so the removal below takes them.
+    // A failure lists what the bar holds, by type and position.
+    copyBarsA = CopyBarsOfStaff(expected.sections, first.firstStaff);
+    hiddenA = StaffHiddenBars(copyBarsA, chartBars);
     if (hiddenA[chartBars - 1] = 1) {
-        AssertTrue(HasInstrumentChange(score.NthStaff(first.firstStaff).NthBar(chartBars + 1)),
-            'the first instrument comes back where the music starts');
+        topA = score.NthStaff(first.firstStaff);
+        lastA = topA.NthBar(copyBarsA[copyBarsA.Length - 1]);
+        AssertTrue(InstrumentChangeAt(lastA, lastA.Length),
+            'the first instrument is hidden after its last chart:' & BarObjects(lastA));
+        endA = topA.NthBar(chartBars);
+        AssertTrue(InstrumentChangeAt(endA, endA.Length),
+            'and comes back at the end of the chart bars:' & BarObjects(endA));
         if (vanishingA[chartBars - 1] = 1) {
-            AssertEquals(PartBarBreak(score, partA, carriedA[carriedA.Length - 1] + 1), EndOfSystemOrPage,
+            AssertEquals(PartBarBreak(score, partA, copyBarsA[copyBarsA.Length - 1]), EndOfSystemOrPage,
                 'its last chart ends its system ahead of the bars its part loses');
         }
     }
 
     // The second instrument's staves are No instrument (hidden) through the
-    // first instrument's charts and come back for its own, so its part loses
-    // those bars: they carry no break and take no room. The full score still
-    // hides the staves where they come back.
-    hiddenB = StaffHiddenBars(CopyBarsOfStaff(expected.sections, second.firstStaff), chartBars);
+    // first instrument's charts ahead of its own, from the start of bar 1 to
+    // the end of the bar before its first chart. Its part loses those bars as
+    // a system of their own, so its first chart starts a system with clefs.
+    // The full score still hides its staves where they come back.
+    copyBarsB = CopyBarsOfStaff(expected.sections, second.firstStaff);
+    hiddenB = StaffHiddenBars(copyBarsB, chartBars);
     if (hiddenB[0] = 1) {
-        carriedB = PartSections(expected.sections, CreateSparseArray(second.name));
-        firstB = carriedB[0] + 1;
+        firstB = copyBarsB[0];
         topB = score.NthStaff(second.firstStaff);
-        AssertTrue(HasInstrumentChange(topB.NthBar(1)),
-            'the staves of the second instrument are hidden ahead of its first chart');
-        AssertTrue(HasInstrumentChange(topB.NthBar(firstB)), 'and come back for it');
+        AssertTrue(InstrumentChangeAt(topB.NthBar(1), 0),
+            'the second instrument is hidden ahead of its first chart:' & BarObjects(topB.NthBar(1)));
+        beforeB = topB.NthBar(firstB - 1);
+        AssertTrue(InstrumentChangeAt(beforeB, beforeB.Length),
+            'and comes back at the end of the bar before it:' & BarObjects(beforeB));
         vanishingB = PartVanishingBars(PartStaffNumbers(partB), expected.sections, chartBars);
         if (vanishingB[firstB - 2] = 1) {
-            AssertEquals(PartBarBreak(score, partB, firstB - 1), Default,
-                'the bars its part loses leave its first chart a system of its own');
+            AssertEquals(PartBarBreak(score, partB, firstB - 1), EndOfSystemOrPage,
+                'the bars its part loses are a system of their own');
         }
         scoreFlags = PartHiddenFlags(score, fullScore, firstB);
         AssertEquals(scoreFlags[second.firstStaff - 1], 1,
@@ -676,13 +685,36 @@ InstrumentFurniture(score, instrument) {
             }
         }
         changes = 0;
-        if (HasInstrumentChange(bar)) {
+        if (InstrumentChangeAt(bar, 0)) {
             changes = 1;
         }
         line = line & (('[key ' & staff.CurrentKeySignature(1).Sharps) & (' clef ' & clef.ConcertClefStyleId));
         line = line & ((' keys ' & keys) & ((' clefs ' & clefs) & (' changes ' & changes)));
         line = line & ']';
         n = n + 1;
+    }
+    return line;
+}
+
+// True when a bar holds an instrument change at the given position. Read by
+// Type over everything in the bar, so a failure cannot come from the for each
+// filter alone.
+InstrumentChangeAt(bar, pos) {
+    for each item in bar {
+        if (item.Type = 'InstrumentChange') {
+            if (item.Position = pos) {
+                return True;
+            }
+        }
+    }
+    return False;
+}
+
+// What a bar holds, as Type@Position for each object, for a failure message.
+BarObjects(bar) {
+    line = '';
+    for each item in bar {
+        line = line & ((' ' & item.Type) & ('@' & item.Position));
     }
     return line;
 }

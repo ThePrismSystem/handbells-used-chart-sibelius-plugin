@@ -93,10 +93,7 @@ BuildChart(score, plan, options) {
     }
     tokens = PrepareCopyStaves(score, roles, sections.Length);
     WriteCopies(score, sections, options, styles);
-    changed = HideOutsideCopies(score, roles, sections, sections.Length);
-    for i = 0 to changed.Length {
-        tokens.Push(changed[i]);
-    }
+    HideOutsideCopies(score, roles, sections, sections.Length);
     if (tokens.Length > 0) {
         record = trebleStaves[0].NthBar(1).AddText(0, RestoreMarkerEncode(tokens), LabelTextStyle());
         record.Hidden = True;
@@ -304,15 +301,16 @@ WriteCopies(score, sections, options, styles) {
 // names, and its own instrument again where they end, so a part loses the
 // bars of charts it does not carry instead of showing them as empty bars
 // beside its own. The labels and warnings are hidden, there is no clef
-// change, and the names are left as they are. A change inside the chart bars
-// goes when they are deleted; one where the music starts is returned as a
-// token for the restore record, so a removal can take it off.
+// change, and the names are left as they are.
 //
-// Two staves of one instrument may share a change: where a staff's bar
-// already holds one at its start, it is not given another. That includes a
-// change the music already starts with, which then brings the staff back.
+// Each change goes at the end of the bar before, as Sibelius puts the change
+// back after a passage. One at the start of a bar that begins a system comes
+// after that system's opening clef, which is then drawn, with the start of
+// its staff lines, in the instrument before the change: a hidden one draws
+// neither. Only the change into bar 1 has no bar before it, and that system
+// is meant to draw nothing. So every change sits inside the chart bars, the
+// music's first bar is untouched, and removing the chart bars removes them.
 HideOutsideCopies(score, roles, sections, chartBars) {
-    tokens = CreateSparseArray();
     for i = 0 to roles.Length {
         staffNum = roles[i].staff;
         staff = score.NthStaff(staffNum);
@@ -323,22 +321,21 @@ HideOutsideCopies(score, roles, sections, chartBars) {
         for b = 1 to chartBars + 2 {
             flag = hidden[b - 1];
             if (flag != previous) {
-                bar = staff.NthBar(b);
-                if (not(HasInstrumentChange(bar))) {
-                    target = own;
-                    if (flag = 1) {
-                        target = HiddenInstrument();
-                    }
-                    bar.AddInstrumentChange(0, target, False, False, '', False);
-                    if (b > chartBars) {
-                        tokens.Push(staffNum & 'i');
-                    }
+                target = own;
+                if (flag = 1) {
+                    target = HiddenInstrument();
+                }
+                if (b = 1) {
+                    staff.NthBar(1).AddInstrumentChange(0, target, False, False, '', False);
+                } else {
+                    before = staff.NthBar(b - 1);
+                    before.AddInstrumentChange(before.Length, target, False, False, '', False);
                 }
             }
             previous = flag;
         }
     }
-    return tokens;
+    return True;
 }
 
 // A copy shows in the parts alone and plays on no pass: the full score has

@@ -134,35 +134,19 @@ RemoveChart(score) {
     return RemovalResult(True, '');
 }
 
-// The clefs and instrument changes a build put where the music starts, on
-// the staves that held the parts' copies, come off again with the chart, so
-// the music's first bar is as it was. Each is the first of its kind at the
-// start of that bar, found before anything is deleted.
+// The clefs a build put back where the music starts, on the staves that held
+// the parts' copies, come off again with the chart, so the music's first bar
+// is as it was. Each is the first clef at the start of that bar, found before
+// anything is deleted.
 RemoveRestores(score, found) {
     restores = RestoreMarkerRead(score, found.firstStaff);
-    clefs = restores.clefs;
-    for i = 0 to clefs.Length {
-        bar = score.NthStaff(clefs[i]).NthBar(found.sections + 1);
+    for i = 0 to restores.Length {
+        bar = score.NthStaff(restores[i]).NthBar(found.sections + 1);
         doomed = null;
         for each Clef c in bar {
             if (doomed = null) {
                 if (c.Position = 0) {
                     doomed = c;
-                }
-            }
-        }
-        if (doomed != null) {
-            doomed.Delete();
-        }
-    }
-    changes = restores.changes;
-    for i = 0 to changes.Length {
-        bar = score.NthStaff(changes[i]).NthBar(found.sections + 1);
-        doomed = null;
-        for each InstrumentChange change in bar {
-            if (doomed = null) {
-                if (change.Position = 0) {
-                    doomed = change;
                 }
             }
         }

@@ -138,10 +138,9 @@ NamesMarkerRead(score, firstStaff) {
     return -1;
 }
 
-// The clef and instrument changes a build put on an owner's staves where the
-// music starts, so a removal can take them off again. A text of its own
-// beside the marker, as the names record is. Each token is a staff number
-// followed by c for a clef or i for an instrument change.
+// The clef changes a build put on an owner's staves where the music starts,
+// so a removal can take them off again. A text of its own beside the marker,
+// as the names record is. Each token is a staff number followed by c.
 RestoreMarkerEncode(tokens) {
     text = '' & RESTORE_MARKER_PREFIX;
     for i = 0 to tokens.Length {
@@ -150,8 +149,7 @@ RestoreMarkerEncode(tokens) {
     return text;
 }
 
-// Dictionary{clefs, changes}, the staff numbers the tokens name for each, or
-// null for any other text.
+// The staff number each token names, or null for any other text.
 RestoreMarkerDecode(text) {
     if (text = null) {
         return null;
@@ -163,8 +161,7 @@ RestoreMarkerDecode(text) {
     if (parts[0] != ('' & RESTORE_MARKER_PREFIX)) {
         return null;
     }
-    clefs = CreateSparseArray();
-    changes = CreateSparseArray();
+    restores = CreateSparseArray();
     for i = 1 to parts.Length {
         token = parts[i];
         size = Length(token);
@@ -173,20 +170,15 @@ RestoreMarkerDecode(text) {
         }
         kind = Substring(token, size - 1, 1);
         staff = Substring(token, 0, size - 1);
+        if (kind != 'c') {
+            return null;
+        }
         if (not(utils.IsNumeric(staff, True))) {
             return null;
         }
-        if (kind = 'c') {
-            clefs.Push(0 + staff);
-        } else {
-            if (kind = 'i') {
-                changes.Push(0 + staff);
-            } else {
-                return null;
-            }
-        }
+        restores.Push(0 + staff);
     }
-    return CreateDictionary('clefs', clefs, 'changes', changes);
+    return restores;
 }
 
 // The restores a build recorded in the chart's first bar, none when it made
@@ -199,7 +191,7 @@ RestoreMarkerRead(score, firstStaff) {
             return restores;
         }
     }
-    return CreateDictionary('clefs', CreateSparseArray(), 'changes', CreateSparseArray());
+    return CreateSparseArray();
 }
 
 // The staff whose first bar holds a names record, or 0 when none does. For a

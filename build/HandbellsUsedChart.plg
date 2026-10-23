@@ -1132,8 +1132,7 @@
     if (parts[0] != ('' & RESTORE_MARKER_PREFIX)) {
         return null;
     }
-    clefs = CreateSparseArray();
-    changes = CreateSparseArray();
+    restores = CreateSparseArray();
     for i = 1 to parts.Length {
         token = parts[i];
         size = Length(token);
@@ -1142,20 +1141,15 @@
         }
         kind = Substring(token, size - 1, 1);
         staff = Substring(token, 0, size - 1);
+        if (kind != 'c') {
+            return null;
+        }
         if (not(utils.IsNumeric(staff, True))) {
             return null;
         }
-        if (kind = 'c') {
-            clefs.Push(0 + staff);
-        } else {
-            if (kind = 'i') {
-                changes.Push(0 + staff);
-            } else {
-                return null;
-            }
-        }
+        restores.Push(0 + staff);
     }
-    return CreateDictionary('clefs', clefs, 'changes', changes);
+    return restores;
 }"
 	RestoreMarkerRead "(score, firstStaff) {
     bar = score.NthStaff(firstStaff).NthBar(1);
@@ -1165,7 +1159,7 @@
             return restores;
         }
     }
-    return CreateDictionary('clefs', CreateSparseArray(), 'changes', CreateSparseArray());
+    return CreateSparseArray();
 }"
 	RecordStaff "(score) {
     n = 1;
@@ -1564,10 +1558,7 @@
     }
     tokens = PrepareCopyStaves(score, roles, sections.Length);
     WriteCopies(score, sections, options, styles);
-    changed = HideOutsideCopies(score, roles, sections, sections.Length);
-    for i = 0 to changed.Length {
-        tokens.Push(changed[i]);
-    }
+    HideOutsideCopies(score, roles, sections, sections.Length);
     if (tokens.Length > 0) {
         record = trebleStaves[0].NthBar(1).AddText(0, RestoreMarkerEncode(tokens), LabelTextStyle());
         record.Hidden = True;
@@ -1743,7 +1734,6 @@
     return True;
 }"
 	HideOutsideCopies "(score, roles, sections, chartBars) {
-    tokens = CreateSparseArray();
     for i = 0 to roles.Length {
         staffNum = roles[i].staff;
         staff = score.NthStaff(staffNum);
@@ -1754,22 +1744,21 @@
         for b = 1 to chartBars + 2 {
             flag = hidden[b - 1];
             if (flag != previous) {
-                bar = staff.NthBar(b);
-                if (not(HasInstrumentChange(bar))) {
-                    target = own;
-                    if (flag = 1) {
-                        target = HiddenInstrument();
-                    }
-                    bar.AddInstrumentChange(0, target, False, False, '', False);
-                    if (b > chartBars) {
-                        tokens.Push(staffNum & 'i');
-                    }
+                target = own;
+                if (flag = 1) {
+                    target = HiddenInstrument();
+                }
+                if (b = 1) {
+                    staff.NthBar(1).AddInstrumentChange(0, target, False, False, '', False);
+                } else {
+                    before = staff.NthBar(b - 1);
+                    before.AddInstrumentChange(before.Length, target, False, False, '', False);
                 }
             }
             previous = flag;
         }
     }
-    return tokens;
+    return True;
 }"
 	MarkPartsOnly "(bar) {
     for each NoteRest nr in bar {
@@ -2264,14 +2253,6 @@
     }
     return breaks;
 }"
-	HasInstrumentChange "(bar) {
-    for each InstrumentChange change in bar {
-        if (change.Position = 0) {
-            return True;
-        }
-    }
-    return False;
-}"
 	DeleteChartOnlyParts "(score, firstChartStaff) {
     parts = score.DynamicParts;
     counter = 0;
@@ -2619,29 +2600,13 @@
 }"
 	RemoveRestores "(score, found) {
     restores = RestoreMarkerRead(score, found.firstStaff);
-    clefs = restores.clefs;
-    for i = 0 to clefs.Length {
-        bar = score.NthStaff(clefs[i]).NthBar(found.sections + 1);
+    for i = 0 to restores.Length {
+        bar = score.NthStaff(restores[i]).NthBar(found.sections + 1);
         doomed = null;
         for each Clef c in bar {
             if (doomed = null) {
                 if (c.Position = 0) {
                     doomed = c;
-                }
-            }
-        }
-        if (doomed != null) {
-            doomed.Delete();
-        }
-    }
-    changes = restores.changes;
-    for i = 0 to changes.Length {
-        bar = score.NthStaff(changes[i]).NthBar(found.sections + 1);
-        doomed = null;
-        for each InstrumentChange change in bar {
-            if (doomed = null) {
-                if (change.Position = 0) {
-                    doomed = change;
                 }
             }
         }
