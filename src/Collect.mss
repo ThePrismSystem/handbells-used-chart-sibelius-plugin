@@ -1,14 +1,19 @@
 // Groups raw note records into the distinct bells and chimes a score uses.
 // Which notehead means which is the user's to say: options.bellHead,
-// options.chimeHead and options.smbHead hold NoteStyleName values picked from
-// the open score.
+// options.chimeHead, options.smbHead, options.pfHead and
+// options.whitechapelHead hold NoteStyleName values picked from the open
+// score.
 CollectBells(records, options) {
     bells = CreateSparseArray();
     chimes = CreateSparseArray();
     smbs = CreateSparseArray();
+    pfs = CreateSparseArray();
+    whitechapels = CreateSparseArray();
     seenBell = CreateDictionary();
     seenChime = CreateDictionary();
     seenSmb = CreateDictionary();
+    seenPf = CreateDictionary();
+    seenWhitechapel = CreateDictionary();
     outOfRange = CreateSparseArray();
     seenOutOfRange = CreateDictionary();
     unknownNames = CreateSparseArray();
@@ -21,6 +26,8 @@ CollectBells(records, options) {
     bellHead = '' & options.bellHead;
     chimeHead = '' & options.chimeHead;
     smbHead = '' & options.smbHead;
+    pfHead = '' & options.pfHead;
+    whitechapelHead = '' & options.whitechapelHead;
     if (bellHead = NoNoteHead()) {
         bellHead = '';
     }
@@ -29,6 +36,12 @@ CollectBells(records, options) {
     }
     if (smbHead = NoNoteHead()) {
         smbHead = '';
+    }
+    if (pfHead = NoNoteHead()) {
+        pfHead = '';
+    }
+    if (whitechapelHead = NoNoteHead()) {
+        whitechapelHead = '';
     }
 
     for i = 0 to records.Length {
@@ -61,6 +74,12 @@ CollectBells(records, options) {
             }
             if (smbHead != '') {
                 if (record.head = smbHead) { kind = 'smbs'; }
+            }
+            if (pfHead != '') {
+                if (record.head = pfHead) { kind = 'pf'; }
+            }
+            if (whitechapelHead != '') {
+                if (record.head = whitechapelHead) { kind = 'whitechapel'; }
             }
 
             if (kind = '') {
@@ -99,6 +118,12 @@ CollectBells(records, options) {
                     if (kind = 'smbs') {
                         RecordBell(smbs, seenSmb, key, bell, region);
                     }
+                    if (kind = 'pf') {
+                        RecordBell(pfs, seenPf, key, bell, region);
+                    }
+                    if (kind = 'whitechapel') {
+                        RecordBell(whitechapels, seenWhitechapel, key, bell, region);
+                    }
                 }
             }
         } else {
@@ -110,6 +135,8 @@ CollectBells(records, options) {
         'bells', SortBells(bells),
         'chimes', SortBells(chimes),
         'smbs', SortBells(smbs),
+        'pf', SortBells(pfs),
+        'whitechapel', SortBells(whitechapels),
         'unknown', unknown,
         'unknownNames', unknownNames,
         'unreadable', unreadable,

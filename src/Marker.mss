@@ -194,6 +194,71 @@ RestoreMarkerRead(score, firstStaff) {
     return CreateSparseArray();
 }
 
+// The staves a build hid from bar 1, each with the instrument it started as.
+// A change at the start of bar 1 is no object in the bar: it changes the
+// instrument the staff starts as, so deleting the chart bars cannot take it
+// with them. A text of its own beside the marker, as the other records are:
+// HBUCSTARTS|staff|style for each staff.
+StartsMarkerEncode(starts) {
+    text = '' & STARTS_MARKER_PREFIX;
+    for i = 0 to starts.Length {
+        start = starts[i];
+        text = text & (('|' & start.staff) & ('|' & start.style));
+    }
+    return text;
+}
+
+// The staves a starts record names, as Dictionary{staff, style}, or null for
+// any other text.
+StartsMarkerDecode(text) {
+    if (text = null) {
+        return null;
+    }
+    parts = SplitOnPipe(text);
+    if (parts.Length < 3) {
+        return null;
+    }
+    if (parts[0] != ('' & STARTS_MARKER_PREFIX)) {
+        return null;
+    }
+    starts = CreateSparseArray();
+    i = 1;
+    while (i < parts.Length) {
+        if ((i + 1) >= parts.Length) {
+            return null;
+        }
+        staff = parts[i];
+        style = '' & parts[i + 1];
+        if (not(utils.IsNumeric(staff, True))) {
+            return null;
+        }
+        if (style = '') {
+            return null;
+        }
+        starts.Push(CreateDictionary('staff', 0 + staff, 'style', style));
+        i = i + 2;
+    }
+    return starts;
+}
+
+// The starts record, looked for on every staff, or none. Every staff, as
+// RecordStaff looks, because a chart that can no longer be identified must
+// still give its staves their instruments back.
+StartsMarkerRead(score) {
+    n = 1;
+    while (n <= score.StaffCount) {
+        bar = score.NthStaff(n).NthBar(1);
+        for each Text t in bar {
+            starts = StartsMarkerDecode(t.Text);
+            if (starts != null) {
+                return starts;
+            }
+        }
+        n = n + 1;
+    }
+    return CreateSparseArray();
+}
+
 // The staff whose first bar holds a names record, or 0 when none does. For a
 // chart that can no longer be identified, where the staff the record was
 // written on is exactly what is in doubt.

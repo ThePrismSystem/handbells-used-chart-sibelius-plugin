@@ -93,9 +93,14 @@ BuildChart(score, plan, options) {
     }
     tokens = PrepareCopyStaves(score, roles, sections.Length);
     WriteCopies(score, sections, options, styles);
+    starts = HideOutsideCopies(score, roles, sections, sections.Length);
     if (tokens.Length > 0) {
         record = trebleStaves[0].NthBar(1).AddText(0, RestoreMarkerEncode(tokens), LabelTextStyle());
         record.Hidden = True;
+    }
+    if (starts.Length > 0) {
+        startsRecord = trebleStaves[0].NthBar(1).AddText(0, StartsMarkerEncode(starts), LabelTextStyle());
+        startsRecord.Hidden = True;
     }
 
     // 5. Hide the structural furniture across every staff in the chart bars.
@@ -296,6 +301,80 @@ WriteCopies(score, sections, options, styles) {
     return True;
 }
 
+// A copy staff is No instrument (hidden) in the chart bars StaffHiddenBars
+// names, and its own instrument again where they end, so a part loses the
+// bars of charts it does not carry instead of showing them as empty bars
+// beside its own. The labels and warnings are hidden, there is no clef
+// change. Sibelius names the staff after the instrument type it changes back
+// to, Piano for a handbell staff made from one, so the change back carries the
+// staff's own names, read before any change is made.
+//
+// Each change goes at the end of the bar before, as Sibelius puts the change
+// back after a passage. One at the start of a bar that begins a system comes
+// after that system's opening clef, which is then drawn, with the start of
+// its staff lines, in the instrument before the change: a hidden one draws
+// neither. So every change but one sits inside the chart bars, the music's
+// first bar is untouched, and removing the chart bars removes them.
+//
+// The one is the change into bar 1, which has no bar before it. It makes no
+// object at all: it changes the instrument the staff starts as, and deleting
+// the chart bars would leave the staff hidden through the music. Returns
+// those staves, each with the instrument it started as, for the starts record
+// a removal reads to put them back.
+HideOutsideCopies(score, roles, sections, chartBars) {
+    starts = CreateSparseArray();
+    for i = 0 to roles.Length {
+        staffNum = roles[i].staff;
+        staff = score.NthStaff(staffNum);
+        own = staff.InitialStyleId;
+        names = CreateDictionary(
+            'full', staff.FullInstrumentNameWithFormatting,
+            'short', staff.ShortInstrumentNameWithFormatting,
+            'fullStaff', staff.FullStaffNameWithFormatting,
+            'shortStaff', staff.ShortStaffNameWithFormatting);
+        hidden = StaffHiddenBars(CopyBarsOfStaff(sections, staffNum), chartBars);
+        if (hidden[0] = 1) {
+            starts.Push(CreateDictionary('staff', staffNum, 'style', own));
+        }
+        hidden.Push(0);
+        previous = 0;
+        for b = 1 to chartBars + 2 {
+            flag = hidden[b - 1];
+            if (flag != previous) {
+                target = own;
+                if (flag = 1) {
+                    target = HiddenInstrument();
+                }
+                if (b = 1) {
+                    change = staff.NthBar(1).AddInstrumentChange(0, target, False, False, '', False);
+                } else {
+                    before = staff.NthBar(b - 1);
+                    change = before.AddInstrumentChange(before.Length, target, False, False, '', False);
+                }
+                if (flag = 0) {
+                    KeepStaffNames(change, names);
+                }
+            }
+            previous = flag;
+        }
+    }
+    return starts;
+}
+
+// A change back takes the names the staff had before any change. A change
+// that made no object, which AddInstrumentChange reports with null, has
+// nothing to take them.
+KeepStaffNames(change, names) {
+    if (not(IsObject(change))) {
+        return False;
+    }
+    change.FullInstrumentNameWithFormatting = names.full;
+    change.ShortInstrumentNameWithFormatting = names.short;
+    change.FullStaffNameWithFormatting = names.fullStaff;
+    change.ShortStaffNameWithFormatting = names.shortStaff;
+    return True;
+}
+
 // A copy shows in the parts alone and plays on no pass: the full score has
 // the chart already, and playback has no use for either.
 MarkPartsOnly(bar) {
@@ -312,15 +391,21 @@ MarkPartsOnly(bar) {
     return True;
 }
 
-// The colour belongs to the instrument, and only the two that were given a
-// dialog field for it have one. Handbells are the reference the others are
-// read against, so they stay black.
+// The colour belongs to the instrument, and only those given a dialog field
+// for it have one. Handbells are the reference the others are read against,
+// so they stay black.
 SectionColor(kind, options) {
     if (kind = 'chimes') {
         return '' & options.chimeColor;
     }
     if (kind = 'smbs') {
         return '' & options.smbColor;
+    }
+    if (kind = 'pf') {
+        return '' & options.pfColor;
+    }
+    if (kind = 'whitechapel') {
+        return '' & options.whitechapelColor;
     }
     return '';
 }
@@ -466,9 +551,10 @@ FallbackStyle(kind) {
 // off: a semibreve carries none at any notehead style, so a column falling
 // back loses its stems by being whole notes instead. It costs the filled head,
 // because a semibreve head is hollow, which is why the hand-made noteheads are
-// worth making. Handbells never need this.
+// worth making. Handbells of every maker never need this: they want no
+// hand-made head.
 ColumnTick(kind, styles) {
-    if (kind = 'bells') {
+    if (CustomStyleName(kind) = '') {
         return 256;
     }
     if (CustomStyle(kind, styles) < 0) {

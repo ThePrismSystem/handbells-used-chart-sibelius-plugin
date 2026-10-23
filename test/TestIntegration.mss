@@ -341,6 +341,9 @@ TestBuildChartParts() {
     titlesBefore = AllPartTitles(score);
     layoutsBefore = AllPartLayouts(score);
     furnitureBefore = InstrumentFurniture(score, first);
+    furnitureBeforeB = InstrumentFurniture(score, second);
+    nameA = score.NthStaff(first.firstStaff).FullInstrumentName;
+    nameB = score.NthStaff(second.firstStaff).FullInstrumentName;
 
     // Both plans from the clean score: once a chart is drawn, reading the
     // score again would read the chart's own notes back in. The labels a
@@ -421,10 +424,13 @@ TestBuildChartParts() {
             'the full score hides the copy label');
         AssertEquals(TextHiddenIn(score, partA, copyStaff, copyBar, copyLabel), 0,
             'the first part shows the copy label');
+        // A bar where the staff is No instrument (hidden) draws nothing at all,
+        // whatever the full score's hiding says of it.
+        hiddenCopy = StaffHiddenBars(CopyBarsOfStaff(expected.sections, copyStaff), chartBars);
         shownInScore = 0;
         for b = 1 to chartBars + 1 {
             scoreFlags = PartHiddenFlags(score, fullScore, b);
-            if (scoreFlags[copyStaff - 1] != 1) {
+            if ((scoreFlags[copyStaff - 1] != 1) and (hiddenCopy[b - 1] = 0)) {
                 shownInScore = shownInScore + 1;
             }
         }
@@ -447,22 +453,77 @@ TestBuildChartParts() {
         'the first part ends its charts with a page break only when it should');
 
     // Every chart bar in the part shows the staves holding its own chart's copy
-    // and nothing else.
+    // and nothing else. A bar the part loses shows nothing at all.
     systemsA = PartChartSystems(CarriedPositions(chartBars, carriedA));
     staffNumsA = PartStaffNumbers(partA);
     showsA = systemsA.shows;
+    vanishingA = PartVanishingBars(staffNumsA, expected.sections, chartBars);
     layoutDetail = '';
     for b = 1 to chartBars + 1 {
-        position = showsA[b - 1];
-        index = carriedA[position];
-        shown = expected.sections[index];
-        wantedHidden = JoinNames(PartBarHiddenStaves(staffNumsA, SectionCopyStaves(shown)));
-        gotHidden = JoinNames(PartHiddenFlags(score, partA, b));
-        if (gotHidden != wantedHidden) {
-            layoutDetail = layoutDetail & ((' bar ' & b) & (' wanted ' & wantedHidden) & (' got ' & gotHidden));
+        if (vanishingA[b - 1] = 0) {
+            position = showsA[b - 1];
+            index = carriedA[position];
+            shown = expected.sections[index];
+            wantedHidden = JoinNames(PartBarHiddenStaves(staffNumsA, SectionCopyStaves(shown)));
+            gotHidden = JoinNames(PartHiddenFlags(score, partA, b));
+            if (gotHidden != wantedHidden) {
+                layoutDetail = layoutDetail & ((' bar ' & b) & (' wanted ' & wantedHidden) & (' got ' & gotHidden));
+            }
         }
     }
     AssertEquals(layoutDetail, '', 'each chart bar in the first part shows only its own chart');
+
+    // The first instrument's staves are No instrument (hidden) through the
+    // second instrument's charts after its own: the change in goes at the end
+    // of its last chart's bar and the change back at the end of the last
+    // chart bar, both inside the chart bars, so the removal below takes them.
+    // A failure lists what the bar holds, by type and position.
+    copyBarsA = CopyBarsOfStaff(expected.sections, first.firstStaff);
+    hiddenA = StaffHiddenBars(copyBarsA, chartBars);
+    if (hiddenA[chartBars - 1] = 1) {
+        topA = score.NthStaff(first.firstStaff);
+        lastA = topA.NthBar(copyBarsA[copyBarsA.Length - 1]);
+        AssertTrue(InstrumentChangeAt(lastA, lastA.Length),
+            'the first instrument is hidden after its last chart:' & BarObjects(lastA));
+        endA = topA.NthBar(chartBars);
+        AssertTrue(InstrumentChangeAt(endA, endA.Length),
+            'and comes back at the end of the chart bars:' & BarObjects(endA));
+        AssertEquals(InstrumentChangeName(endA, endA.Length), nameA,
+            'under its own name, not its instrument type');
+        if (vanishingA[chartBars - 1] = 1) {
+            AssertEquals(PartBarBreak(score, partA, copyBarsA[copyBarsA.Length - 1]), EndOfSystemOrPage,
+                'its last chart ends its system ahead of the bars its part loses');
+        }
+    }
+
+    // The second instrument's staves are No instrument (hidden) through the
+    // first instrument's charts ahead of its own, from the start of bar 1 to
+    // the end of the bar before its first chart. Its part loses those bars as
+    // a system of their own, so its first chart starts a system with clefs.
+    // The full score still hides its staves where they come back.
+    copyBarsB = CopyBarsOfStaff(expected.sections, second.firstStaff);
+    hiddenB = StaffHiddenBars(copyBarsB, chartBars);
+    if (hiddenB[0] = 1) {
+        firstB = copyBarsB[0];
+        topB = score.NthStaff(second.firstStaff);
+        // A change at the start of bar 1 is no object: it changes the
+        // instrument the staff starts as, which the removal puts back.
+        AssertEquals(topB.InitialStyleId, HiddenInstrument(),
+            'the second instrument starts hidden ahead of its first chart');
+        beforeB = topB.NthBar(firstB - 1);
+        AssertTrue(InstrumentChangeAt(beforeB, beforeB.Length),
+            'and comes back at the end of the bar before it:' & BarObjects(beforeB));
+        AssertEquals(InstrumentChangeName(beforeB, beforeB.Length), nameB,
+            'under its own name, not its instrument type');
+        vanishingB = PartVanishingBars(PartStaffNumbers(partB), expected.sections, chartBars);
+        if (vanishingB[firstB - 2] = 1) {
+            AssertEquals(PartBarBreak(score, partB, firstB - 1), EndOfSystemOrPage,
+                'the bars its part loses are a system of their own');
+        }
+        scoreFlags = PartHiddenFlags(score, fullScore, firstB);
+        AssertEquals(scoreFlags[second.firstStaff - 1], 1,
+            'the full score hides the second instrument where it comes back');
+    }
 
     // A run that would chart nothing is refused before the chart is touched.
     refused = ChartScore(score, IntegrationOptions(choices, CreateSparseArray(), 'separate', True, False));
@@ -479,6 +540,8 @@ TestBuildChartParts() {
     AssertEquals(AllPartLayouts(score), layoutsBefore, 'every part has the pages and systems it started with');
     AssertEquals(InstrumentFurniture(score, first), furnitureBefore,
         'the first instrument has its own key and clef back and nothing added');
+    AssertEquals(InstrumentFurniture(score, second), furnitureBeforeB,
+        'the second instrument is left no instrument change');
 }
 
 // The open score given a key with sharps, and its own key put back after.
@@ -500,6 +563,7 @@ TestBuildKeyed() {
     score.NthStaff(1).NthBar(1).AddKeySignature(0, 2, True, False, False, False);
     pieceStaves = score.StaffCount;
     keysBefore = StaffKeys(score, pieceStaves, 1);
+    typesBefore = StaffTypes(score, pieceStaves);
     choices = ScoreHeadChoices(score);
     records = ReadScoreNotes(score);
     instruments = ScoreInstruments(score);
@@ -542,12 +606,35 @@ TestBuildKeyed() {
     }
     AssertEquals(StaffKeys(score, pieceStaves, found.sections + 1), keysBefore,
         'with parts the music starts in its key');
+    // A failure says what the system staff held where the music started, and
+    // what it holds once the chart bars are gone, and each staff's starting
+    // instrument before and after.
+    musicBar = found.sections + 1;
+    keyTrace = (' system bar ' & musicBar) & (' before:' & BarObjects(score.SystemStaff.NthBar(musicBar)));
+    keyTrace = keyTrace & ((' staff 1 before:' & BarObjects(score.NthStaff(1).NthBar(musicBar)))
+        & ((' staff ' & pieceStaves) & (' before:' & BarObjects(score.NthStaff(pieceStaves).NthBar(musicBar)))));
+    keyTrace = keyTrace & (' staff 1 last chart bar:' & BarObjects(score.NthStaff(1).NthBar(found.sections)));
+    typesBuilt = StaffTypes(score, pieceStaves);
     RemoveChart(score);
+    keyTrace = keyTrace & (' system bar 1 after:' & BarObjects(score.SystemStaff.NthBar(1)));
+    keyTrace = keyTrace & ((' staff 1 after:' & BarObjects(score.NthStaff(1).NthBar(1)))
+        & ((' staff ' & pieceStaves) & (' after:' & BarObjects(score.NthStaff(pieceStaves).NthBar(1)))));
+    keyTrace = keyTrace & ((' types before [' & typesBefore) & ('] built [' & typesBuilt));
+    keyTrace = keyTrace & (('] after [' & StaffTypes(score, pieceStaves)) & ']');
     AssertEquals(StaffKeys(score, pieceStaves, 1), keysBefore,
-        'a removal with parts leaves the music its key');
+        'a removal with parts leaves the music its key:' & keyTrace);
 
     score.NthStaff(1).NthBar(1).AddKeySignature(0, ownSharps, ownMajor, False, False, False);
     return True;
+}
+
+// Each of the first count staves' starting instrument.
+StaffTypes(score, count) {
+    types = CreateSparseArray();
+    for n = 1 to count + 1 {
+        types.Push(score.NthStaff(n).InitialStyleId);
+    }
+    return JoinNames(types);
 }
 
 // Each of the first count staves' key at the given bar, in sharps.
@@ -608,8 +695,9 @@ PartLayout(score, part) {
     return line;
 }
 
-// An instrument's key and clef at its first bar, and how many key and clef
-// objects that bar holds at its start, staff by staff.
+// An instrument's starting instrument and name, its key and clef at its first
+// bar, and how many key, clef and instrument change objects that bar holds at
+// its start, staff by staff.
 InstrumentFurniture(score, instrument) {
     line = '';
     n = instrument.firstStaff;
@@ -629,9 +717,52 @@ InstrumentFurniture(score, instrument) {
                 clefs = clefs + 1;
             }
         }
-        line = line & (('[key ' & staff.CurrentKeySignature(1).Sharps) & (' clef ' & clef.ConcertClefStyleId));
-        line = line & ((' keys ' & keys) & ((' clefs ' & clefs) & ']'));
+        changes = 0;
+        if (InstrumentChangeAt(bar, 0)) {
+            changes = 1;
+        }
+        line = line & (('[' & staff.InitialStyleId) & (' ' & staff.FullInstrumentName));
+        line = line & (' key ' & staff.CurrentKeySignature(1).Sharps);
+        line = line & (' clef ' & clef.ConcertClefStyleId);
+        line = line & ((' keys ' & keys) & ((' clefs ' & clefs) & (' changes ' & changes)));
+        line = line & ']';
         n = n + 1;
+    }
+    return line;
+}
+
+// True when a bar holds an instrument change at the given position. Read by
+// Type over everything in the bar, so a failure cannot come from the for each
+// filter alone.
+InstrumentChangeAt(bar, pos) {
+    for each item in bar {
+        if (item.Type = 'InstrumentChange') {
+            if (item.Position = pos) {
+                return True;
+            }
+        }
+    }
+    return False;
+}
+
+// The full instrument name an instrument change at the given position gives
+// the systems after it, or '' when the bar holds none there.
+InstrumentChangeName(bar, pos) {
+    for each item in bar {
+        if (item.Type = 'InstrumentChange') {
+            if (item.Position = pos) {
+                return item.FullInstrumentName;
+            }
+        }
+    }
+    return '';
+}
+
+// What a bar holds, as Type@Position for each object, for a failure message.
+BarObjects(bar) {
+    line = '';
+    for each item in bar {
+        line = line & ((' ' & item.Type) & ('@' & item.Position));
     }
     return line;
 }
@@ -639,9 +770,10 @@ InstrumentFurniture(score, instrument) {
 // Every option ChartScore and the drawing read, for a test to vary the ones it
 // is about.
 IntegrationOptions(choices, instruments, mode, parts, remove) {
-    return CreateDictionary('chimeColor', '', 'smbColor', '',
+    return CreateDictionary('chimeColor', '', 'smbColor', '', 'pfColor', '', 'whitechapelColor', '',
         'bellHead', choices.defaultBell, 'chimeHead', choices.defaultChime,
-        'smbHead', NoNoteHead(), 'instruments', instruments, 'mode', mode,
+        'smbHead', NoNoteHead(), 'pfHead', NoNoteHead(), 'whitechapelHead', NoNoteHead(),
+        'instruments', instruments, 'mode', mode,
         'parts', parts, 'pageBreak', False, 'remove', remove);
 }
 
@@ -734,11 +866,17 @@ PartStaveCounts(score) {
     return line;
 }
 
-// A bar's break as one part sees it.
+// A bar's break as one part sees it, read on a staff the part holds.
 PartBarBreak(score, part, barNum) {
+    anchor = null;
+    for each staff in part {
+        if (anchor = null) {
+            anchor = staff;
+        }
+    }
     was = score.CurrentDynamicPart;
     score.CurrentDynamicPart = part;
-    breakType = score.NthStaff(1).NthBar(barNum).BreakType;
+    breakType = anchor.NthBar(barNum).BreakType;
     score.CurrentDynamicPart = was;
     return breakType;
 }

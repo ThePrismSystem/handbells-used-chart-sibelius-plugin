@@ -22,18 +22,25 @@ ReadOptions(score) {
     _BellHeadItems = CreateArray();
     _ChimeHeadItems = CreateArray();
     _SmbHeadItems = CreateArray();
+    _PfHeadItems = CreateArray();
+    _WhitechapelHeadItems = CreateArray();
     for i = 0 to items.Length {
         name = items[i];
         _BellHeadItems[i] = name;
         _ChimeHeadItems[i] = name;
         _SmbHeadItems[i] = name;
+        _PfHeadItems[i] = name;
+        _WhitechapelHeadItems[i] = name;
     }
     dlg_bellHead = PreferredHead(choices.names, '' & dlg_bellHead, choices.defaultBell);
     dlg_chimeHead = PreferredHead(choices.names, '' & dlg_chimeHead, choices.defaultChime);
-    // No fallback of its own: nothing in a score says which notehead means a
-    // silver melody bell the way a plain head means a handbell, so an
-    // unremembered SMB box opens on no notehead rather than on a guess.
+    // No fallback of their own: nothing in a score says which notehead means
+    // a silver melody bell, or a P&F or Whitechapel bell, the way a plain head
+    // means a handbell, so an unremembered box opens on no notehead rather
+    // than on a guess.
     dlg_smbHead = PreferredHead(choices.names, '' & dlg_smbHead, '');
+    dlg_pfHead = PreferredHead(choices.names, '' & dlg_pfHead, '');
+    dlg_whitechapelHead = PreferredHead(choices.names, '' & dlg_whitechapelHead, '');
 
     // Filled the way the notehead boxes are, and for the same reason: the list
     // comes from the open score. The selection it opens on is everything this
@@ -74,9 +81,13 @@ ReadOptions(score) {
     return CreateDictionary(
         'chimeColor', UsableColor(dlg_chimeColor),
         'smbColor', UsableColor(dlg_smbColor),
+        'pfColor', UsableColor(dlg_pfColor),
+        'whitechapelColor', UsableColor(dlg_whitechapelColor),
         'bellHead', Trim(dlg_bellHead),
         'chimeHead', Trim(dlg_chimeHead),
         'smbHead', Trim(dlg_smbHead),
+        'pfHead', Trim(dlg_pfHead),
+        'whitechapelHead', Trim(dlg_whitechapelHead),
         'remove', Ticked(dlg_remove),
         'instruments', InstrumentsNamed(instruments, selected),
         'mode', ChartModeOf(dlg_chartMode),
@@ -235,7 +246,8 @@ ExcludedAfterRun(remembered, offered, selected) {
 // The no-notehead entry is exempt, because any number of instruments may be
 // absent from a piece.
 DuplicateHead(options) {
-    heads = CreateSparseArray(options.bellHead, options.chimeHead, options.smbHead);
+    heads = CreateSparseArray(options.bellHead, options.chimeHead, options.smbHead,
+        options.pfHead, options.whitechapelHead);
     for i = 0 to heads.Length {
         head = '' & heads[i];
         if (head != '') {

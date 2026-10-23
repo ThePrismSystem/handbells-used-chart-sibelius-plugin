@@ -19,14 +19,15 @@ instrument into its own part:
   a few columns along from an E flat, where it reads as cancelling that flat
   rather than naming a bell of its own. Which bells are charted is unaffected:
   E flat and E are two separate bells and get a column each either way.
-- Handchimes and silver melody bells get charts of their own. Which
-  notehead means which instrument is chosen in the dialog from the noteheads
-  the score actually uses, so an arrangement that marks them some other way
-  charts as readily as one using the conventional heads.
-- Handbells and handchimes are charted on a treble and a bass staff. Silver
-  melody bells are a treble set, so they get a single treble staff, C5
-  included, which is how they are usually printed and one staff less on the
-  page.
+- Handchimes, silver melody bells, and P&F and Whitechapel handbells get
+  charts of their own. You choose in the dialog which notehead means which
+  instrument, from the noteheads the score uses, so an arrangement that
+  marks them some other way charts as readily as one using the conventional
+  heads.
+- Handbells, handchimes, and P&F and Whitechapel handbells are charted on a
+  treble and a bass staff. Silver melody bells are a treble set, so they get
+  a single treble staff, C5 included, which is how they are usually printed
+  and one staff less on the page.
 - A bell that also appears an octave or two higher shares its column, so D6,
   D7 and D8 print as one stack rather than three.
 - A score with several handbell parts can be charted one instrument at a
@@ -96,7 +97,9 @@ downloadable `plugins` artifact.
 
 ## Settings
 
-The plugin's dialog offers ten controls:
+The plugin's dialog has fourteen controls in two columns: the instrument
+and chart choices on the left, and the noteheads, colours and removal on the
+right.
 
 | Control | Effect |
 |---|---|
@@ -107,12 +110,17 @@ The plugin's dialog offers ten controls:
 | Handbell notehead type | Which notehead in the score counts as a handbell |
 | Handchime notehead type | Which notehead in the score counts as a handchime |
 | SMBs notehead type | Which notehead in the score counts as a silver melody bell |
+| P&F notehead type | Which notehead in the score counts as a P&F handbell |
+| Whitechapel notehead type | Which notehead in the score counts as a Whitechapel handbell |
 | Handchime colour | Notehead colour for chimes, as a hex value; blank leaves them black |
 | SMBs colour | Notehead colour for SMBs, on the same terms |
+| P&F colour | Notehead colour for P&F handbells, on the same terms |
+| Whitechapel colour | Notehead colour for Whitechapel handbells, on the same terms |
 | Remove existing chart | Strips the chart instead of generating one |
 
 Section labels are generated: "Handbells Used: *n*", "Handchimes Used: *n*",
-"SMBs Used: *n*". Each counts physical bells, so a bell appearing under two
+"SMBs Used: *n*", "P&F Handbells Used: *n*", "Whitechapel Handbells Used:
+*n*". Each counts physical bells, so a bell appearing under two
 spellings is counted once, although it is charted under both. They are
 ordinary staff text once the chart is drawn, so retype them in the score if
 you want something else.
@@ -179,9 +187,13 @@ that holds it, so a chart that sits in both kinds of part keeps its names in
 all of them.
 
 In a part, each chart is a system of its own showing only the staves that
-hold it. Another instrument's chart can't disappear from a part completely,
-because Sibelius keeps at least one staff showing in every system, so its
-bar joins the part's own chart as a short empty bar.
+hold it. Other instruments' charts drop out of the part: its staves change
+to "No instrument (hidden)" for those bars and change back for its own
+charts and for the music, with the change labels hidden. Removing the chart
+takes those changes off again. Sibelius keeps at least one staff showing in
+every system, so in a part with a staff that holds no chart, such as an
+instrument that isn't charted, another instrument's chart joins the part's
+own chart as a short empty bar instead.
 
 A part's first page is often laid out by hand, with its page turns planned,
 and charts in front of it push music off that page. Each chart section is a
@@ -217,7 +229,7 @@ ask for black.
 
 ### Choosing the noteheads
 
-All three notehead dropdowns are filled from the open score each time the
+All five notehead dropdowns are filled from the open score each time the
 dialog opens: they list the notehead styles the music actually uses, by the name
 Sibelius knows them under, plus a `(no notehead)` entry meaning that
 instrument is not in this piece. An existing chart's own staves are left out
@@ -225,16 +237,21 @@ of the scan, so re-running never offers the chart's noteheads back.
 
 The boxes open on the plain notehead for handbells and the diamond for
 handchimes wherever the score uses them, which is what the plugin assumed
-before these controls existed. The SMBs box has no such default, because
-nothing in a score suggests one, so it opens on `(no notehead)` until you
-pick. Your last choice is remembered between runs and wins over the
-defaults, but only while the score in front of you still uses it.
+before these controls existed. The SMBs, P&F and Whitechapel boxes have no
+such default, because nothing in a score suggests one, so they open on
+`(no notehead)` until you pick. Your last choice is remembered between
+runs and wins over the defaults, but only while the score in front of you
+still uses it.
 
-Notes carrying a notehead none of the three boxes names are skipped and
+Notes carrying a notehead none of the five boxes names are skipped and
 counted in the unrecognised-notehead warning, which names the heads it
 skipped so you can see which entry to pick. No two instruments may share a
 notehead: the plugin says which one clashes and charts nothing, rather than
 reading those notes as two instruments at once.
+
+P&F and Whitechapel charts use the same `Stemless` head as handbells, in the
+instrument's own colour when one is set. Unlike handchimes and SMBs, they
+need no notehead made by hand.
 
 ## The handchime and SMB noteheads
 
@@ -332,9 +349,9 @@ need two instruments that each have a part of their own.
   own before the music, so five instruments with bells and chimes put ten
   systems ahead of bar 1 in the full score, running onto later pages. A part
   carries only its own.
-- In a part, another instrument's chart shows as a short empty bar beside
-  the part's own chart, because Sibelius keeps a staff showing in every
-  system.
+- In a part with a staff that holds no chart, another instrument's chart
+  shows as a short empty bar beside the part's own, because Sibelius keeps a
+  staff showing in every system.
 - In a part, the chart is drawn on the instrument's own staves, so the
   instrument's brace shows beside it. Sibelius sets braces for a whole part,
   not for one system.
