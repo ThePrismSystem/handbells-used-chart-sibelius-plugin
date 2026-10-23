@@ -20,14 +20,14 @@ instrument into its own part:
   rather than naming a bell of its own. Which bells are charted is unaffected:
   E flat and E are two separate bells and get a column each either way.
 - Handchimes, silver melody bells, and P&F and Whitechapel handbells get
-  charts of their own. Which notehead means which instrument is chosen in
-  the dialog from the noteheads the score actually uses, so an arrangement
-  that marks them some other way charts as readily as one using the
-  conventional heads.
-- Handbells of every maker and handchimes are charted on a treble and a
-  bass staff. Silver melody bells are a treble set, so they get a single
-  treble staff, C5 included, which is how they are usually printed and one
-  staff less on the page.
+  charts of their own. You choose in the dialog which notehead means which
+  instrument, from the noteheads the score uses, so an arrangement that
+  marks them some other way charts as readily as one using the conventional
+  heads.
+- Handbells, handchimes, and P&F and Whitechapel handbells are charted on a
+  treble and a bass staff. Silver melody bells are a treble set, so they get
+  a single treble staff, C5 included, which is how they are usually printed
+  and one staff less on the page.
 - A bell that also appears an octave or two higher shares its column, so D6,
   D7 and D8 print as one stack rather than three.
 - A score with several handbell parts can be charted one instrument at a
@@ -97,7 +97,7 @@ downloadable `plugins` artifact.
 
 ## Settings
 
-The plugin's dialog offers fourteen controls in two columns: the instrument
+The plugin's dialog has fourteen controls in two columns: the instrument
 and chart choices on the left, and the noteheads, colours and removal on the
 right.
 
@@ -245,9 +245,9 @@ skipped so you can see which entry to pick. No two instruments may share a
 notehead: the plugin says which one clashes and charts nothing, rather than
 reading those notes as two instruments at once.
 
-P&F and Whitechapel handbells are drawn on their charts with the same
-stemless head as handbells, in their own colour when one is set, so they
-need no notehead of their own in the score's styles.
+P&F and Whitechapel charts use the same `Stemless` head as handbells, in the
+instrument's own colour when one is set. Unlike handchimes and SMBs, they
+need no notehead made by hand.
 
 ## The handchime and SMB noteheads
 
