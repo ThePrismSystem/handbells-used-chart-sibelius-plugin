@@ -17,7 +17,8 @@ TestCollect() {
         CreateDictionary('pitch', 12, 'diatonic', 0, 'head', 'Normal')
     );
     options = CreateDictionary('bellHead', 'Normal', 'chimeHead', 'Diamond',
-        'smbHead', NoNoteHead());
+        'smbHead', NoNoteHead(),
+        'pfHead', NoNoteHead(), 'whitechapelHead', NoNoteHead());
     got = CollectBells(records, options);
 
     AssertEquals(got.bells.Length, 3, 'three distinct bells');
@@ -42,7 +43,8 @@ TestCollect() {
         CreateDictionary('pitch', 74, 'diatonic', 36, 'head', 'Cross')
     );
     chosen = CollectBells(custom, CreateDictionary('bellHead', 'Normal', 'chimeHead', 'Cross',
-        'smbHead', NoNoteHead()));
+        'smbHead', NoNoteHead(),
+        'pfHead', NoNoteHead(), 'whitechapelHead', NoNoteHead()));
     AssertEquals(chosen.chimes.Length, 1, 'a chosen chime head is charted as chimes');
     AssertEquals(chosen.chimes[0].name, 'D5', 'chosen chime head name');
     AssertEquals(chosen.unknown, 0, 'a chosen chime head is not unrecognised');
@@ -50,7 +52,8 @@ TestCollect() {
     // Bells are chosen too, so a score whose bells are not the plain head
     // charts as well. The head that is no longer chosen becomes unrecognised.
     swapped = CollectBells(custom, CreateDictionary('bellHead', 'Cross', 'chimeHead', 'Diamond',
-        'smbHead', NoNoteHead()));
+        'smbHead', NoNoteHead(),
+        'pfHead', NoNoteHead(), 'whitechapelHead', NoNoteHead()));
     AssertEquals(swapped.bells.Length, 1, 'a chosen bell head is charted as bells');
     AssertEquals(swapped.bells[0].name, 'D5', 'chosen bell head name');
     AssertEquals(swapped.unknown, 1, 'the unchosen head is now unrecognised');
@@ -64,7 +67,8 @@ TestCollect() {
         CreateDictionary('pitch', 76, 'diatonic', 37, 'head', 'Slashed')
     );
     twice = CollectBells(repeated, CreateDictionary('bellHead', 'Normal', 'chimeHead', 'Diamond',
-        'smbHead', NoNoteHead()));
+        'smbHead', NoNoteHead(),
+        'pfHead', NoNoteHead(), 'whitechapelHead', NoNoteHead()));
     AssertEquals(twice.unknown, 3, 'every unrecognised note is counted');
     AssertEquals(twice.unknownNames.Length, 2, 'each unrecognised head is named once');
 
@@ -73,7 +77,8 @@ TestCollect() {
     blank = CreateSparseArray(
         CreateDictionary('pitch', 72, 'diatonic', 35, 'head', '')
     );
-    none = CollectBells(blank, CreateDictionary('bellHead', '', 'chimeHead', '', 'smbHead', ''));
+    none = CollectBells(blank, CreateDictionary('bellHead', '', 'chimeHead', '', 'smbHead', '',
+        'pfHead', '', 'whitechapelHead', ''));
     AssertEquals(none.bells.Length, 0, 'an empty bell choice matches nothing');
     AssertEquals(none.chimes.Length, 0, 'an empty chime choice matches nothing');
     AssertEquals(none.unknown, 1, 'an unmatched note is counted as unrecognised');
@@ -85,10 +90,13 @@ TestCollect() {
     // it opens with the chime box on the no-notehead entry, which has to chart
     // the bells and claim none of them as chimes.
     bellsOnly = CollectBells(custom,
-        CreateDictionary('bellHead', 'Normal', 'chimeHead', NoNoteHead(), 'smbHead', NoNoteHead()));
+        CreateDictionary('bellHead', 'Normal', 'chimeHead', NoNoteHead(), 'smbHead', NoNoteHead(),
+        'pfHead', NoNoteHead(), 'whitechapelHead', NoNoteHead()));
     AssertEquals(bellsOnly.bells.Length, 1, 'no notehead chosen for chimes still charts bells');
     AssertEquals(bellsOnly.chimes.Length, 0, 'no notehead chosen for chimes charts no chimes');
     AssertEquals(bellsOnly.smbs.Length, 0, 'no notehead chosen for SMBs charts no SMBs');
+    AssertEquals(bellsOnly.pf.Length, 0, 'no notehead chosen for P&F bells charts none');
+    AssertEquals(bellsOnly.whitechapel.Length, 0, 'no notehead chosen for Whitechapel bells charts none');
 
     // Silver melody bells are a third instrument read the same way as the two
     // before them: a head of their own, counted and sorted like the rest.
@@ -99,11 +107,32 @@ TestCollect() {
         CreateDictionary('pitch', 76, 'diatonic', 37, 'head', 'Cross')
     );
     all3 = CollectBells(three, CreateDictionary('bellHead', 'Normal',
-        'chimeHead', 'Diamond', 'smbHead', 'Cross'));
+        'chimeHead', 'Diamond', 'smbHead', 'Cross',
+        'pfHead', NoNoteHead(), 'whitechapelHead', NoNoteHead()));
     AssertEquals(all3.bells.Length, 1, 'bells alongside two other instruments');
     AssertEquals(all3.chimes.Length, 1, 'chimes alongside two other instruments');
     AssertEquals(all3.smbs.Length, 2, 'two distinct SMBs');
     AssertEquals(all3.smbs[0].name, 'E5', 'SMBs sort by pitch like the rest');
     AssertEquals(all3.smbs[1].name, 'G5', 'SMBs sort by pitch like the rest');
     AssertEquals(all3.unknown, 0, 'a third chosen head leaves nothing unrecognised');
+
+    // P&F and Whitechapel handbells are read the same way again, each by a
+    // head of its own, and counted and sorted like the rest.
+    makers = CreateSparseArray(
+        CreateDictionary('pitch', 72, 'diatonic', 35, 'head', 'Normal'),
+        CreateDictionary('pitch', 76, 'diatonic', 37, 'head', 'Slashed'),
+        CreateDictionary('pitch', 74, 'diatonic', 36, 'head', 'Slashed'),
+        CreateDictionary('pitch', 74, 'diatonic', 36, 'head', 'Slashed'),
+        CreateDictionary('pitch', 79, 'diatonic', 39, 'head', 'Square')
+    );
+    all5 = CollectBells(makers, CreateDictionary('bellHead', 'Normal', 'chimeHead', 'Diamond',
+        'smbHead', 'Cross', 'pfHead', 'Slashed', 'whitechapelHead', 'Square'));
+    AssertEquals(all5.bells.Length, 1, 'bells alongside the bells of two makers');
+    AssertEquals(all5.pf.Length, 2, 'two distinct P&F bells');
+    AssertEquals(all5.pf[0].name, 'D5', 'P&F bells sort by pitch like the rest');
+    AssertEquals(all5.pf[0].count, 2, 'a repeated P&F bell is counted twice');
+    AssertEquals(all5.pf[1].name, 'E5', 'P&F bells sort by pitch like the rest');
+    AssertEquals(all5.whitechapel.Length, 1, 'one Whitechapel bell');
+    AssertEquals(all5.whitechapel[0].name, 'G5', 'the Whitechapel bell name');
+    AssertEquals(all5.unknown, 0, 'five chosen heads leave nothing unrecognised');
 }

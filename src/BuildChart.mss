@@ -15,23 +15,21 @@ BuildChart(score, plan, options) {
     //    precede the notes: until a bar declares its own length it still holds
     //    the score's ordinary metre, and a chart with more columns than the
     //    metre allows would spill into the piece's own bars.
-    // Whether the stemless diamond exists decides how long a chime column is,
-    // so both hand-made noteheads are looked up before a single bar is sized.
-    styles = CreateDictionary(
-        'chimes', NamedNoteStyle(score, StemlessDiamondName()),
-        'smbs', NamedNoteStyle(score, SquareStemlessName()));
-
-    // Nothing else in the run can tell the user this: the plan is built
-    // without the score, so only here is it known that a section is about to
-    // be drawn hollow.
-    warnings = MissingHeadWarnings(sections, styles);
+    // Whether a section's stemless head exists decides how long its columns
+    // are, so every head is settled, and any the score lacks copied in, before
+    // a single bar is sized. Nothing else in the run can tell the user that a
+    // section is about to be drawn hollow: the plan is built without the score.
+    chosen = ChartHeads(score, sections, options);
+    heads = chosen.heads;
+    warnings = chosen.warnings;
 
     barsBefore = score.NthStaff(1).BarCount;
     columnsArray = CreateSparseArray();
     for i = 0 to sections.Length {
         columnsArray.Push(sections[i].columns);
-        tick = ColumnTick(sections[i].kind, styles);
-        score.InsertBars(1, i + 1, sections[i].columns * tick);
+        kind = sections[i].kind;
+        head = heads[kind];
+        score.InsertBars(1, i + 1, sections[i].columns * head.tick);
     }
     if (score.NthStaff(1).BarCount != (barsBefore + sections.Length)) {
         return BuildFailure('Sibelius did not insert the chart bars.');
@@ -77,12 +75,11 @@ BuildChart(score, plan, options) {
 
     // 4. Columns.
     for i = 0 to sections.Length {
-        color = SectionColor(sections[i].kind, options);
-        tick = ColumnTick(sections[i].kind, styles);
-        WriteColumns(trebleStaves[i], i + 1, sections[i].treble,
-            sections[i].kind, color, styles, tick);
-        WriteColumns(bassStaves[i], i + 1, sections[i].bass,
-            sections[i].kind, color, styles, tick);
+        kind = sections[i].kind;
+        color = SectionColor(kind, options);
+        head = heads[kind];
+        WriteColumns(trebleStaves[i], i + 1, sections[i].treble, head, color);
+        WriteColumns(bassStaves[i], i + 1, sections[i].bass, head, color);
     }
 
     // 4b. The parts' copies, on each owner's own staves in the same bars. Here
@@ -92,10 +89,15 @@ BuildChart(score, plan, options) {
         ChartBarsInC(score, openingSharps, openingMajor, sections.Length);
     }
     tokens = PrepareCopyStaves(score, roles, sections.Length);
-    WriteCopies(score, sections, options, styles);
+    WriteCopies(score, sections, options, heads);
+    starts = HideOutsideCopies(score, roles, sections, sections.Length);
     if (tokens.Length > 0) {
         record = trebleStaves[0].NthBar(1).AddText(0, RestoreMarkerEncode(tokens), LabelTextStyle());
         record.Hidden = True;
+    }
+    if (starts.Length > 0) {
+        startsRecord = trebleStaves[0].NthBar(1).AddText(0, StartsMarkerEncode(starts), LabelTextStyle());
+        startsRecord.Hidden = True;
     }
 
     // 5. Hide the structural furniture across every staff in the chart bars.
@@ -267,13 +269,14 @@ PrepareCopyStaff(score, staffNum, clef, chartBars) {
 // Each section's copies, drawn exactly as its chart is, in its own bar, with
 // the label the parts read: the plain one when every part showing it holds a
 // single charted instrument, which PlanPartEntries marks as splitLabel.
-WriteCopies(score, sections, options, styles) {
+WriteCopies(score, sections, options, heads) {
     for i = 0 to sections.Length {
         section = sections[i];
         copies = section._property:copies;
         if (copies != null) {
-            color = SectionColor(section.kind, options);
-            tick = ColumnTick(section.kind, styles);
+            kind = section.kind;
+            color = SectionColor(kind, options);
+            head = heads[kind];
             text = section.label;
             if (section._property:splitLabel = 1) {
                 text = section.plainLabel;
@@ -281,11 +284,11 @@ WriteCopies(score, sections, options, styles) {
             for j = 0 to copies.Length {
                 staves = copies[j];
                 top = score.NthStaff(staves[0]);
-                WriteColumns(top, i + 1, section.treble, section.kind, color, styles, tick);
+                WriteColumns(top, i + 1, section.treble, head, color);
                 MarkPartsOnly(top.NthBar(i + 1));
                 if (staves.Length > 1) {
                     lower = score.NthStaff(staves[1]);
-                    WriteColumns(lower, i + 1, section.bass, section.kind, color, styles, tick);
+                    WriteColumns(lower, i + 1, section.bass, head, color);
                     MarkPartsOnly(lower.NthBar(i + 1));
                 }
                 label = top.NthBar(i + 1).AddText(0, text, LabelTextStyle());
@@ -293,6 +296,80 @@ WriteCopies(score, sections, options, styles) {
             }
         }
     }
+    return True;
+}
+
+// A copy staff is No instrument (hidden) in the chart bars StaffHiddenBars
+// names, and its own instrument again where they end, so a part loses the
+// bars of charts it does not carry instead of showing them as empty bars
+// beside its own. The labels and warnings are hidden, there is no clef
+// change. Sibelius names the staff after the instrument type it changes back
+// to, Piano for a handbell staff made from one, so the change back carries the
+// staff's own names, read before any change is made.
+//
+// Each change goes at the end of the bar before, as Sibelius puts the change
+// back after a passage. One at the start of a bar that begins a system comes
+// after that system's opening clef, which is then drawn, with the start of
+// its staff lines, in the instrument before the change: a hidden one draws
+// neither. So every change but one sits inside the chart bars, the music's
+// first bar is untouched, and removing the chart bars removes them.
+//
+// The one is the change into bar 1, which has no bar before it. It makes no
+// object at all: it changes the instrument the staff starts as, and deleting
+// the chart bars would leave the staff hidden through the music. Returns
+// those staves, each with the instrument it started as, for the starts record
+// a removal reads to put them back.
+HideOutsideCopies(score, roles, sections, chartBars) {
+    starts = CreateSparseArray();
+    for i = 0 to roles.Length {
+        staffNum = roles[i].staff;
+        staff = score.NthStaff(staffNum);
+        own = staff.InitialStyleId;
+        names = CreateDictionary(
+            'full', staff.FullInstrumentNameWithFormatting,
+            'short', staff.ShortInstrumentNameWithFormatting,
+            'fullStaff', staff.FullStaffNameWithFormatting,
+            'shortStaff', staff.ShortStaffNameWithFormatting);
+        hidden = StaffHiddenBars(CopyBarsOfStaff(sections, staffNum), chartBars);
+        if (hidden[0] = 1) {
+            starts.Push(CreateDictionary('staff', staffNum, 'style', own));
+        }
+        hidden.Push(0);
+        previous = 0;
+        for b = 1 to chartBars + 2 {
+            flag = hidden[b - 1];
+            if (flag != previous) {
+                target = own;
+                if (flag = 1) {
+                    target = HiddenInstrument();
+                }
+                if (b = 1) {
+                    change = staff.NthBar(1).AddInstrumentChange(0, target, False, False, '', False);
+                } else {
+                    before = staff.NthBar(b - 1);
+                    change = before.AddInstrumentChange(before.Length, target, False, False, '', False);
+                }
+                if (flag = 0) {
+                    KeepStaffNames(change, names);
+                }
+            }
+            previous = flag;
+        }
+    }
+    return starts;
+}
+
+// A change back takes the names the staff had before any change. A change
+// that made no object, which AddInstrumentChange reports with null, has
+// nothing to take them.
+KeepStaffNames(change, names) {
+    if (not(IsObject(change))) {
+        return False;
+    }
+    change.FullInstrumentNameWithFormatting = names.full;
+    change.ShortInstrumentNameWithFormatting = names.short;
+    change.FullStaffNameWithFormatting = names.fullStaff;
+    change.ShortStaffNameWithFormatting = names.shortStaff;
     return True;
 }
 
@@ -312,15 +389,21 @@ MarkPartsOnly(bar) {
     return True;
 }
 
-// The colour belongs to the instrument, and only the two that were given a
-// dialog field for it have one. Handbells are the reference the others are
-// read against, so they stay black.
+// The colour belongs to the instrument, and only those given a dialog field
+// for it have one. Handbells are the reference the others are read against,
+// so they stay black.
 SectionColor(kind, options) {
     if (kind = 'chimes') {
         return '' & options.chimeColor;
     }
     if (kind = 'smbs') {
         return '' & options.smbColor;
+    }
+    if (kind = 'pf') {
+        return '' & options.pfColor;
+    }
+    if (kind = 'whitechapel') {
+        return '' & options.whitechapelColor;
     }
     return '';
 }
@@ -335,16 +418,16 @@ BuildFailure(message) {
 // chord's notes reorder by pitch as they arrive. So every note in a column is
 // written first, and only then are they dressed by iterating the finished
 // chord. The MuseScore version splits these for the same reason.
-WriteColumns(staff, barNumber, columns, kind, color, styles, tick) {
+WriteColumns(staff, barNumber, columns, head, color) {
     bar = staff.NthBar(barNumber);
     for c = 0 to columns.Length {
         notes = columns[c];
-        position = c * tick;
+        position = c * head.tick;
         chord = null;
 
         for n = 0 to notes.Length {
             raw = FromBellSpace(notes[n].pitch, notes[n].diatonic, staff);
-            note = bar.AddNote(position, raw.pitch, tick, False, 1, raw.diatonic);
+            note = bar.AddNote(position, raw.pitch, head.tick, False, 1, raw.diatonic);
             if (IsObject(note)) {
                 chord = note.ParentNoteRest;
             }
@@ -352,7 +435,7 @@ WriteColumns(staff, barNumber, columns, kind, color, styles, tick) {
 
         if (IsObject(chord)) {
             for each n in chord {
-                DressNote(n, kind, styles);
+                DressNote(n, head);
             }
             ColorChord(chord, color);
         }
@@ -362,15 +445,10 @@ WriteColumns(staff, barNumber, columns, kind, color, styles, tick) {
 // ManuScript exposes no writable stem property: Stemweight and StemFlipped are
 // read-only, FlipStem only toggles direction, and stemlets are a different
 // thing entirely. In Sibelius stemlessness IS a notehead style, so it is set
-// here rather than on the NoteRest, and it is why bells and chimes cannot both
-// simply take their obvious style constant.
-DressNote(note, kind, styles) {
-    custom = CustomStyle(kind, styles);
-    if (custom >= 0) {
-        note.NoteStyle = custom;
-    } else {
-        note.NoteStyle = FallbackStyle(kind);
-    }
+// here rather than on the NoteRest, and it is why every shape but round needs
+// a stemless head of its own.
+DressNote(note, head) {
+    note.NoteStyle = head.style;
     // A chart is an inventory of the bells a piece needs, so no natural sign
     // belongs on one. Sibelius prints one whenever a plain letter follows an
     // altered spelling of the same letter earlier in the bar, and a ringer
@@ -380,11 +458,9 @@ DressNote(note, kind, styles) {
     }
 }
 
-// There is no stemless-diamond constant. The 24 documented styles pair a head
-// shape with a stem setting, and only the plain head has a stemless variant, so
-// chimes cannot get one the way bells do. A score can carry styles beyond those
-// 24, and ManuScript cannot create one, so the plugin looks for a notehead the
-// user made by hand. The README says how to make it.
+// A score can carry notehead styles beyond the 24 documented ones, and the
+// stemless heads a chart is drawn with are among them, so they are found by
+// name.
 //
 // NoteStyleIndex belongs to Score, not to Sibelius. Calling it on the wrong
 // object is not a parse error, it is 'Method NoteStyleIndex not found' at run
@@ -404,77 +480,48 @@ NamedNoteStyle(score, name) {
     return index;
 }
 
-// One warning per section whose hand-made notehead the score turns out not to
-// have. Driven off the sections rather than off the two instruments, so it
-// cannot warn about an instrument the chart does not contain.
-MissingHeadWarnings(sections, styles) {
-    warnings = CreateSparseArray();
+// Each section's head, keyed by kind, as ChartHead gives it, with a warning for
+// every instrument drawn hollow. The stemless heads the score lacks are copied
+// in from the notehead file together, so the file is opened once.
+ChartHeads(score, sections, options) {
+    kinds = CreateSparseArray();
+    shapes = CreateDictionary();
+    wanted = CreateSparseArray();
     for i = 0 to sections.Length {
         kind = sections[i].kind;
-        name = CustomStyleName(kind);
-        if (name != '') {
-            if (CustomStyle(kind, styles) < 0) {
-                warnings.Push(CreateDictionary('type', 'missing-notehead', 'count', 0,
-                    'names', CreateSparseArray(name),
-                    'instrument', InstrumentName(kind)));
+        if (HeadListed(kinds, kind) = 0) {
+            kinds.Push(kind);
+            music = HeadChosen(kind, options);
+            shape = ChartShape(ShapeChosen(kind, options), NamedNoteStyle(score, music), music, kind);
+            shapes[kind] = shape;
+            name = ShapeHeadName(shape);
+            if (name != '') {
+                if (NamedNoteStyle(score, name) < 0) {
+                    if (HeadListed(wanted, name) = 0) {
+                        wanted.Push(name);
+                    }
+                }
             }
         }
     }
-    return warnings;
-}
+    if (wanted.Length > 0) {
+        ImportHeads(score, wanted);
+    }
 
-// The hand-made notehead an instrument is drawn with, or '' for one that wants
-// none. Handbells want none: StemlessNoteStyle is in every score, so they are
-// the one instrument that can never be missing a head.
-CustomStyleName(kind) {
-    if (kind = 'chimes') {
-        return StemlessDiamondName();
+    heads = CreateDictionary();
+    warnings = CreateSparseArray();
+    for i = 0 to kinds.Length {
+        kind = kinds[i];
+        shape = shapes[kind];
+        name = ShapeHeadName(shape);
+        head = ChartHead(shape, NamedNoteStyle(score, name));
+        heads[kind] = head;
+        if (head.tick = 1024) {
+            warnings.Push(CreateDictionary('type', 'missing-notehead', 'count', 0,
+                'names', CreateSparseArray(name), 'instrument', InstrumentName(kind)));
+        }
     }
-    if (kind = 'smbs') {
-        return SquareStemlessName();
-    }
-    return '';
-}
-
-// The hand-made stemless head for this instrument, or -1 when the score has
-// none. Handbells have no hand-made head at all: StemlessNoteStyle is a
-// documented constant present in every score, so they never miss one.
-CustomStyle(kind, styles) {
-    if (kind = 'chimes') {
-        return styles.chimes;
-    }
-    if (kind = 'smbs') {
-        return styles.smbs;
-    }
-    return -1;
-}
-
-// The built-in shape an instrument falls back to. Sibelius has a square after
-// all - shaped note 6 is la in the seven-shape system - so SMBs fall back to a
-// real square the way chimes fall back to a real diamond.
-FallbackStyle(kind) {
-    if (kind = 'chimes') {
-        return DiamondNoteStyle;
-    }
-    if (kind = 'smbs') {
-        return ShapedNote6NoteStyle;
-    }
-    return StemlessNoteStyle;
-}
-
-// Both built-in fallbacks carry stems, and ManuScript cannot switch a stem
-// off: a semibreve carries none at any notehead style, so a column falling
-// back loses its stems by being whole notes instead. It costs the filled head,
-// because a semibreve head is hollow, which is why the hand-made noteheads are
-// worth making. Handbells never need this.
-ColumnTick(kind, styles) {
-    if (kind = 'bells') {
-        return 256;
-    }
-    if (CustomStyle(kind, styles) < 0) {
-        return 1024;
-    }
-    return 256;
+    return CreateDictionary('heads', heads, 'warnings', warnings);
 }
 
 // Colour is written on the NoteRest rather than on each Note, and only while

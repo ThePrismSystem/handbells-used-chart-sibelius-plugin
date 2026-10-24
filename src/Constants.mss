@@ -2,6 +2,13 @@ ChartInstrument() {
     return '' & CHART_INSTRUMENT;
 }
 
+// The instrument a staff changes to where a part should lose a chart bar. Its
+// staff draws nothing at all, so a bar where every staff of a part is this
+// takes no room in that part.
+HiddenInstrument() {
+    return '' & HIDDEN_INSTRUMENT;
+}
+
 LabelTextStyle() {
     return '' & LABEL_TEXT_STYLE;
 }
@@ -25,24 +32,10 @@ EnableStringSafety() {
     }
 }
 
-// The notehead the user makes by hand; see the README. Kept next to the other
-// score-facing names so renaming it is a one-line change in the manifest.
-StemlessDiamondName() {
-    return '' & STEMLESS_DIAMOND;
-}
-
 // Both notehead dropdowns carry this ahead of the score's own heads, because
 // a score is entitled to have no chimes in it at all, and the alternative -
 // opening the chime dropdown on whichever head happened to be found first -
 // would chart a bells-only score's bells as chimes as well.
-// The other notehead the user makes by hand. Sibelius ships no square head at
-// all - the documented styles run cross, diamond, triangle and the shaped
-// notes with nothing square among them - so unlike the diamond there is not
-// even a stemmed one to copy stemlessness onto.
-SquareStemlessName() {
-    return '' & SQUARE_STEMLESS;
-}
-
 NoNoteHead() {
     return '' & NO_NOTEHEAD;
 }

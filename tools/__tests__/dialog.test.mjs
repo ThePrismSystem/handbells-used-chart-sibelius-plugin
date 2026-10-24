@@ -19,3 +19,40 @@ test('CHART_MODE_CONTROL_INDEX is the Charts box in the dialog creation order', 
             `${entry.output} names the wrong control`);
     }
 });
+
+// A control whose Value names no Data variable, or a dlg_ variable with no
+// control, fails only when Sibelius opens the dialog. Every notehead box also
+// needs the list variable it is filled from.
+test('every dlg_ variable has a control and every control a variable', () => {
+    const msd = readFileSync(join(ROOT, 'src/Settings.msd'), 'utf8');
+    const values = [...msd.matchAll(/^\t+Value "([^"]+)"/gm)].map((m) => m[1]).sort();
+    const lists = [...msd.matchAll(/^\t+ListVar "([^"]+)"/gm)].map((m) => m[1]);
+    const manifest = JSON.parse(readFileSync(join(ROOT, 'tools/plugins.json'), 'utf8'));
+    for (const entry of manifest.plugins) {
+        const declared = Object.keys(entry.data).filter((k) => k.startsWith('dlg_')).sort();
+        assert.deepEqual(values, declared, `${entry.output} and the dialog disagree`);
+        for (const list of lists) {
+            assert.ok(list in entry.data, `${entry.output} lacks ${list}`);
+        }
+    }
+});
+
+// Each box lists its own copy of the shapes, for the reason each notehead box
+// has its own list: nothing documents handing one list node to several boxes.
+test('every notehead box has a chart shape box beside it, with a list of its own', () => {
+    const msd = readFileSync(join(ROOT, 'src/Settings.msd'), 'utf8');
+    const lists = new Set();
+    for (const kind of ['bell', 'chime', 'smb', 'pf', 'whitechapel']) {
+        const control = msd.match(new RegExp(`ListVar "([^"]+)"[^}]*ID "dlg_${kind}Shape"`));
+        assert.ok(control, `no dlg_${kind}Shape box`);
+        lists.add(control[1]);
+    }
+    assert.equal(lists.size, 5, 'two shape boxes share a list');
+});
+
+test('the dialog has a notehead box and a colour field for P&F and Whitechapel bells', () => {
+    const msd = readFileSync(join(ROOT, 'src/Settings.msd'), 'utf8');
+    for (const id of ['dlg_pfHead', 'dlg_whitechapelHead', 'dlg_pfColor', 'dlg_whitechapelColor']) {
+        assert.match(msd, new RegExp(`ID "${id}"`), `no ${id} control`);
+    }
+});

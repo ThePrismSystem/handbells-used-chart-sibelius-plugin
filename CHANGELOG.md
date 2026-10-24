@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 Scores with several handbell parts can chart each one separately, and put
-each chart into the Sibelius part that rings from it.
+each chart into the Sibelius part that rings from it. P&F and Whitechapel
+handbells get charts of their own.
 
 ### Added
 
@@ -33,9 +34,10 @@ each chart into the Sibelius part that rings from it.
   percussion or tab staff gets none at all, and the message at the end of
   the run names them. In a part holding one instrument the labels are the
   plain `Handbells Used: 25`; in a part holding several they keep the
-  instrument names. Sibelius keeps a staff showing in every system, so
-  another instrument's chart can't disappear from a part entirely: it shows
-  as a short empty bar beside the part's own chart. A part holding no
+  instrument names. Other instruments' charts drop out of a part, because
+  its staves change to "No instrument (hidden)" for those bars. In a part
+  with a staff that holds no chart, they show as short empty bars instead,
+  since Sibelius keeps a staff showing in every system. A part holding no
   selected instrument gets no chart, and the message at the end of the run
   says so when the box is ticked but no part holds a selected instrument.
 - In a part given two or more chart sections, the music starts on a new
@@ -48,6 +50,28 @@ each chart into the Sibelius part that rings from it.
 - Sibelius creates a part for each chart instrument the plug-in adds.
   Building or removing a chart now deletes any part holding nothing but
   chart staves.
+- P&F and Whitechapel handbells are charted as instruments of their own,
+  after the SMBs, each on a treble and a bass staff and labelled
+  `P&F Handbells Used: 6` and `Whitechapel Handbells Used: 4`. Each has a
+  notehead box and a colour field in the dialog. As with SMBs, the notehead
+  boxes open on `(no notehead)` until one is picked, and the last choice is
+  remembered. The charts are drawn in the instrument's own colour when one
+  is set.
+- A "Chart Shape" box beside each notehead box draws that instrument's
+  chart in one of six stemless shapes: round, diamond, square, triangle,
+  inverted triangle or cross. It opens on `(match notehead)`, which follows
+  the notehead the music uses. Sibelius' own noteheads are recognised by
+  number and noteheads made by hand by their names. A notehead the plugin
+  can't read is charted as before: diamonds for handchimes, squares for
+  SMBs and round for the rest.
+- The stemless noteheads come from a notehead file installed beside the
+  plugin, `Handbells Used Chart Noteheads.sib`, and are copied into a score
+  that lacks them. Handchimes and SMBs no longer need noteheads made by
+  hand, and their charts are filled instead of hollow. A `Diamond
+  (stemless)` or `Square (stemless)` made by hand still works, because a
+  score uses its own notehead by that name. Without the file, those charts
+  fall back to hollow whole notes as before, and the message at the end of
+  the run names the file.
 
 ### Fixed
 
@@ -83,6 +107,10 @@ each chart into the Sibelius part that rings from it.
   returns to that part afterwards.
 - The defaults are every instrument, one combined chart and no parts, so a
   first run charts the same sections, under the same labels, as 1.2.0.
+- The dialog is wider. The instrument and chart choices are on the left. On
+  the right, each instrument has a row with its notehead and chart shape
+  boxes, under the headings "Notehead in Music" and "Chart Shape", followed
+  by the colour fields and "Remove Existing Chart".
 
 ## [1.2.0] - 2026-08-23
 
