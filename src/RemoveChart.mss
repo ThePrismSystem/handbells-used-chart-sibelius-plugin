@@ -47,11 +47,11 @@ FindChart(score) {
         if (bar = null) {
             return FindFailure(unidentifiable);
         }
-        // Either tick is legitimate: a chimes section falls back to whole notes
-        // when the score has no stemless diamond, so the same column count can
-        // have been sized at 256 or at 1024. Accepting both is what keeps a
-        // chart identifiable on a machine whose notehead set differs from the
-        // one that built it.
+        // Either tick is legitimate: a section in any shape but round falls
+        // back to whole notes when its stemless head could not be had, so the
+        // same column count can have been sized at 256 or at 1024. Accepting
+        // both is what keeps a chart identifiable on a machine whose notehead
+        // set differs from the one that built it.
         columnTicks = recorded.columns[i];
         if (bar.Length != (columnTicks * 256)) {
             if (bar.Length != (columnTicks * 1024)) {

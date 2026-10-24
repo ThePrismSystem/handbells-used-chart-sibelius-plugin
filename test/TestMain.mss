@@ -27,9 +27,11 @@ Run() {
     TestOptions();
     TestReport();
     TestNoteHeads();
+    TestShapes();
     TestReadScore();
     TestScoreInstruments();
     TestNoteHeadScan();
+    TestImportHeads();
     TestBuildChart();
     TestRemoveChart();
     TestNamesRule();

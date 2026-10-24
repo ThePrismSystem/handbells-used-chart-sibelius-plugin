@@ -3,8 +3,8 @@ _SettingsDialog "Dialog"
 		Title "Create a Handbells/Handchimes/SMBs Used Chart"
 		X "333"
 		Y "271"
-		Width "398"
-		Height "264"
+		Width "496"
+		Height "280"
 		Controls
 		{
 			Text
@@ -100,9 +100,35 @@ _SettingsDialog "Dialog"
 			}
 			Text
 			{
-				Title "Handbell Notehead Type"
+				Title "Notehead in Music"
+				X "298"
+				Y "12"
+				Width "92"
+				Height "14"
+				RightAlign "0"
+				ID "IDC_HEAD_HEADER"
+				Value
+				Method
+				SetFocus "0"
+			}
+			Text
+			{
+				Title "Chart Shape"
+				X "396"
+				Y "12"
+				Width "92"
+				Height "14"
+				RightAlign "0"
+				ID "IDC_SHAPE_HEADER"
+				Value
+				Method
+				SetFocus "0"
+			}
+			Text
+			{
+				Title "Handbells"
 				X "212"
-				Y "16"
+				Y "32"
 				Width "84"
 				Height "14"
 				RightAlign "0"
@@ -115,7 +141,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "298"
-				Y "12"
+				Y "28"
 				Width "92"
 				Height "21"
 				ListVar "_BellHeadItems"
@@ -125,11 +151,25 @@ _SettingsDialog "Dialog"
 				Method
 				SetFocus "0"
 			}
+			ComboBox
+			{
+				Title
+				X "396"
+				Y "28"
+				Width "92"
+				Height "21"
+				ListVar "_BellShapeItems"
+				AllowMultipleSelections "0"
+				ID "dlg_bellShape"
+				Value "dlg_bellShape"
+				Method
+				SetFocus "0"
+			}
 			Text
 			{
-				Title "Handchime Notehead Type"
+				Title "Handchimes"
 				X "212"
-				Y "38"
+				Y "54"
 				Width "84"
 				Height "14"
 				RightAlign "0"
@@ -142,7 +182,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "298"
-				Y "34"
+				Y "50"
 				Width "92"
 				Height "21"
 				ListVar "_ChimeHeadItems"
@@ -152,11 +192,25 @@ _SettingsDialog "Dialog"
 				Method
 				SetFocus "0"
 			}
+			ComboBox
+			{
+				Title
+				X "396"
+				Y "50"
+				Width "92"
+				Height "21"
+				ListVar "_ChimeShapeItems"
+				AllowMultipleSelections "0"
+				ID "dlg_chimeShape"
+				Value "dlg_chimeShape"
+				Method
+				SetFocus "0"
+			}
 			Text
 			{
-				Title "SMBs Notehead Type"
+				Title "SMBs"
 				X "212"
-				Y "60"
+				Y "76"
 				Width "84"
 				Height "14"
 				RightAlign "0"
@@ -169,7 +223,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "298"
-				Y "56"
+				Y "72"
 				Width "92"
 				Height "21"
 				ListVar "_SmbHeadItems"
@@ -179,11 +233,25 @@ _SettingsDialog "Dialog"
 				Method
 				SetFocus "0"
 			}
+			ComboBox
+			{
+				Title
+				X "396"
+				Y "72"
+				Width "92"
+				Height "21"
+				ListVar "_SmbShapeItems"
+				AllowMultipleSelections "0"
+				ID "dlg_smbShape"
+				Value "dlg_smbShape"
+				Method
+				SetFocus "0"
+			}
 			Text
 			{
-				Title "P&F Notehead Type"
+				Title "P&F Handbells"
 				X "212"
-				Y "82"
+				Y "98"
 				Width "84"
 				Height "14"
 				RightAlign "0"
@@ -196,7 +264,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "298"
-				Y "78"
+				Y "94"
 				Width "92"
 				Height "21"
 				ListVar "_PfHeadItems"
@@ -206,11 +274,25 @@ _SettingsDialog "Dialog"
 				Method
 				SetFocus "0"
 			}
+			ComboBox
+			{
+				Title
+				X "396"
+				Y "94"
+				Width "92"
+				Height "21"
+				ListVar "_PfShapeItems"
+				AllowMultipleSelections "0"
+				ID "dlg_pfShape"
+				Value "dlg_pfShape"
+				Method
+				SetFocus "0"
+			}
 			Text
 			{
-				Title "Whitechapel Notehead Type"
+				Title "Whitechapel Handbells"
 				X "212"
-				Y "104"
+				Y "120"
 				Width "84"
 				Height "14"
 				RightAlign "0"
@@ -223,7 +305,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "298"
-				Y "100"
+				Y "116"
 				Width "92"
 				Height "21"
 				ListVar "_WhitechapelHeadItems"
@@ -233,11 +315,25 @@ _SettingsDialog "Dialog"
 				Method
 				SetFocus "0"
 			}
+			ComboBox
+			{
+				Title
+				X "396"
+				Y "116"
+				Width "92"
+				Height "21"
+				ListVar "_WhitechapelShapeItems"
+				AllowMultipleSelections "0"
+				ID "dlg_whitechapelShape"
+				Value "dlg_whitechapelShape"
+				Method
+				SetFocus "0"
+			}
 			Text
 			{
 				Title "Handchime Color"
 				X "212"
-				Y "130"
+				Y "146"
 				Width "84"
 				Height "14"
 				RightAlign "0"
@@ -250,7 +346,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "298"
-				Y "126"
+				Y "142"
 				Width "92"
 				Height "14"
 				ID "dlg_chimeColor"
@@ -262,7 +358,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "SMBs Color"
 				X "212"
-				Y "150"
+				Y "166"
 				Width "84"
 				Height "14"
 				RightAlign "0"
@@ -275,7 +371,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "298"
-				Y "146"
+				Y "162"
 				Width "92"
 				Height "14"
 				ID "dlg_smbColor"
@@ -287,7 +383,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "P&F Color"
 				X "212"
-				Y "170"
+				Y "186"
 				Width "84"
 				Height "14"
 				RightAlign "0"
@@ -300,7 +396,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "298"
-				Y "166"
+				Y "182"
 				Width "92"
 				Height "14"
 				ID "dlg_pfColor"
@@ -312,7 +408,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "Whitechapel Color"
 				X "212"
-				Y "190"
+				Y "206"
 				Width "84"
 				Height "14"
 				RightAlign "0"
@@ -325,7 +421,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "298"
-				Y "186"
+				Y "202"
 				Width "92"
 				Height "14"
 				ID "dlg_whitechapelColor"
@@ -337,7 +433,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "Remove Existing Chart"
 				X "298"
-				Y "208"
+				Y "224"
 				Width "92"
 				Height "14"
 				ID "dlg_remove"
@@ -348,8 +444,8 @@ _SettingsDialog "Dialog"
 			Button
 			{
 				Title "Cancel"
-				X "284"
-				Y "230"
+				X "382"
+				Y "246"
 				Width "50"
 				Height "14"
 				DefaultButton "0"
@@ -362,8 +458,8 @@ _SettingsDialog "Dialog"
 			Button
 			{
 				Title "OK"
-				X "340"
-				Y "230"
+				X "438"
+				Y "246"
 				Width "50"
 				Height "14"
 				DefaultButton "0"

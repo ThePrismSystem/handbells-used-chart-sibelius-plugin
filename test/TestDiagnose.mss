@@ -38,8 +38,16 @@ Diagnose() {
         }
         b = b + 1;
     }
-    trace('[stemless diamond] lookup = ' & NamedNoteStyle(score, StemlessDiamondName()));
-    trace('[stemless square] lookup = ' & NamedNoteStyle(score, SquareStemlessName()));
+    // Where the notehead file is looked for, and whether it was found.
+    trace('[plugins folder] ' & utils.GetSibeliusPluginsFolder());
+    trace('[notehead file] ' & NoteheadFilePath());
+    shapes = ChartShapeItems();
+    for i = 1 to shapes.Length {
+        name = ShapeHeadName(shapes[i]);
+        if (name != '') {
+            trace('[' & name & '] lookup = ' & NamedNoteStyle(score, name));
+        }
+    }
 
     // Whether a moved item ended up on the page at all. A system text item that
     // survived removal but sits off the top has a large negative dy here.

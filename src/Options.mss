@@ -24,6 +24,11 @@ ReadOptions(score) {
     _SmbHeadItems = CreateArray();
     _PfHeadItems = CreateArray();
     _WhitechapelHeadItems = CreateArray();
+    _BellShapeItems = CreateArray();
+    _ChimeShapeItems = CreateArray();
+    _SmbShapeItems = CreateArray();
+    _PfShapeItems = CreateArray();
+    _WhitechapelShapeItems = CreateArray();
     for i = 0 to items.Length {
         name = items[i];
         _BellHeadItems[i] = name;
@@ -41,6 +46,23 @@ ReadOptions(score) {
     dlg_smbHead = PreferredHead(choices.names, '' & dlg_smbHead, '');
     dlg_pfHead = PreferredHead(choices.names, '' & dlg_pfHead, '');
     dlg_whitechapelHead = PreferredHead(choices.names, '' & dlg_whitechapelHead, '');
+
+    // The shapes are the same for every score, so the boxes are filled with
+    // them as they are, one list each like the notehead boxes.
+    shapes = ChartShapeItems();
+    for i = 0 to shapes.Length {
+        shape = shapes[i];
+        _BellShapeItems[i] = shape;
+        _ChimeShapeItems[i] = shape;
+        _SmbShapeItems[i] = shape;
+        _PfShapeItems[i] = shape;
+        _WhitechapelShapeItems[i] = shape;
+    }
+    dlg_bellShape = PreferredShape('' & dlg_bellShape);
+    dlg_chimeShape = PreferredShape('' & dlg_chimeShape);
+    dlg_smbShape = PreferredShape('' & dlg_smbShape);
+    dlg_pfShape = PreferredShape('' & dlg_pfShape);
+    dlg_whitechapelShape = PreferredShape('' & dlg_whitechapelShape);
 
     // Filled the way the notehead boxes are, and for the same reason: the list
     // comes from the open score. The selection it opens on is everything this
@@ -88,6 +110,11 @@ ReadOptions(score) {
         'smbHead', Trim(dlg_smbHead),
         'pfHead', Trim(dlg_pfHead),
         'whitechapelHead', Trim(dlg_whitechapelHead),
+        'bellShape', '' & dlg_bellShape,
+        'chimeShape', '' & dlg_chimeShape,
+        'smbShape', '' & dlg_smbShape,
+        'pfShape', '' & dlg_pfShape,
+        'whitechapelShape', '' & dlg_whitechapelShape,
         'remove', Ticked(dlg_remove),
         'instruments', InstrumentsNamed(instruments, selected),
         'mode', ChartModeOf(dlg_chartMode),

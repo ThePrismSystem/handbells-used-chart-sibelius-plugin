@@ -16,12 +16,6 @@
         SetInterpreterOption(TreatSingleCharacterAsString);
     }
 }"
-	StemlessDiamondName "() {
-    return '' & STEMLESS_DIAMOND;
-}"
-	SquareStemlessName "() {
-    return '' & SQUARE_STEMLESS;
-}"
 	NoNoteHead "() {
     return '' & NO_NOTEHEAD;
 }"
@@ -111,6 +105,11 @@
     _SmbHeadItems = CreateArray();
     _PfHeadItems = CreateArray();
     _WhitechapelHeadItems = CreateArray();
+    _BellShapeItems = CreateArray();
+    _ChimeShapeItems = CreateArray();
+    _SmbShapeItems = CreateArray();
+    _PfShapeItems = CreateArray();
+    _WhitechapelShapeItems = CreateArray();
     for i = 0 to items.Length {
         name = items[i];
         _BellHeadItems[i] = name;
@@ -128,6 +127,23 @@
     dlg_smbHead = PreferredHead(choices.names, '' & dlg_smbHead, '');
     dlg_pfHead = PreferredHead(choices.names, '' & dlg_pfHead, '');
     dlg_whitechapelHead = PreferredHead(choices.names, '' & dlg_whitechapelHead, '');
+
+    // The shapes are the same for every score, so the boxes are filled with
+    // them as they are, one list each like the notehead boxes.
+    shapes = ChartShapeItems();
+    for i = 0 to shapes.Length {
+        shape = shapes[i];
+        _BellShapeItems[i] = shape;
+        _ChimeShapeItems[i] = shape;
+        _SmbShapeItems[i] = shape;
+        _PfShapeItems[i] = shape;
+        _WhitechapelShapeItems[i] = shape;
+    }
+    dlg_bellShape = PreferredShape('' & dlg_bellShape);
+    dlg_chimeShape = PreferredShape('' & dlg_chimeShape);
+    dlg_smbShape = PreferredShape('' & dlg_smbShape);
+    dlg_pfShape = PreferredShape('' & dlg_pfShape);
+    dlg_whitechapelShape = PreferredShape('' & dlg_whitechapelShape);
 
     // Filled the way the notehead boxes are, and for the same reason: the list
     // comes from the open score. The selection it opens on is everything this
@@ -175,6 +191,11 @@
         'smbHead', Trim(dlg_smbHead),
         'pfHead', Trim(dlg_pfHead),
         'whitechapelHead', Trim(dlg_whitechapelHead),
+        'bellShape', '' & dlg_bellShape,
+        'chimeShape', '' & dlg_chimeShape,
+        'smbShape', '' & dlg_smbShape,
+        'pfShape', '' & dlg_pfShape,
+        'whitechapelShape', '' & dlg_whitechapelShape,
         'remove', Ticked(dlg_remove),
         'instruments', InstrumentsNamed(instruments, selected),
         'mode', ChartModeOf(dlg_chartMode),
@@ -382,11 +403,13 @@
         }
         // The only warning raised while drawing rather than while planning:
         // whether the score carries the notehead a section wants is not
-        // knowable until the chart asks the score for it. Either of the two
-        // instruments that use a hand-made head can raise it, so it says which.
+        // knowable until the chart asks the score for it. Any instrument
+        // charted in a shape other than round can raise it, so it says which,
+        // and names the file the head should have come from.
         if (warning.type = 'missing-notehead') {
-            line = (warning.instrument & ' were drawn as hollow whole notes because ')
-                & ('this score has no ' & JoinNames(warning.names)) & ' notehead';
+            line = (warning.instrument & ' were drawn as hollow whole notes: ')
+                & ('this score has no ' & JoinNames(warning.names) & ' notehead, ')
+                & ('and it could not be copied from ' & NoteheadFileName() & '.sib');
         }
         // The parts warnings. A part has no name ManuScript can read, so it is
         // named by the instruments it holds.
@@ -1335,6 +1358,282 @@
     }
     return items;
 }"
+	ShapeMatch "() {
+    return '' & SHAPE_MATCH;
+}"
+	ShapeRound "() {
+    return '' & SHAPE_ROUND;
+}"
+	ShapeDiamond "() {
+    return '' & SHAPE_DIAMOND;
+}"
+	ShapeSquare "() {
+    return '' & SHAPE_SQUARE;
+}"
+	ShapeTriangle "() {
+    return '' & SHAPE_TRIANGLE;
+}"
+	ShapeInverted "() {
+    return '' & SHAPE_INVERTED;
+}"
+	ShapeCross "() {
+    return '' & SHAPE_CROSS;
+}"
+	ChartShapeItems "() {
+    return CreateSparseArray(ShapeMatch(), ShapeRound(), ShapeDiamond(), ShapeSquare(),
+        ShapeTriangle(), ShapeInverted(), ShapeCross());
+}"
+	PreferredShape "(remembered) {
+    if (HeadListed(ChartShapeItems(), remembered) = 1) {
+        return remembered;
+    }
+    return ShapeMatch();
+}"
+	ShapeOfStyle "(index, name) {
+    if (index >= 0) {
+        if (index <= ShapedNote4StemDownNoteStyle) {
+            return BuiltInShape(index);
+        }
+    }
+    return NamedShape(name);
+}"
+	BuiltInShape "(index) {
+    if (StyleIn(index, CreateSparseArray(NormalNoteStyle, StemlessNoteStyle, SilentNoteStyle,
+        CueNoteStyle, SlashedNoteStyle, BackSlashedNoteStyle, ShapedNote5NoteStyle))) {
+        return ShapeRound();
+    }
+    if (StyleIn(index, CreateSparseArray(DiamondNoteStyle, BlackAndWhiteDiamondNoteStyle,
+        ShapedNote3NoteStyle))) {
+        return ShapeDiamond();
+    }
+    if (index = ShapedNote6NoteStyle) {
+        return ShapeSquare();
+    }
+    if (StyleIn(index, CreateSparseArray(ArrowUpNoteStyle, ShapedNote1NoteStyle,
+        ShapedNote4StemUpNoteStyle, ShapedNote4StemDownNoteStyle))) {
+        return ShapeTriangle();
+    }
+    if (StyleIn(index, CreateSparseArray(ArrowDownNoteStyle, InvertedTriangleNoteStyle))) {
+        return ShapeInverted();
+    }
+    if (index = CrossNoteStyle) {
+        return ShapeCross();
+    }
+    return '';
+}"
+	StyleIn "(index, styles) {
+    for i = 0 to styles.Length {
+        if (styles[i] = index) {
+            return True;
+        }
+    }
+    return False;
+}"
+	NamedShape "(name) {
+    text = utils.LowerCase('' & name);
+    if (TextContains(text, 'inverted')) {
+        return ShapeInverted();
+    }
+    if (TextContains(text, 'triangle')) {
+        return ShapeTriangle();
+    }
+    if (TextContains(text, 'diamond')) {
+        return ShapeDiamond();
+    }
+    if (TextContains(text, 'square')) {
+        return ShapeSquare();
+    }
+    if (TextContains(text, 'cross')) {
+        return ShapeCross();
+    }
+    if ((TextContains(text, 'normal')) or (TextContains(text, 'round')) or (TextContains(text, 'stemless'))) {
+        return ShapeRound();
+    }
+    return '';
+}"
+	ChartShape "(choice, index, name, kind) {
+    if (choice != '') {
+        if (choice != ShapeMatch()) {
+            return choice;
+        }
+    }
+    shape = ShapeOfStyle(index, name);
+    if (shape != '') {
+        return shape;
+    }
+    return DefaultShape(kind);
+}"
+	DefaultShape "(kind) {
+    if (kind = 'chimes') {
+        return ShapeDiamond();
+    }
+    if (kind = 'smbs') {
+        return ShapeSquare();
+    }
+    return ShapeRound();
+}"
+	ShapeHeadName "(shape) {
+    if (shape = ShapeRound()) {
+        return '';
+    }
+    return shape & ('' & STEMLESS_SUFFIX);
+}"
+	ChartHead "(shape, index) {
+    if (ShapeHeadName(shape) = '') {
+        return CreateDictionary('style', StemlessNoteStyle, 'tick', 256);
+    }
+    if (index >= 0) {
+        return CreateDictionary('style', index, 'tick', 256);
+    }
+    return CreateDictionary('style', FallbackStyle(shape), 'tick', 1024);
+}"
+	FallbackStyle "(shape) {
+    if (shape = ShapeDiamond()) {
+        return DiamondNoteStyle;
+    }
+    if (shape = ShapeSquare()) {
+        return ShapedNote6NoteStyle;
+    }
+    if (shape = ShapeTriangle()) {
+        return ShapedNote1NoteStyle;
+    }
+    if (shape = ShapeInverted()) {
+        return InvertedTriangleNoteStyle;
+    }
+    return CrossNoteStyle;
+}"
+	HeadChosen "(kind, options) {
+    if (kind = 'chimes') {
+        return '' & options.chimeHead;
+    }
+    if (kind = 'smbs') {
+        return '' & options.smbHead;
+    }
+    if (kind = 'pf') {
+        return '' & options.pfHead;
+    }
+    if (kind = 'whitechapel') {
+        return '' & options.whitechapelHead;
+    }
+    return '' & options.bellHead;
+}"
+	ShapeChosen "(kind, options) {
+    if (kind = 'chimes') {
+        return '' & options.chimeShape;
+    }
+    if (kind = 'smbs') {
+        return '' & options.smbShape;
+    }
+    if (kind = 'pf') {
+        return '' & options.pfShape;
+    }
+    if (kind = 'whitechapel') {
+        return '' & options.whitechapelShape;
+    }
+    return '' & options.bellShape;
+}"
+	NoteheadFileName "() {
+    return '' & NOTEHEAD_FILE;
+}"
+	NoteheadFilePath "() {
+    folder = Sibelius.GetFolder(utils.GetSibeliusPluginsFolder());
+    if (not(IsObject(folder))) {
+        return '';
+    }
+    for each SIB candidate in folder {
+        if (('' & candidate.NameNoPath) = NoteheadFileName()) {
+            return '' & candidate.NameWithExt;
+        }
+    }
+    return '';
+}"
+	ImportHeads "(score, names) {
+    path = NoteheadFilePath();
+    if (path = '') {
+        return False;
+    }
+
+    // A file already open is used as it is and left open, because closing it
+    // unsaved would throw away whatever the user has changed in it.
+    data = OpenScoreNamed(path);
+    opened = False;
+    if (data = null) {
+        if (not(Sibelius.Open(path, True))) {
+            return False;
+        }
+        opened = True;
+        data = Sibelius.ActiveScore;
+        // Never the score being charted, which is closed below unsaved.
+        if (('' & data.FileName) = ('' & score.FileName)) {
+            return False;
+        }
+    }
+
+    for i = 0 to names.Length {
+        nr = NoteRestInHead(data, names[i]);
+        if (nr != null) {
+            CopyHeadIn(score, data, nr);
+        }
+    }
+
+    if (opened) {
+        Sibelius.CloseAllWindowsForScore(data, False);
+    }
+    Sibelius.ActiveScore = score;
+    return True;
+}"
+	OpenScoreNamed "(path) {
+    for i = 0 to Sibelius.ScoreCount {
+        candidate = Sibelius.NthScore(i);
+        if (('' & candidate.FileName) = path) {
+            return candidate;
+        }
+    }
+    return null;
+}"
+	NoteRestInHead "(score, name) {
+    n = 1;
+    while (n <= score.StaffCount) {
+        staff = score.NthStaff(n);
+        for each NoteRest nr in staff {
+            // H3: the notes in a NoteRest are iterated untyped.
+            for each note in nr {
+                if (('' & note.NoteStyleName) = name) {
+                    return nr;
+                }
+            }
+        }
+        n = n + 1;
+    }
+    return null;
+}"
+	CopyHeadIn "(score, data, nr) {
+    Sibelius.ActiveScore = data;
+    selection = data.Selection;
+    selection.Clear();
+    nr.Select();
+    selection.Copy(0);
+    selection.Clear();
+    length = nr.Duration;
+    Sibelius.ActiveScore = score;
+
+    score.AddBars(1);
+    last = score.SystemStaff.BarCount;
+    lastBar = score.SystemStaff.NthBar(last);
+    if (lastBar.Length > length) {
+        length = lastBar.Length;
+    }
+    score.InsertBars(1, last, length);
+    pasting = score.Selection;
+    pasting.PasteToPosition(1, last, 0, 0);
+
+    system = score.SystemStaff;
+    doomed = system.NthBar(system.BarCount);
+    doomed.Delete();
+    doomed = system.NthBar(system.BarCount);
+    doomed.Delete();
+    return True;
+}"
 	ReadScoreNotes "(score) {
     records = CreateSparseArray();
     selection = score.Selection;
@@ -1532,23 +1831,21 @@
     //    precede the notes: until a bar declares its own length it still holds
     //    the score's ordinary metre, and a chart with more columns than the
     //    metre allows would spill into the piece's own bars.
-    // Whether the stemless diamond exists decides how long a chime column is,
-    // so both hand-made noteheads are looked up before a single bar is sized.
-    styles = CreateDictionary(
-        'chimes', NamedNoteStyle(score, StemlessDiamondName()),
-        'smbs', NamedNoteStyle(score, SquareStemlessName()));
-
-    // Nothing else in the run can tell the user this: the plan is built
-    // without the score, so only here is it known that a section is about to
-    // be drawn hollow.
-    warnings = MissingHeadWarnings(sections, styles);
+    // Whether a section's stemless head exists decides how long its columns
+    // are, so every head is settled, and any the score lacks copied in, before
+    // a single bar is sized. Nothing else in the run can tell the user that a
+    // section is about to be drawn hollow: the plan is built without the score.
+    chosen = ChartHeads(score, sections, options);
+    heads = chosen.heads;
+    warnings = chosen.warnings;
 
     barsBefore = score.NthStaff(1).BarCount;
     columnsArray = CreateSparseArray();
     for i = 0 to sections.Length {
         columnsArray.Push(sections[i].columns);
-        tick = ColumnTick(sections[i].kind, styles);
-        score.InsertBars(1, i + 1, sections[i].columns * tick);
+        kind = sections[i].kind;
+        head = heads[kind];
+        score.InsertBars(1, i + 1, sections[i].columns * head.tick);
     }
     if (score.NthStaff(1).BarCount != (barsBefore + sections.Length)) {
         return BuildFailure('Sibelius did not insert the chart bars.');
@@ -1594,12 +1891,11 @@
 
     // 4. Columns.
     for i = 0 to sections.Length {
-        color = SectionColor(sections[i].kind, options);
-        tick = ColumnTick(sections[i].kind, styles);
-        WriteColumns(trebleStaves[i], i + 1, sections[i].treble,
-            sections[i].kind, color, styles, tick);
-        WriteColumns(bassStaves[i], i + 1, sections[i].bass,
-            sections[i].kind, color, styles, tick);
+        kind = sections[i].kind;
+        color = SectionColor(kind, options);
+        head = heads[kind];
+        WriteColumns(trebleStaves[i], i + 1, sections[i].treble, head, color);
+        WriteColumns(bassStaves[i], i + 1, sections[i].bass, head, color);
     }
 
     // 4b. The parts' copies, on each owner's own staves in the same bars. Here
@@ -1609,7 +1905,7 @@
         ChartBarsInC(score, openingSharps, openingMajor, sections.Length);
     }
     tokens = PrepareCopyStaves(score, roles, sections.Length);
-    WriteCopies(score, sections, options, styles);
+    WriteCopies(score, sections, options, heads);
     starts = HideOutsideCopies(score, roles, sections, sections.Length);
     if (tokens.Length > 0) {
         record = trebleStaves[0].NthBar(1).AddText(0, RestoreMarkerEncode(tokens), LabelTextStyle());
@@ -1761,13 +2057,14 @@
     }
     return tokens;
 }"
-	WriteCopies "(score, sections, options, styles) {
+	WriteCopies "(score, sections, options, heads) {
     for i = 0 to sections.Length {
         section = sections[i];
         copies = section._property:copies;
         if (copies != null) {
-            color = SectionColor(section.kind, options);
-            tick = ColumnTick(section.kind, styles);
+            kind = section.kind;
+            color = SectionColor(kind, options);
+            head = heads[kind];
             text = section.label;
             if (section._property:splitLabel = 1) {
                 text = section.plainLabel;
@@ -1775,11 +2072,11 @@
             for j = 0 to copies.Length {
                 staves = copies[j];
                 top = score.NthStaff(staves[0]);
-                WriteColumns(top, i + 1, section.treble, section.kind, color, styles, tick);
+                WriteColumns(top, i + 1, section.treble, head, color);
                 MarkPartsOnly(top.NthBar(i + 1));
                 if (staves.Length > 1) {
                     lower = score.NthStaff(staves[1]);
-                    WriteColumns(lower, i + 1, section.bass, section.kind, color, styles, tick);
+                    WriteColumns(lower, i + 1, section.bass, head, color);
                     MarkPartsOnly(lower.NthBar(i + 1));
                 }
                 label = top.NthBar(i + 1).AddText(0, text, LabelTextStyle());
@@ -1870,16 +2167,16 @@
     return CreateDictionary('ok', False, 'warnings', CreateSparseArray(), 'error', message
         & ' Delete the chart staves and their bars in Sibelius, then run this again.');
 }"
-	WriteColumns "(staff, barNumber, columns, kind, color, styles, tick) {
+	WriteColumns "(staff, barNumber, columns, head, color) {
     bar = staff.NthBar(barNumber);
     for c = 0 to columns.Length {
         notes = columns[c];
-        position = c * tick;
+        position = c * head.tick;
         chord = null;
 
         for n = 0 to notes.Length {
             raw = FromBellSpace(notes[n].pitch, notes[n].diatonic, staff);
-            note = bar.AddNote(position, raw.pitch, tick, False, 1, raw.diatonic);
+            note = bar.AddNote(position, raw.pitch, head.tick, False, 1, raw.diatonic);
             if (IsObject(note)) {
                 chord = note.ParentNoteRest;
             }
@@ -1887,19 +2184,14 @@
 
         if (IsObject(chord)) {
             for each n in chord {
-                DressNote(n, kind, styles);
+                DressNote(n, head);
             }
             ColorChord(chord, color);
         }
     }
 }"
-	DressNote "(note, kind, styles) {
-    custom = CustomStyle(kind, styles);
-    if (custom >= 0) {
-        note.NoteStyle = custom;
-    } else {
-        note.NoteStyle = FallbackStyle(kind);
-    }
+	DressNote "(note, head) {
+    note.NoteStyle = head.style;
     // A chart is an inventory of the bells a piece needs, so no natural sign
     // belongs on one. Sibelius prints one whenever a plain letter follows an
     // altered spelling of the same letter earlier in the bar, and a ringer
@@ -1920,56 +2212,45 @@
     }
     return index;
 }"
-	MissingHeadWarnings "(sections, styles) {
-    warnings = CreateSparseArray();
+	ChartHeads "(score, sections, options) {
+    kinds = CreateSparseArray();
+    shapes = CreateDictionary();
+    wanted = CreateSparseArray();
     for i = 0 to sections.Length {
         kind = sections[i].kind;
-        name = CustomStyleName(kind);
-        if (name != '') {
-            if (CustomStyle(kind, styles) < 0) {
-                warnings.Push(CreateDictionary('type', 'missing-notehead', 'count', 0,
-                    'names', CreateSparseArray(name),
-                    'instrument', InstrumentName(kind)));
+        if (HeadListed(kinds, kind) = 0) {
+            kinds.Push(kind);
+            music = HeadChosen(kind, options);
+            shape = ChartShape(ShapeChosen(kind, options), NamedNoteStyle(score, music), music, kind);
+            shapes[kind] = shape;
+            name = ShapeHeadName(shape);
+            if (name != '') {
+                if (NamedNoteStyle(score, name) < 0) {
+                    if (HeadListed(wanted, name) = 0) {
+                        wanted.Push(name);
+                    }
+                }
             }
         }
     }
-    return warnings;
-}"
-	CustomStyleName "(kind) {
-    if (kind = 'chimes') {
-        return StemlessDiamondName();
+    if (wanted.Length > 0) {
+        ImportHeads(score, wanted);
     }
-    if (kind = 'smbs') {
-        return SquareStemlessName();
+
+    heads = CreateDictionary();
+    warnings = CreateSparseArray();
+    for i = 0 to kinds.Length {
+        kind = kinds[i];
+        shape = shapes[kind];
+        name = ShapeHeadName(shape);
+        head = ChartHead(shape, NamedNoteStyle(score, name));
+        heads[kind] = head;
+        if (head.tick = 1024) {
+            warnings.Push(CreateDictionary('type', 'missing-notehead', 'count', 0,
+                'names', CreateSparseArray(name), 'instrument', InstrumentName(kind)));
+        }
     }
-    return '';
-}"
-	CustomStyle "(kind, styles) {
-    if (kind = 'chimes') {
-        return styles.chimes;
-    }
-    if (kind = 'smbs') {
-        return styles.smbs;
-    }
-    return -1;
-}"
-	FallbackStyle "(kind) {
-    if (kind = 'chimes') {
-        return DiamondNoteStyle;
-    }
-    if (kind = 'smbs') {
-        return ShapedNote6NoteStyle;
-    }
-    return StemlessNoteStyle;
-}"
-	ColumnTick "(kind, styles) {
-    if (CustomStyleName(kind) = '') {
-        return 256;
-    }
-    if (CustomStyle(kind, styles) < 0) {
-        return 1024;
-    }
-    return 256;
+    return CreateDictionary('heads', heads, 'warnings', warnings);
 }"
 	ColorChord "(chord, color) {
     if (color = '') {
@@ -2593,11 +2874,11 @@
         if (bar = null) {
             return FindFailure(unidentifiable);
         }
-        // Either tick is legitimate: a chimes section falls back to whole notes
-        // when the score has no stemless diamond, so the same column count can
-        // have been sized at 256 or at 1024. Accepting both is what keeps a
-        // chart identifiable on a machine whose notehead set differs from the
-        // one that built it.
+        // Either tick is legitimate: a section in any shape but round falls
+        // back to whole notes when its stemless head could not be had, so the
+        // same column count can have been sized at 256 or at 1024. Accepting
+        // both is what keeps a chart identifiable on a machine whose notehead
+        // set differs from the one that built it.
         columnTicks = recorded.columns[i];
         if (bar.Length != (columnTicks * 256)) {
             if (bar.Length != (columnTicks * 1024)) {
@@ -2920,8 +3201,8 @@ _SettingsDialog "Dialog"
 		Title "Create a Handbells/Handchimes/SMBs Used Chart"
 		X "333"
 		Y "271"
-		Width "398"
-		Height "264"
+		Width "496"
+		Height "280"
 		Controls
 		{
 			Text
@@ -3017,9 +3298,35 @@ _SettingsDialog "Dialog"
 			}
 			Text
 			{
-				Title "Handbell Notehead Type"
+				Title "Notehead in Music"
+				X "298"
+				Y "12"
+				Width "92"
+				Height "14"
+				RightAlign "0"
+				ID "IDC_HEAD_HEADER"
+				Value
+				Method
+				SetFocus "0"
+			}
+			Text
+			{
+				Title "Chart Shape"
+				X "396"
+				Y "12"
+				Width "92"
+				Height "14"
+				RightAlign "0"
+				ID "IDC_SHAPE_HEADER"
+				Value
+				Method
+				SetFocus "0"
+			}
+			Text
+			{
+				Title "Handbells"
 				X "212"
-				Y "16"
+				Y "32"
 				Width "84"
 				Height "14"
 				RightAlign "0"
@@ -3032,7 +3339,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "298"
-				Y "12"
+				Y "28"
 				Width "92"
 				Height "21"
 				ListVar "_BellHeadItems"
@@ -3042,11 +3349,25 @@ _SettingsDialog "Dialog"
 				Method
 				SetFocus "0"
 			}
+			ComboBox
+			{
+				Title
+				X "396"
+				Y "28"
+				Width "92"
+				Height "21"
+				ListVar "_BellShapeItems"
+				AllowMultipleSelections "0"
+				ID "dlg_bellShape"
+				Value "dlg_bellShape"
+				Method
+				SetFocus "0"
+			}
 			Text
 			{
-				Title "Handchime Notehead Type"
+				Title "Handchimes"
 				X "212"
-				Y "38"
+				Y "54"
 				Width "84"
 				Height "14"
 				RightAlign "0"
@@ -3059,7 +3380,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "298"
-				Y "34"
+				Y "50"
 				Width "92"
 				Height "21"
 				ListVar "_ChimeHeadItems"
@@ -3069,11 +3390,25 @@ _SettingsDialog "Dialog"
 				Method
 				SetFocus "0"
 			}
+			ComboBox
+			{
+				Title
+				X "396"
+				Y "50"
+				Width "92"
+				Height "21"
+				ListVar "_ChimeShapeItems"
+				AllowMultipleSelections "0"
+				ID "dlg_chimeShape"
+				Value "dlg_chimeShape"
+				Method
+				SetFocus "0"
+			}
 			Text
 			{
-				Title "SMBs Notehead Type"
+				Title "SMBs"
 				X "212"
-				Y "60"
+				Y "76"
 				Width "84"
 				Height "14"
 				RightAlign "0"
@@ -3086,7 +3421,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "298"
-				Y "56"
+				Y "72"
 				Width "92"
 				Height "21"
 				ListVar "_SmbHeadItems"
@@ -3096,11 +3431,25 @@ _SettingsDialog "Dialog"
 				Method
 				SetFocus "0"
 			}
+			ComboBox
+			{
+				Title
+				X "396"
+				Y "72"
+				Width "92"
+				Height "21"
+				ListVar "_SmbShapeItems"
+				AllowMultipleSelections "0"
+				ID "dlg_smbShape"
+				Value "dlg_smbShape"
+				Method
+				SetFocus "0"
+			}
 			Text
 			{
-				Title "P&F Notehead Type"
+				Title "P&F Handbells"
 				X "212"
-				Y "82"
+				Y "98"
 				Width "84"
 				Height "14"
 				RightAlign "0"
@@ -3113,7 +3462,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "298"
-				Y "78"
+				Y "94"
 				Width "92"
 				Height "21"
 				ListVar "_PfHeadItems"
@@ -3123,11 +3472,25 @@ _SettingsDialog "Dialog"
 				Method
 				SetFocus "0"
 			}
+			ComboBox
+			{
+				Title
+				X "396"
+				Y "94"
+				Width "92"
+				Height "21"
+				ListVar "_PfShapeItems"
+				AllowMultipleSelections "0"
+				ID "dlg_pfShape"
+				Value "dlg_pfShape"
+				Method
+				SetFocus "0"
+			}
 			Text
 			{
-				Title "Whitechapel Notehead Type"
+				Title "Whitechapel Handbells"
 				X "212"
-				Y "104"
+				Y "120"
 				Width "84"
 				Height "14"
 				RightAlign "0"
@@ -3140,7 +3503,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "298"
-				Y "100"
+				Y "116"
 				Width "92"
 				Height "21"
 				ListVar "_WhitechapelHeadItems"
@@ -3150,11 +3513,25 @@ _SettingsDialog "Dialog"
 				Method
 				SetFocus "0"
 			}
+			ComboBox
+			{
+				Title
+				X "396"
+				Y "116"
+				Width "92"
+				Height "21"
+				ListVar "_WhitechapelShapeItems"
+				AllowMultipleSelections "0"
+				ID "dlg_whitechapelShape"
+				Value "dlg_whitechapelShape"
+				Method
+				SetFocus "0"
+			}
 			Text
 			{
 				Title "Handchime Color"
 				X "212"
-				Y "130"
+				Y "146"
 				Width "84"
 				Height "14"
 				RightAlign "0"
@@ -3167,7 +3544,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "298"
-				Y "126"
+				Y "142"
 				Width "92"
 				Height "14"
 				ID "dlg_chimeColor"
@@ -3179,7 +3556,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "SMBs Color"
 				X "212"
-				Y "150"
+				Y "166"
 				Width "84"
 				Height "14"
 				RightAlign "0"
@@ -3192,7 +3569,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "298"
-				Y "146"
+				Y "162"
 				Width "92"
 				Height "14"
 				ID "dlg_smbColor"
@@ -3204,7 +3581,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "P&F Color"
 				X "212"
-				Y "170"
+				Y "186"
 				Width "84"
 				Height "14"
 				RightAlign "0"
@@ -3217,7 +3594,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "298"
-				Y "166"
+				Y "182"
 				Width "92"
 				Height "14"
 				ID "dlg_pfColor"
@@ -3229,7 +3606,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "Whitechapel Color"
 				X "212"
-				Y "190"
+				Y "206"
 				Width "84"
 				Height "14"
 				RightAlign "0"
@@ -3242,7 +3619,7 @@ _SettingsDialog "Dialog"
 			{
 				Title
 				X "298"
-				Y "186"
+				Y "202"
 				Width "92"
 				Height "14"
 				ID "dlg_whitechapelColor"
@@ -3254,7 +3631,7 @@ _SettingsDialog "Dialog"
 			{
 				Title "Remove Existing Chart"
 				X "298"
-				Y "208"
+				Y "224"
 				Width "92"
 				Height "14"
 				ID "dlg_remove"
@@ -3265,8 +3642,8 @@ _SettingsDialog "Dialog"
 			Button
 			{
 				Title "Cancel"
-				X "284"
-				Y "230"
+				X "382"
+				Y "246"
 				Width "50"
 				Height "14"
 				DefaultButton "0"
@@ -3279,8 +3656,8 @@ _SettingsDialog "Dialog"
 			Button
 			{
 				Title "OK"
-				X "340"
-				Y "230"
+				X "438"
+				Y "246"
 				Width "50"
 				Height "14"
 				DefaultButton "0"
@@ -3302,9 +3679,16 @@ _SettingsDialog "Dialog"
 	NAMES_MARKER_PREFIX "HBUCNAMES"
 	RESTORE_MARKER_PREFIX "HBUCRESTORE"
 	STARTS_MARKER_PREFIX "HBUCSTARTS"
-	STEMLESS_DIAMOND "Diamond (stemless)"
-	SQUARE_STEMLESS "Square (stemless)"
 	NO_NOTEHEAD "(no notehead)"
+	SHAPE_MATCH "(match notehead)"
+	SHAPE_ROUND "Round"
+	SHAPE_DIAMOND "Diamond"
+	SHAPE_SQUARE "Square"
+	SHAPE_TRIANGLE "Triangle"
+	SHAPE_INVERTED "Inverted triangle"
+	SHAPE_CROSS "Cross"
+	STEMLESS_SUFFIX " (stemless)"
+	NOTEHEAD_FILE "Handbells Used Chart Noteheads"
 	dlg_chimeColor ""
 	dlg_smbColor ""
 	dlg_pfColor ""
@@ -3314,6 +3698,11 @@ _SettingsDialog "Dialog"
 	dlg_smbHead ""
 	dlg_pfHead ""
 	dlg_whitechapelHead ""
+	dlg_bellShape ""
+	dlg_chimeShape ""
+	dlg_smbShape ""
+	dlg_pfShape ""
+	dlg_whitechapelShape ""
 	_BellHeadItems
 	{
 	}
@@ -3327,6 +3716,21 @@ _SettingsDialog "Dialog"
 	{
 	}
 	_WhitechapelHeadItems
+	{
+	}
+	_BellShapeItems
+	{
+	}
+	_ChimeShapeItems
+	{
+	}
+	_SmbShapeItems
+	{
+	}
+	_PfShapeItems
+	{
+	}
+	_WhitechapelShapeItems
 	{
 	}
 	CHART_MODE_COMBINED "One combined chart"

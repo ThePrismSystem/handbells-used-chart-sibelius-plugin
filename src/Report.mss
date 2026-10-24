@@ -30,11 +30,13 @@ WarningLines(warnings) {
         }
         // The only warning raised while drawing rather than while planning:
         // whether the score carries the notehead a section wants is not
-        // knowable until the chart asks the score for it. Either of the two
-        // instruments that use a hand-made head can raise it, so it says which.
+        // knowable until the chart asks the score for it. Any instrument
+        // charted in a shape other than round can raise it, so it says which,
+        // and names the file the head should have come from.
         if (warning.type = 'missing-notehead') {
-            line = (warning.instrument & ' were drawn as hollow whole notes because ')
-                & ('this score has no ' & JoinNames(warning.names)) & ' notehead';
+            line = (warning.instrument & ' were drawn as hollow whole notes: ')
+                & ('this score has no ' & JoinNames(warning.names) & ' notehead, ')
+                & ('and it could not be copied from ' & NoteheadFileName() & '.sib');
         }
         // The parts warnings. A part has no name ManuScript can read, so it is
         // named by the instruments it holds.

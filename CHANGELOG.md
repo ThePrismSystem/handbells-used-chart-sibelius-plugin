@@ -55,8 +55,23 @@ handbells get charts of their own.
   `P&F Handbells Used: 6` and `Whitechapel Handbells Used: 4`. Each has a
   notehead box and a colour field in the dialog. As with SMBs, the notehead
   boxes open on `(no notehead)` until one is picked, and the last choice is
-  remembered. The charts use the plain stemless handbell head, in the
-  instrument's own colour when one is set.
+  remembered. The charts are drawn in the instrument's own colour when one
+  is set.
+- A "Chart Shape" box beside each notehead box draws that instrument's
+  chart in one of six stemless shapes: round, diamond, square, triangle,
+  inverted triangle or cross. It opens on `(match notehead)`, which follows
+  the notehead the music uses. Sibelius' own noteheads are recognised by
+  number and noteheads made by hand by their names. A notehead the plugin
+  can't read is charted as before: diamonds for handchimes, squares for
+  SMBs and round for the rest.
+- The stemless noteheads come from a notehead file installed beside the
+  plugin, `Handbells Used Chart Noteheads.sib`, and are copied into a score
+  that lacks them. Handchimes and SMBs no longer need noteheads made by
+  hand, and their charts are filled instead of hollow. A `Diamond
+  (stemless)` or `Square (stemless)` made by hand still works, because a
+  score uses its own notehead by that name. Without the file, those charts
+  fall back to hollow whole notes as before, and the message at the end of
+  the run names the file.
 
 ### Fixed
 
@@ -92,8 +107,10 @@ handbells get charts of their own.
   returns to that part afterwards.
 - The defaults are every instrument, one combined chart and no parts, so a
   first run charts the same sections, under the same labels, as 1.2.0.
-- The dialog is wider and set out in two columns. The notehead boxes, the
-  colour fields and "Remove Existing Chart" are on the right.
+- The dialog is wider. The instrument and chart choices are on the left. On
+  the right, each instrument has a row with its notehead and chart shape
+  boxes, under the headings "Notehead in Music" and "Chart Shape", followed
+  by the colour fields and "Remove Existing Chart".
 
 ## [1.2.0] - 2026-08-23
 

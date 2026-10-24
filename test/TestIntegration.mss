@@ -773,6 +773,8 @@ IntegrationOptions(choices, instruments, mode, parts, remove) {
     return CreateDictionary('chimeColor', '', 'smbColor', '', 'pfColor', '', 'whitechapelColor', '',
         'bellHead', choices.defaultBell, 'chimeHead', choices.defaultChime,
         'smbHead', NoNoteHead(), 'pfHead', NoNoteHead(), 'whitechapelHead', NoNoteHead(),
+        'bellShape', ShapeMatch(), 'chimeShape', ShapeMatch(), 'smbShape', ShapeMatch(),
+        'pfShape', ShapeMatch(), 'whitechapelShape', ShapeMatch(),
         'instruments', instruments, 'mode', mode,
         'parts', parts, 'pageBreak', False, 'remove', remove);
 }
