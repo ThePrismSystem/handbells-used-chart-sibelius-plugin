@@ -405,10 +405,10 @@ needs `Handbells Used Chart Noteheads.sib` installed beside the plugin.
 - ManuScript has no exception handling. If a run hits a hard error partway
   through, the score's redraw can stay disabled until Sibelius is
   restarted.
-- The plugin calls `utils.IsNumeric`, `utils.LowerCase`, `utils.DeleteStaff`
-  and `utils.GetSibeliusPluginsFolder` from `utils.plg`, which Sibelius
-  installs and intends other plugins to call. A Sibelius installation
-  missing that plugin will fail on those calls.
+- The plugin calls `utils.IsNumeric`, `utils.LowerCase` and
+  `utils.DeleteStaff` from `utils.plg`, which Sibelius installs and intends
+  other plugins to call. A Sibelius installation missing that plugin will
+  fail on those calls.
 - Bells above C7 are drawn in Sibelius's out-of-range colour on screen, since
   `InstrumentType` exposes no minimum or maximum pitch to a plugin; print is
   unaffected.

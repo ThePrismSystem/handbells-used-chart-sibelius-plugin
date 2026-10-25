@@ -6,18 +6,41 @@ NoteheadFileName() {
     return '' & NOTEHEAD_FILE;
 }
 
+PluginFileName() {
+    return '' & PLUGIN_FILE;
+}
+
 // The file's full path, or '' when it is not installed. It sits beside the
-// plug-in, in a folder named for whichever category the user chose, so the
-// whole Plugins folder is searched: a Folder lists the scores in its
-// subfolders too.
+// plug-in, so it is looked for in the folder the plug-in was loaded from,
+// whatever category the user named that folder for.
 NoteheadFilePath() {
-    folder = Sibelius.GetFolder(utils.GetSibeliusPluginsFolder());
+    path = PluginFolderPath();
+    if (path = '') {
+        return '';
+    }
+    folder = Sibelius.GetFolder(path);
     if (not(IsObject(folder))) {
         return '';
     }
     for each SIB candidate in folder {
         if (('' & candidate.NameNoPath) = NoteheadFileName()) {
             return '' & candidate.NameWithExt;
+        }
+    }
+    return '';
+}
+
+// The folder HandbellsUsedChart.plg was loaded from, or '' when Sibelius lists
+// no plug-in loaded from that file. The test plug-in is installed beside it.
+// Not utils.GetSibeliusPluginsFolder: a search from it did not find the file
+// installed in the user's own plug-in folder.
+PluginFolderPath() {
+    for each p in Sibelius.Plugins {
+        file = p.File;
+        if (IsObject(file)) {
+            if (('' & file.NameNoPath) = PluginFileName()) {
+                return '' & file.Path;
+            }
         }
     }
     return '';

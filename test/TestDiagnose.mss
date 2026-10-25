@@ -39,7 +39,7 @@ Diagnose() {
         b = b + 1;
     }
     // Where the notehead file is looked for, and whether it was found.
-    trace('[plugins folder] ' & utils.GetSibeliusPluginsFolder());
+    trace('[plug-in folder] ' & PluginFolderPath());
     trace('[notehead file] ' & NoteheadFilePath());
     shapes = ChartShapeItems();
     for i = 1 to shapes.Length {

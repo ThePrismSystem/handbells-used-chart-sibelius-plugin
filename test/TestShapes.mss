@@ -122,6 +122,7 @@ TestShapes() {
 // this checks only that the file is found and the score keeps its bars.
 TestImportHeads() {
     score = Sibelius.ActiveScore;
+    AssertTrue(PluginFolderPath() != '', 'the plug-in finds the folder it was loaded from');
     AssertTrue(NoteheadFilePath() != '', 'the notehead file is installed beside the plug-in');
 
     bars = score.NthStaff(1).BarCount;

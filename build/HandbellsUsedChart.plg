@@ -1547,14 +1547,32 @@
 	NoteheadFileName "() {
     return '' & NOTEHEAD_FILE;
 }"
+	PluginFileName "() {
+    return '' & PLUGIN_FILE;
+}"
 	NoteheadFilePath "() {
-    folder = Sibelius.GetFolder(utils.GetSibeliusPluginsFolder());
+    path = PluginFolderPath();
+    if (path = '') {
+        return '';
+    }
+    folder = Sibelius.GetFolder(path);
     if (not(IsObject(folder))) {
         return '';
     }
     for each SIB candidate in folder {
         if (('' & candidate.NameNoPath) = NoteheadFileName()) {
             return '' & candidate.NameWithExt;
+        }
+    }
+    return '';
+}"
+	PluginFolderPath "() {
+    for each p in Sibelius.Plugins {
+        file = p.File;
+        if (IsObject(file)) {
+            if (('' & file.NameNoPath) = PluginFileName()) {
+                return '' & file.Path;
+            }
         }
     }
     return '';
@@ -3702,6 +3720,7 @@ _SettingsDialog "Dialog"
 	SHAPE_CONE "Cone"
 	STEMLESS_SUFFIX " (stemless)"
 	NOTEHEAD_FILE "Handbells Used Chart Noteheads"
+	PLUGIN_FILE "HandbellsUsedChart"
 	dlg_chimeColor ""
 	dlg_smbColor ""
 	dlg_pfColor ""
