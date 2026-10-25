@@ -57,15 +57,17 @@ TestReport() {
             'names', CreateSparseArray('Square (stemless)'), 'instrument', 'SMBs')
     );
     AssertEquals(WarningLines(missing),
-        'SMBs were drawn as hollow whole notes because this score has no Square (stemless) notehead',
-        'missing notehead line names the notehead to make');
+        ('SMBs were drawn as hollow whole notes: this score has no Square (stemless) notehead, '
+            & 'and it could not be copied from ') & (NoteheadFileName() & '.sib'),
+        'missing notehead line names the notehead and the file it comes from');
 
     chimesMissing = CreateSparseArray(
         CreateDictionary('type', 'missing-notehead', 'count', 0,
             'names', CreateSparseArray('Diamond (stemless)'), 'instrument', 'Handchimes')
     );
     AssertEquals(WarningLines(chimesMissing),
-        'Handchimes were drawn as hollow whole notes because this score has no Diamond (stemless) notehead',
+        ('Handchimes were drawn as hollow whole notes: this score has no Diamond (stemless) notehead, '
+            & 'and it could not be copied from ') & (NoteheadFileName() & '.sib'),
         'handchimes raise the same warning as SMBs');
 
     // A part is named by its instruments, and these are the instruments whose

@@ -37,6 +37,19 @@ test('every dlg_ variable has a control and every control a variable', () => {
     }
 });
 
+// Each box lists its own copy of the shapes, for the reason each notehead box
+// has its own list: nothing documents handing one list node to several boxes.
+test('every notehead box has a chart shape box beside it, with a list of its own', () => {
+    const msd = readFileSync(join(ROOT, 'src/Settings.msd'), 'utf8');
+    const lists = new Set();
+    for (const kind of ['bell', 'chime', 'smb', 'pf', 'whitechapel']) {
+        const control = msd.match(new RegExp(`ListVar "([^"]+)"[^}]*ID "dlg_${kind}Shape"`));
+        assert.ok(control, `no dlg_${kind}Shape box`);
+        lists.add(control[1]);
+    }
+    assert.equal(lists.size, 5, 'two shape boxes share a list');
+});
+
 test('the dialog has a notehead box and a colour field for P&F and Whitechapel bells', () => {
     const msd = readFileSync(join(ROOT, 'src/Settings.msd'), 'utf8');
     for (const id of ['dlg_pfHead', 'dlg_whitechapelHead', 'dlg_pfColor', 'dlg_whitechapelColor']) {

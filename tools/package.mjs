@@ -10,6 +10,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 // deliberately absent: it builds a real chart on the open score and removes it
 // again, which is a development tool, not something to hand to a musician.
 const PLUGIN = 'HandbellsUsedChart.plg';
+// Made by hand in Sibelius and kept in build/ beside the plug-in, which copies
+// its stemless noteheads into a score that lacks them.
+const NOTEHEADS = 'Handbells Used Chart Noteheads.sib';
 const DOCS = ['README.md', 'LICENSE.md', 'CHANGELOG.md'];
 
 function main() {
@@ -26,6 +29,7 @@ function main() {
     mkdirSync(stage, { recursive: true });
 
     copyFileSync(built, join(stage, PLUGIN));
+    copyFileSync(join(ROOT, 'build', NOTEHEADS), join(stage, NOTEHEADS));
     for (const doc of DOCS) {
         copyFileSync(join(ROOT, doc), join(stage, doc));
     }
@@ -38,6 +42,7 @@ function main() {
 
     console.log(`packaged dist/${archive}`);
     console.log(`  ${PLUGIN}`);
+    console.log(`  ${NOTEHEADS}`);
     for (const doc of DOCS) console.log(`  ${doc}`);
 }
 
