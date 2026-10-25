@@ -178,8 +178,8 @@ for this reason.
 The copy prints with no key signature and in treble and bass clefs, as the
 chart does. In a score whose key has sharps or flats, the chart bars are set
 in C major and the music starts with its own key as an ordinary key change,
-in the full score and in every part. Removing the chart leaves that key
-change as the music's opening key. Where an instrument's own clef differs
+in the full score and in every part. Removing the chart puts the music's
+key back at its start. Where an instrument's own clef differs
 from the copy's, the plugin changes it for the chart bars and puts it back
 where the music starts, and removing the chart takes those clef changes off
 again.

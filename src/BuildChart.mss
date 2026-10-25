@@ -209,9 +209,9 @@ CopyStaffRoles(sections) {
 // A copy prints with no key, so every accidental shows as it does on the
 // chart. A key with sharps or flats becomes C major in the chart bars and
 // comes back where the music starts as an ordinary key change, on every
-// staff. A removal deletes the chart bars, C major with them, and leaves that
-// change as the music's opening key, so nothing in the music is hidden and
-// nothing has to be put back. Any other key already prints no accidentals.
+// staff. Sibelius keeps that change at the end of the last chart bar, so a
+// removal deletes it with C major and the chart bars, and RestoreKey puts the
+// music's key back at its start. Any other key already prints no accidentals.
 // The key is the one read before the chart bars went in, as nothing added
 // since can have changed it.
 ChartBarsInC(score, sharps, major, chartBars) {
@@ -359,9 +359,10 @@ HideOutsideCopies(score, roles, sections, chartBars) {
     return starts;
 }
 
-// A change back takes the names the staff had before any change. A change
-// that made no object, which AddInstrumentChange reports with null, has
-// nothing to take them.
+// A change back takes the names the staff had before any change, and so does
+// a staff given its starting instrument back on a removal: both carry the
+// same four names. A change that made no object, which AddInstrumentChange
+// reports with null, has nothing to take them.
 KeepStaffNames(change, names) {
     if (not(IsObject(change))) {
         return False;
