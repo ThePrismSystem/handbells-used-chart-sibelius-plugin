@@ -41,6 +41,10 @@ in a stemless shape you pick.
   since Sibelius keeps a staff showing in every system. A part holding no
   selected instrument gets no chart, and the message at the end of the run
   says so when the box is ticked but no part holds a selected instrument.
+  In a score whose key has sharps or flats, the chart bars are set in C
+  major, so the copies print with no key signature, and the music starts
+  in its own key. Removing the chart puts the music's key back at its
+  start, and gives every staff its own instrument and name back.
 - In a part given two or more chart sections, the music starts on a new
   page, laid out as it was, because charts added in front of a full first
   page push music off it. An instrument's bells and chimes are two
