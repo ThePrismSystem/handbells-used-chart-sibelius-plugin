@@ -117,7 +117,7 @@ and a chart shape box, and the colours and removal come after them.
 | Page break after one chart | Starts a part's music on a new page when the part has a single chart section; with two or more (bells and chimes count as two) it always does |
 | Notehead in music | One box per instrument: which notehead in the score counts as a handbell, handchime, SMB, P&F handbell or Whitechapel handbell |
 | Chart shape | One box per instrument: the shape its chart is drawn in, or `(match notehead)` to follow the notehead in the music |
-| Handchime colour | Notehead colour for chimes, as a hex value; blank leaves them black |
+| Handchime colour | Notehead colour for chimes, as a hex value, filled in from the music when you pick their notehead; blank leaves them black |
 | SMBs colour | Notehead colour for SMBs, on the same terms |
 | P&F colour | Notehead colour for P&F handbells, on the same terms |
 | Whitechapel colour | Notehead colour for Whitechapel handbells, on the same terms |
@@ -225,6 +225,15 @@ The four colour fields take a **six-digit hex RGB value**, with or without the
 leading `#`, and surrounding spaces are ignored. All of `c00000`, `#c00000`
 and ` #C00000 ` set the same red. Leave a field blank to keep that section
 black, which is what handbells always are.
+
+The fields fill themselves in from the music. When you pick a notehead for
+handchimes, SMBs, P&F or Whitechapel handbells, that instrument's colour
+field takes the colour most of the notes in that notehead carry, so a few
+notes left black among red ones still give red. A notehead whose notes are
+mostly black leaves the field blank. You can type over the field afterwards,
+and picking another notehead fills it in again. When the dialog opens, a
+field that was blank on your last run takes the colour of the notehead its
+box opens on, and any other field keeps the colour from your last run.
 
 Anything that is not six digits after the `#` counts as no colour at all, so
 that section stays black rather than the run failing. Within a six-digit

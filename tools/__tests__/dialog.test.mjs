@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseMethods } from '../build.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -54,5 +55,21 @@ test('the dialog has a notehead box and a colour field for P&F and Whitechapel b
     const msd = readFileSync(join(ROOT, 'src/Settings.msd'), 'utf8');
     for (const id of ['dlg_pfHead', 'dlg_whitechapelHead', 'dlg_pfColor', 'dlg_whitechapelColor']) {
         assert.match(msd, new RegExp(`ID "${id}"`), `no ${id} control`);
+    }
+});
+
+// Picking a notehead fills that instrument's colour field from the music, so
+// each coloured instrument's notehead box calls a method of its own. A Method
+// naming nothing the plug-in defines fails only when the box is clicked.
+test('each coloured notehead box calls a method the plug-in defines', () => {
+    const msd = readFileSync(join(ROOT, 'src/Settings.msd'), 'utf8');
+    const manifest = JSON.parse(readFileSync(join(ROOT, 'tools/plugins.json'), 'utf8'));
+    const plugin = manifest.plugins.find((p) => p.output === 'HandbellsUsedChart.plg');
+    const defined = new Set(plugin.sources.flatMap(
+        (path) => parseMethods(readFileSync(join(ROOT, path), 'utf8')).map((m) => m.name)));
+    for (const kind of ['chime', 'smb', 'pf', 'whitechapel']) {
+        const control = msd.match(new RegExp(`ID "dlg_${kind}Head"[^}]*Method "([^"]+)"`));
+        assert.ok(control, `dlg_${kind}Head calls no method`);
+        assert.ok(defined.has(control[1]), `${control[1]} is not defined`);
     }
 });

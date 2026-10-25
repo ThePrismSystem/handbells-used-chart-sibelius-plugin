@@ -32,3 +32,32 @@ TestNoteHeads() {
     AssertEquals(HeadChoiceItems(CreateSparseArray()).Length, 1,
         'a score with no notes still offers the no-notehead entry');
 }
+
+// The colour a coloured instrument's field takes from the music: the one most
+// of its notehead's notes carry, with black counted as no colour, so a few
+// notes left black among red ones still give red.
+TestHeadColors() {
+    AssertEquals(NoteColor(0, 0, 0), '', 'a black note has no colour');
+    AssertEquals(NoteColor(192, 0, 0), '#c00000', 'a colour is written as hex');
+    AssertEquals(NoteColor(1, 171, 255), '#01abff', 'each channel takes two digits');
+
+    tally = CreateDictionary();
+    AssertEquals(MostUsedColor(tally, 'Diamond'), '', 'a head no note carries has no colour');
+    TallyHeadColor(tally, 'Diamond', '#c00000');
+    TallyHeadColor(tally, 'Diamond', '');
+    TallyHeadColor(tally, 'Diamond', '#c00000');
+    TallyHeadColor(tally, 'Cross', '');
+    TallyHeadColor(tally, 'Cross', '');
+    TallyHeadColor(tally, 'Cross', '#00ff00');
+    TallyHeadColor(tally, 'Square', '#00ff00');
+    TallyHeadColor(tally, 'Square', '#0000ff');
+    AssertEquals(MostUsedColor(tally, 'Diamond'), '#c00000', 'the colour most of the notes carry');
+    AssertEquals(MostUsedColor(tally, 'Cross'), '', 'a head mostly black has no colour');
+    AssertEquals(MostUsedColor(tally, 'Square'), '#00ff00', 'a tie goes to the colour found first');
+    AssertEquals(MostUsedColor(tally, NoNoteHead()), '', 'the no-notehead entry has no colour');
+
+    AssertEquals(OpeningColor('#123456', tally, 'Diamond'), '#123456', 'a remembered colour is kept');
+    AssertEquals(OpeningColor('  ', tally, 'Diamond'), '#c00000',
+        'a blank field opens on the colour of its notehead');
+    AssertEquals(OpeningColor('', tally, 'Cross'), '', 'and stays blank for a head mostly black');
+}

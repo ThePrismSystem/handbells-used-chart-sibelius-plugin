@@ -69,11 +69,15 @@ in a stemless shape you pick.
   plugin, `Handbells Used Chart Noteheads.sib`, and are copied into a score
   that lacks them. The file comes in the release zip. Handchimes and SMBs
   no longer need noteheads made by hand, and their charts are filled
-  instead of hollow. A `Diamond
-  (stemless)` or `Square (stemless)` made by hand still works, because a
-  score uses its own notehead by that name. Without the file, those charts
-  fall back to hollow whole notes as before, and the message at the end of
-  the run names the file.
+  instead of hollow. A `Diamond (stemless)` or `Square (stemless)` made by
+  hand still works, because a score uses its own notehead by that name.
+  Without the file, those charts fall back to hollow whole notes as before,
+  and the message at the end of the run names the file.
+- The colour fields fill themselves in from the music. Picking a notehead
+  for handchimes, SMBs, P&F or Whitechapel handbells puts the colour most
+  of that notehead's notes carry into the instrument's colour field, which
+  you can still type over. A field left blank on the last run opens on the
+  colour of the notehead its box opens on.
 
 ### Fixed
 

@@ -189,7 +189,7 @@ _SettingsDialog "Dialog"
 				AllowMultipleSelections "0"
 				ID "dlg_chimeHead"
 				Value "dlg_chimeHead"
-				Method
+				Method "ChimeHeadChanged"
 				SetFocus "0"
 			}
 			ComboBox
@@ -230,7 +230,7 @@ _SettingsDialog "Dialog"
 				AllowMultipleSelections "0"
 				ID "dlg_smbHead"
 				Value "dlg_smbHead"
-				Method
+				Method "SmbHeadChanged"
 				SetFocus "0"
 			}
 			ComboBox
@@ -271,7 +271,7 @@ _SettingsDialog "Dialog"
 				AllowMultipleSelections "0"
 				ID "dlg_pfHead"
 				Value "dlg_pfHead"
-				Method
+				Method "PfHeadChanged"
 				SetFocus "0"
 			}
 			ComboBox
@@ -312,7 +312,7 @@ _SettingsDialog "Dialog"
 				AllowMultipleSelections "0"
 				ID "dlg_whitechapelHead"
 				Value "dlg_whitechapelHead"
-				Method
+				Method "WhitechapelHeadChanged"
 				SetFocus "0"
 			}
 			ComboBox
