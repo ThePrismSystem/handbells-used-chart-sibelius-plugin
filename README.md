@@ -2,7 +2,8 @@
 
 A Sibelius Ultimate plugin, written in ManuScript, that draws a "handbells
 used" chart into a score: a grand staff, placed between the title and the
-first system, listing every distinct handbell and handchime the piece needs.
+first system, listing every distinct handbell, handchime and silver melody
+bell the piece needs.
 
 It is a port of
 [handbells-used-chart-musescore-extension](https://github.com/ThePrismSystem/handbells-used-chart-musescore-extension)
@@ -215,7 +216,7 @@ removal.
 
 ### Colours
 
-The two colour fields take a **six-digit hex RGB value**, with or without the
+The four colour fields take a **six-digit hex RGB value**, with or without the
 leading `#`, and surrounding spaces are ignored. All of `c00000`, `#c00000`
 and ` #C00000 ` set the same red. Leave a field blank to keep that section
 black, which is what handbells always are.
@@ -269,8 +270,8 @@ name, so the plugin works the shape out from those:
   is a cross.
 - A notehead made by hand is read by its name. Sibelius names a copy after
   the head it came from, such as `Black & white diamond (2)`, so a name
-  containing diamond, square, triangle, inverted, cross, normal or round
-  gives the shape. Only English names are read.
+  containing diamond, square, triangle, inverted, cross, normal, round or
+  stemless gives the shape. Only English names are read.
 
 When neither works, as for the headless notehead or one renamed `Chime`,
 handchimes are charted as diamonds, SMBs as squares and every other
@@ -281,9 +282,10 @@ has. The other shapes need stemless noteheads that Sibelius doesn't ship
 and ManuScript can't create, so they come from a notehead file installed
 beside the plugin, `Handbells Used Chart Noteheads.sib`. When a score lacks
 one, the plugin opens the file, copies a note in that notehead into the
-score and closes the file. The notehead stays in the score afterwards. The
-copy goes through Sibelius' clipboard, so whatever you last copied is
-replaced.
+score and closes the file. If the file is already open in Sibelius, the
+plugin uses it and leaves it open. The notehead stays in the score
+afterwards. The copy goes through Sibelius' clipboard, so whatever you last
+copied is replaced.
 
 The file's noteheads are named `Diamond (stemless)`, `Square (stemless)`,
 `Triangle (stemless)`, `Inverted triangle (stemless)` and `Cross
@@ -335,11 +337,13 @@ from the same `src/` sources plus `test/*.mss`. It is run by hand inside
 Sibelius Ultimate 2026 on macOS, and reports pass/fail counts to the trace
 window. It covers bell naming and region boundaries, collection and
 enharmonic handling, column anchoring and stacking, plan assembly, the
-dialog's options, instrument and part planning, and score-level runs that
-build a chart into a real score and its parts and remove it again.
+dialog's options, chart shapes, copying a notehead in from the notehead
+file, instrument and part planning, and score-level runs that build a chart
+into a real score and its parts and remove it again.
 
 The score-level tests run on whatever score is open, and the parts tests
-need two instruments that each have a part of their own.
+need two instruments that each have a part of their own. The notehead test
+needs `Handbells Used Chart Noteheads.sib` installed beside the plugin.
 
 ## Known limitations
 
@@ -377,12 +381,12 @@ need two instruments that each have a part of their own.
   chart's label, or high bells on ledger lines, can reach the composer lines
   in the full score or in a part. If they do, select the title lines in
   Sibelius and move them up.
-- One notehead per kind of bell, and three kinds at most. A score
-  marking its handchimes with two different diamond styles has to be charted
-  twice, or normalised first; notes carrying the head that was not chosen
-  are counted toward the unrecognised-notehead warning.
+- One notehead per kind of bell. A score marking its handchimes with two
+  different diamond styles has to be normalised first. Notes carrying the
+  head that was not chosen are skipped and counted toward the
+  unrecognised-notehead warning.
 - Handbells take no colour of their own. They are the reference the other
-  two sections are read against, so they are always black.
+  charts are read against, so they are always black.
 - Bells outside C2-C9 are skipped and reported as a warning rather than
   charted.
 - The chart adds a system per section to the first page, which can push the
@@ -394,9 +398,10 @@ need two instruments that each have a part of their own.
 - ManuScript has no exception handling. If a run hits a hard error partway
   through, the score's redraw can stay disabled until Sibelius is
   restarted.
-- The plugin calls `utils.IsNumeric` and `utils.DeleteStaff` from `utils.plg`,
-  which Sibelius installs and intends other plugins to call. A Sibelius
-  installation missing that plugin will fail on those calls.
+- The plugin calls `utils.IsNumeric`, `utils.LowerCase`, `utils.DeleteStaff`
+  and `utils.GetSibeliusPluginsFolder` from `utils.plg`, which Sibelius
+  installs and intends other plugins to call. A Sibelius installation
+  missing that plugin will fail on those calls.
 - Bells above C7 are drawn in Sibelius's out-of-range colour on screen, since
   `InstrumentType` exposes no minimum or maximum pitch to a plugin; print is
   unaffected.

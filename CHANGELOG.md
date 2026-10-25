@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Scores with several handbell parts can chart each one separately, and put
 each chart into the Sibelius part that rings from it. P&F and Whitechapel
-handbells get charts of their own.
+handbells get charts of their own, and each instrument's chart can be drawn
+in a stemless shape you pick.
 
 ### Added
 
