@@ -27,6 +27,7 @@ Run() {
     TestOptions();
     TestReport();
     TestNoteHeads();
+    TestHeadColors();
     TestShapes();
     TestReadScore();
     TestScoreInstruments();

@@ -47,6 +47,16 @@ ReadOptions(score) {
     dlg_pfHead = PreferredHead(choices.names, '' & dlg_pfHead, '');
     dlg_whitechapelHead = PreferredHead(choices.names, '' & dlg_whitechapelHead, '');
 
+    // A colour field left blank last time opens on the colour of its
+    // instrument's notehead in the music. Picking another notehead fills it
+    // again, through that box's change method, which reads the tally kept here.
+    headColors = choices.colors;
+    Self._property:headColors = headColors;
+    dlg_chimeColor = OpeningColor(dlg_chimeColor, headColors, dlg_chimeHead);
+    dlg_smbColor = OpeningColor(dlg_smbColor, headColors, dlg_smbHead);
+    dlg_pfColor = OpeningColor(dlg_pfColor, headColors, dlg_pfHead);
+    dlg_whitechapelColor = OpeningColor(dlg_whitechapelColor, headColors, dlg_whitechapelHead);
+
     // The shapes are the same for every score, so the boxes are filled with
     // them as they are, one list each like the notehead boxes.
     shapes = ChartShapeItems();
@@ -121,6 +131,38 @@ ReadOptions(score) {
         'parts', Ticked(dlg_parts),
         'pageBreak', Ticked(dlg_pageBreak)
     );
+}
+
+// The value a colour field opens on: the one remembered from last time, or,
+// when that was blank, the colour most of the notehead's notes carry.
+OpeningColor(remembered, tally, head) {
+    if (Trim(remembered) != '') {
+        return '' & remembered;
+    }
+    return MostUsedColor(tally, '' & head);
+}
+
+// Each coloured instrument's notehead box calls its own, so picking a notehead
+// puts that notehead's colour in the music into the instrument's colour field.
+// The user can still type over it.
+ChimeHeadChanged() {
+    dlg_chimeColor = MostUsedColor(Self._property:headColors, '' & dlg_chimeHead);
+    return Sibelius.RefreshDialog();
+}
+
+SmbHeadChanged() {
+    dlg_smbColor = MostUsedColor(Self._property:headColors, '' & dlg_smbHead);
+    return Sibelius.RefreshDialog();
+}
+
+PfHeadChanged() {
+    dlg_pfColor = MostUsedColor(Self._property:headColors, '' & dlg_pfHead);
+    return Sibelius.RefreshDialog();
+}
+
+WhitechapelHeadChanged() {
+    dlg_whitechapelColor = MostUsedColor(Self._property:headColors, '' & dlg_whitechapelHead);
+    return Sibelius.RefreshDialog();
 }
 
 // Called by the list box on every click, and greys the Charts box out while

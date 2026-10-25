@@ -955,6 +955,19 @@ TestNoteHeadScan() {
     }
     AssertTrue(unique, 'the offered heads are distinct');
 
+    // Every head offered has its colours counted, so picking it in the dialog
+    // can fill in the colour its notes carry.
+    tally = choices.colors;
+    counted = True;
+    for i = 0 to choices.names.Length {
+        name = choices.names[i];
+        colours = tally[name];
+        if (not(IsObject(colours))) {
+            counted = False;
+        }
+    }
+    AssertTrue(counted, 'every offered head has its colours counted');
+
     // The value the dialog opens on has to be one the dropdown can show, and
     // the dropdown shows the no-notehead entry as well as the score's heads.
     items = HeadChoiceItems(choices.names);

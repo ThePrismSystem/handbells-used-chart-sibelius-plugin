@@ -117,7 +117,7 @@ and a chart shape box, and the colours and removal come after them.
 | Page break after one chart | Starts a part's music on a new page when the part has a single chart section; with two or more (bells and chimes count as two) it always does |
 | Notehead in music | One box per instrument: which notehead in the score counts as a handbell, handchime, SMB, P&F handbell or Whitechapel handbell |
 | Chart shape | One box per instrument: the shape its chart is drawn in, or `(match notehead)` to follow the notehead in the music |
-| Handchime colour | Notehead colour for chimes, as a hex value; blank leaves them black |
+| Handchime colour | Notehead colour for chimes, as a hex value, filled in from the music when you pick their notehead; blank leaves them black |
 | SMBs colour | Notehead colour for SMBs, on the same terms |
 | P&F colour | Notehead colour for P&F handbells, on the same terms |
 | Whitechapel colour | Notehead colour for Whitechapel handbells, on the same terms |
@@ -178,11 +178,10 @@ for this reason.
 The copy prints with no key signature and in treble and bass clefs, as the
 chart does. In a score whose key has sharps or flats, the chart bars are set
 in C major and the music starts with its own key as an ordinary key change,
-in the full score and in every part. Removing the chart leaves that key
-change as the music's opening key. Where an instrument's own clef differs
-from the copy's, the plugin changes it for the chart bars and puts it back
-where the music starts, and removing the chart takes those clef changes off
-again.
+in the full score and in every part. Removing the chart puts the music's key
+back at its start. Where an instrument's own clef differs from the copy's,
+the plugin changes it for the chart bars and puts it back where the music
+starts, and removing the chart takes those clef changes off again.
 
 In a part that carries one instrument's charts, the labels are the plain
 "Handbells Used: 25", since the part's name already says whose they are. In
@@ -195,10 +194,11 @@ In a part, each chart is a system of its own showing only the staves that
 hold it. Other instruments' charts drop out of the part: its staves change
 to "No instrument (hidden)" for those bars and change back for its own
 charts and for the music, with the change labels hidden. Removing the chart
-takes those changes off again. Sibelius keeps at least one staff showing in
-every system, so in a part with a staff that holds no chart, such as an
-instrument that isn't charted, another instrument's chart joins the part's
-own chart as a short empty bar instead.
+takes those changes off again and gives every staff its own instrument and
+name back. Sibelius keeps at least one staff showing in every system, so in
+a part with a staff that holds no chart, such as an instrument that isn't
+charted, another instrument's chart joins the part's own chart as a short
+empty bar instead.
 
 A part's first page is often laid out by hand, with its page turns planned,
 and charts in front of it push music off that page. Each chart section is a
@@ -223,8 +223,19 @@ removal.
 
 The four colour fields take a **six-digit hex RGB value**, with or without the
 leading `#`, and surrounding spaces are ignored. All of `c00000`, `#c00000`
-and ` #C00000 ` set the same red. Leave a field blank to keep that section
-black, which is what handbells always are.
+and ` #C00000 ` set the same red. A blank field leaves that section black,
+which is what handbells always are.
+
+The fields fill themselves in from the music. When you pick a notehead for
+handchimes, SMBs, P&F or Whitechapel handbells, that instrument's colour
+field takes the colour most of the notes in that notehead carry, so a few
+notes left black among red ones still give red. A notehead whose notes are
+mostly black leaves the field blank. You can type over the field afterwards,
+and picking another notehead fills it in again. When the dialog opens, a
+field that was blank on your last run takes the colour of the notehead its
+box opens on, and any other field keeps the colour from your last run. To
+chart an instrument with coloured noteheads in black, clear its field before
+you run. The field fills in again the next time the dialog opens.
 
 Anything that is not six digits after the `#` counts as no colour at all, so
 that section stays black rather than the run failing. Within a six-digit
@@ -246,7 +257,8 @@ before these controls existed. The SMBs, P&F and Whitechapel boxes have no
 such default, because nothing in a score suggests one, so they open on
 `(no notehead)` until you pick. Your last choice is remembered between
 runs and wins over the defaults, but only while the score in front of you
-still uses it.
+still uses it. Picking a notehead also fills in that instrument's colour
+field. See [Colours](#colours).
 
 Notes carrying a notehead none of the five boxes names are skipped and
 counted in the unrecognised-notehead warning, which names the heads it

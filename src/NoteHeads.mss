@@ -15,6 +15,7 @@ ScoreHeadChoices(score) {
     // ManuScript passes objects by reference and numbers by value; the scan
     // has to write into something the caller still holds.
     defaults = CreateDictionary('bell', '', 'chime', '');
+    colors = CreateDictionary();
 
     lastStaff = score.StaffCount;
     chartBars = 0;
@@ -33,7 +34,7 @@ ScoreHeadChoices(score) {
                 staff = bar.ParentStaff;
                 if (staff.StaffNum <= lastStaff) {
                     if (bar.BarNumber > chartBars) {
-                        ScanBarHeads(bar, names, seen, defaults);
+                        ScanBarHeads(bar, names, seen, defaults, colors);
                     }
                 }
             }
@@ -44,7 +45,7 @@ ScoreHeadChoices(score) {
             staff = score.NthStaff(n);
             b = chartBars + 1;
             while (b <= staff.BarCount) {
-                ScanBarHeads(staff.NthBar(b), names, seen, defaults);
+                ScanBarHeads(staff.NthBar(b), names, seen, defaults, colors);
                 b = b + 1;
             }
             n = n + 1;
@@ -52,10 +53,10 @@ ScoreHeadChoices(score) {
     }
 
     return CreateDictionary('names', names,
-        'defaultBell', defaults.bell, 'defaultChime', defaults.chime);
+        'defaultBell', defaults.bell, 'defaultChime', defaults.chime, 'colors', colors);
 }
 
-ScanBarHeads(bar, names, seen, defaults) {
+ScanBarHeads(bar, names, seen, defaults, colors) {
     for each NoteRest nr in bar {
         // H3: `for each Note n in nr` does not work. Notes inside a NoteRest
         // must be iterated untyped.
@@ -69,6 +70,7 @@ ScanBarHeads(bar, names, seen, defaults) {
                     seen[name] = 1;
                     names.Push(name);
                 }
+                TallyHeadColor(colors, name, NoteColor(n.ColorRed, n.ColorGreen, n.ColorBlue));
                 // The display names of the built-in styles are not documented
                 // and a localised Sibelius spells them differently, so the two
                 // suggested defaults are found by index and reported by name.
@@ -127,4 +129,58 @@ HeadChoiceItems(names) {
         items.Push(names[i]);
     }
     return items;
+}
+
+// A note's colour as '#rrggbb', or '' for black, which is what a note no one
+// has coloured is and what a blank colour field means.
+NoteColor(red, green, blue) {
+    if (((red = 0) and (green = 0)) and (blue = 0)) {
+        return '';
+    }
+    return '#' & ((HexPair(red) & HexPair(green)) & HexPair(blue));
+}
+
+HexPair(value) {
+    digits = '0123456789abcdef';
+    low = value % 16;
+    high = RoundDown((value - low) / 16);
+    return Substring(digits, high, 1) & Substring(digits, low, 1);
+}
+
+// Counts one note of a head in a colour. Each head keeps its colours in the
+// order they were found, as Dictionary{color, count}.
+TallyHeadColor(tally, name, color) {
+    colors = tally[name];
+    if (not(IsObject(colors))) {
+        colors = CreateSparseArray();
+        tally[name] = colors;
+    }
+    for i = 0 to colors.Length {
+        entry = colors[i];
+        if (entry.color = color) {
+            entry._property:count = entry.count + 1;
+            return True;
+        }
+    }
+    colors.Push(CreateDictionary('color', color, 'count', 1));
+    return True;
+}
+
+// The colour most of a head's notes carry, or '' when that is black or no
+// note carries the head. A tie goes to the colour found first.
+MostUsedColor(tally, name) {
+    colors = tally[name];
+    if (not(IsObject(colors))) {
+        return '';
+    }
+    best = '';
+    bestCount = 0;
+    for i = 0 to colors.Length {
+        entry = colors[i];
+        if (entry.count > bestCount) {
+            best = entry.color;
+            bestCount = entry.count;
+        }
+    }
+    return best;
 }

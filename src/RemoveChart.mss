@@ -83,7 +83,7 @@ RemoveChart(score) {
         }
         // The staves hidden from bar 1 too: deleting the chart bars by hand
         // would otherwise leave them hidden through the music.
-        RestoreStarts(score, StartsMarkerRead(score));
+        RestoreStarts(score, StartsWithNames(score, StartsMarkerRead(score)));
         return RemovalResult(False, found.error);
     }
     if (not(found.found)) {
@@ -105,7 +105,13 @@ RemoveChart(score) {
     RelocateSystemText(score, found.sections, found.sections + 1, False);
     ClearHiddenBarNumber(score.NthStaff(1).NthBar(found.sections + 1));
     RemoveRestores(score, found);
-    starts = StartsMarkerRead(score);
+    starts = StartsWithNames(score, StartsMarkerRead(score));
+    // Sibelius keeps a key change that starts a bar at the end of the bar
+    // before, so the key a build gave the music's first bar sits in the last
+    // chart bar and goes with it. It is read here and put back once they go.
+    musicKey = score.NthStaff(1).CurrentKeySignature(found.sections + 1);
+    musicSharps = musicKey.Sharps;
+    musicMajor = musicKey.Major;
 
     // Bars first: removing the staves renumbers everything underneath us. The
     // marker goes with the bar that holds it.
@@ -118,6 +124,7 @@ RemoveChart(score) {
             'This score records a Handbells Used chart, but Sibelius did not remove '
             & 'the chart bars.'));
     }
+    RestoreKey(score, musicSharps, musicMajor);
     RestoreStarts(score, starts);
 
     // While the chart staves still exist to say which parts are only theirs.
@@ -165,12 +172,63 @@ RemoveRestores(score, found) {
 // Each staff the build hid from bar 1 starts as its own instrument again. A
 // change at the start of bar 1 changes the instrument a staff starts as,
 // which is how the build hid it. The piece's staves come before the chart's,
-// so their numbers hold through the removal.
+// so their numbers hold through the removal. Sibelius names the staff after
+// the instrument type, Piano for a handbell staff made from one, so the
+// staff then takes back its own names.
 RestoreStarts(score, starts) {
     for i = 0 to starts.Length {
         start = starts[i];
-        score.NthStaff(start.staff).NthBar(1).AddInstrumentChange(0, start.style, False, False, '', False);
+        staff = score.NthStaff(start.staff);
+        staff.NthBar(1).AddInstrumentChange(0, start.style, False, False, '', False);
+        names = start.names;
+        if (IsObject(names)) {
+            KeepStaffNames(staff, names);
+        }
     }
+    return True;
+}
+
+// The starts record's staves, each with the names its change back gives it,
+// read while the chart bars still hold that change.
+StartsWithNames(score, starts) {
+    named = CreateSparseArray();
+    for i = 0 to starts.Length {
+        start = starts[i];
+        named.Push(CreateDictionary('staff', start.staff, 'style', start.style,
+            'names', ChangeBackNames(score.NthStaff(start.staff))));
+    }
+    return named;
+}
+
+// The names on the first instrument change on a staff hidden from bar 1, or
+// null when it has none. The change into bar 1 makes no object, so the first
+// is the change back, which the build gave the staff's own names.
+ChangeBackNames(staff) {
+    b = 1;
+    while (b <= staff.BarCount) {
+        bar = staff.NthBar(b);
+        for each item in bar {
+            if (item.Type = 'InstrumentChange') {
+                return CreateDictionary(
+                    'full', item.FullInstrumentNameWithFormatting,
+                    'short', item.ShortInstrumentNameWithFormatting,
+                    'fullStaff', item.FullStaffNameWithFormatting,
+                    'shortStaff', item.ShortStaffNameWithFormatting);
+            }
+        }
+        b = b + 1;
+    }
+    return null;
+}
+
+// The music starts in the key it started in while the chart was there, when
+// deleting the chart bars took that key change with them.
+RestoreKey(score, sharps, major) {
+    key = score.NthStaff(1).CurrentKeySignature(1);
+    if ((key.Sharps = sharps) and (key.Major = major)) {
+        return False;
+    }
+    score.NthStaff(1).NthBar(1).AddKeySignature(0, sharps, major, False, False, False);
     return True;
 }
 
