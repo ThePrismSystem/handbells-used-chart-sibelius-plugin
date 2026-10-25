@@ -2,6 +2,13 @@ ChartInstrument() {
     return '' & CHART_INSTRUMENT;
 }
 
+// The instrument a staff changes to where a part should lose a chart bar. Its
+// staff draws nothing at all, so a bar where every staff of a part is this
+// takes no room in that part.
+HiddenInstrument() {
+    return '' & HIDDEN_INSTRUMENT;
+}
+
 LabelTextStyle() {
     return '' & LABEL_TEXT_STYLE;
 }

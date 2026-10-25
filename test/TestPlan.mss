@@ -7,7 +7,8 @@ TestPlan() {
         CreateDictionary('pitch', 74, 'diatonic', 36, 'head', 'Cross')
     );
     options = CreateDictionary('bellHead', 'Normal', 'chimeHead', 'Diamond',
-        'smbHead', NoNoteHead());
+        'smbHead', NoNoteHead(),
+        'pfHead', NoNoteHead(), 'whitechapelHead', NoNoteHead());
     plan = BuildPlan(records, options);
 
     AssertEquals(plan.sections.Length, 2, 'bells and chimes sections');
@@ -21,7 +22,8 @@ TestPlan() {
     // Silver melody bells come third, after the two instruments that were
     // there before them, and label themselves the same generated way.
     withSmbs = BuildPlan(records, CreateDictionary('bellHead', 'Normal',
-        'chimeHead', 'Diamond', 'smbHead', 'Cross'));
+        'chimeHead', 'Diamond', 'smbHead', 'Cross',
+        'pfHead', NoNoteHead(), 'whitechapelHead', NoNoteHead()));
     AssertEquals(withSmbs.sections.Length, 3, 'three sections');
     AssertEquals(withSmbs.sections[2].kind, 'smbs', 'SMBs come last');
     AssertEquals(withSmbs.sections[2].label, 'SMBs Used: 1', 'SMB label');
@@ -37,6 +39,29 @@ TestPlan() {
     AssertEquals(InstrumentName('bells'), 'Handbells', 'handbell name');
     AssertEquals(InstrumentName('chimes'), 'Handchimes', 'handchime name');
     AssertEquals(InstrumentName('smbs'), 'SMBs', 'SMB name');
+    AssertEquals(InstrumentName('pf'), 'P&F Handbells', 'P&F name');
+    AssertEquals(InstrumentName('whitechapel'), 'Whitechapel Handbells', 'Whitechapel name');
+
+    // P&F and Whitechapel handbells come after the SMBs, in that order, and
+    // are charted on a treble and a bass staff like the handbells they are.
+    makers = CreateSparseArray(
+        CreateDictionary('pitch', 79, 'diatonic', 39, 'head', 'Normal'),
+        CreateDictionary('pitch', 72, 'diatonic', 35, 'head', 'Square'),
+        CreateDictionary('pitch', 74, 'diatonic', 36, 'head', 'Slashed'),
+        CreateDictionary('pitch', 76, 'diatonic', 37, 'head', 'Slashed'),
+        CreateDictionary('pitch', 77, 'diatonic', 38, 'head', 'Cross')
+    );
+    withMakers = BuildPlan(makers, CreateDictionary('bellHead', 'Normal', 'chimeHead', 'Diamond',
+        'smbHead', 'Cross', 'pfHead', 'Slashed', 'whitechapelHead', 'Square'));
+    AssertEquals(withMakers.sections.Length, 4, 'bells, SMBs, P&F and Whitechapel sections');
+    pfSection = withMakers.sections[2];
+    AssertEquals(pfSection.kind, 'pf', 'P&F bells follow the SMBs');
+    AssertEquals(pfSection.label, 'P&F Handbells Used: 2', 'P&F label');
+    whitechapelSection = withMakers.sections[3];
+    AssertEquals(whitechapelSection.kind, 'whitechapel', 'Whitechapel bells come last');
+    AssertEquals(whitechapelSection.label, 'Whitechapel Handbells Used: 1', 'Whitechapel label');
+    AssertEquals(whitechapelSection.bass.Length, 1, 'a Whitechapel C5 sits on the bass staff');
+    AssertEquals(whitechapelSection.treble.Length, 0, 'as a handbell C5 does');
 
     empty = BuildPlan(CreateSparseArray(), options);
     AssertEquals(empty.sections.Length, 0, 'no sections for no notes');
@@ -56,6 +81,7 @@ TestChartPlan() {
 
     separate = BuildChartPlan(records, CreateDictionary('bellHead', 'Normal',
         'chimeHead', 'Diamond', 'smbHead', NoNoteHead(),
+        'pfHead', NoNoteHead(), 'whitechapelHead', NoNoteHead(),
         'instruments', instruments, 'mode', 'separate'));
     AssertEquals(separate.sections.Length, 3, 'two sections for the first choir, one for the second');
     s0 = separate.sections[0];
@@ -73,6 +99,7 @@ TestChartPlan() {
 
     combined = BuildChartPlan(records, CreateDictionary('bellHead', 'Normal',
         'chimeHead', 'Diamond', 'smbHead', NoNoteHead(),
+        'pfHead', NoNoteHead(), 'whitechapelHead', NoNoteHead(),
         'instruments', instruments, 'mode', 'combined'));
     AssertEquals(combined.sections.Length, 2, 'combined pools every instrument');
     c0 = combined.sections[0];
@@ -83,12 +110,14 @@ TestChartPlan() {
 
     one = BuildChartPlan(records, CreateDictionary('bellHead', 'Normal',
         'chimeHead', 'Diamond', 'smbHead', NoNoteHead(),
+        'pfHead', NoNoteHead(), 'whitechapelHead', NoNoteHead(),
         'instruments', CreateSparseArray(instruments[0]), 'mode', 'separate'));
     o0 = one.sections[0];
     AssertEquals(o0.label, 'Handbells Used: 1', 'one instrument is never prefixed');
 
     narrowed = BuildChartPlan(CreateSparseArray(records[0]), CreateDictionary('bellHead', 'Normal',
         'chimeHead', 'Diamond', 'smbHead', NoNoteHead(),
+        'pfHead', NoNoteHead(), 'whitechapelHead', NoNoteHead(),
         'instruments', CreateSparseArray(instruments[0], instruments[1]), 'mode', 'separate'));
     AssertEquals(JoinNames(narrowed.emptyNames), 'Handbells II', 'a passage missing an instrument names it');
 }

@@ -2,6 +2,9 @@
 	ChartInstrument "() {
     return '' & CHART_INSTRUMENT;
 }"
+	HiddenInstrument "() {
+    return '' & HIDDEN_INSTRUMENT;
+}"
 	LabelTextStyle "() {
     return '' & LABEL_TEXT_STYLE;
 }"
@@ -106,18 +109,25 @@
     _BellHeadItems = CreateArray();
     _ChimeHeadItems = CreateArray();
     _SmbHeadItems = CreateArray();
+    _PfHeadItems = CreateArray();
+    _WhitechapelHeadItems = CreateArray();
     for i = 0 to items.Length {
         name = items[i];
         _BellHeadItems[i] = name;
         _ChimeHeadItems[i] = name;
         _SmbHeadItems[i] = name;
+        _PfHeadItems[i] = name;
+        _WhitechapelHeadItems[i] = name;
     }
     dlg_bellHead = PreferredHead(choices.names, '' & dlg_bellHead, choices.defaultBell);
     dlg_chimeHead = PreferredHead(choices.names, '' & dlg_chimeHead, choices.defaultChime);
-    // No fallback of its own: nothing in a score says which notehead means a
-    // silver melody bell the way a plain head means a handbell, so an
-    // unremembered SMB box opens on no notehead rather than on a guess.
+    // No fallback of their own: nothing in a score says which notehead means
+    // a silver melody bell, or a P&F or Whitechapel bell, the way a plain head
+    // means a handbell, so an unremembered box opens on no notehead rather
+    // than on a guess.
     dlg_smbHead = PreferredHead(choices.names, '' & dlg_smbHead, '');
+    dlg_pfHead = PreferredHead(choices.names, '' & dlg_pfHead, '');
+    dlg_whitechapelHead = PreferredHead(choices.names, '' & dlg_whitechapelHead, '');
 
     // Filled the way the notehead boxes are, and for the same reason: the list
     // comes from the open score. The selection it opens on is everything this
@@ -158,9 +168,13 @@
     return CreateDictionary(
         'chimeColor', UsableColor(dlg_chimeColor),
         'smbColor', UsableColor(dlg_smbColor),
+        'pfColor', UsableColor(dlg_pfColor),
+        'whitechapelColor', UsableColor(dlg_whitechapelColor),
         'bellHead', Trim(dlg_bellHead),
         'chimeHead', Trim(dlg_chimeHead),
         'smbHead', Trim(dlg_smbHead),
+        'pfHead', Trim(dlg_pfHead),
+        'whitechapelHead', Trim(dlg_whitechapelHead),
         'remove', Ticked(dlg_remove),
         'instruments', InstrumentsNamed(instruments, selected),
         'mode', ChartModeOf(dlg_chartMode),
@@ -281,7 +295,8 @@
     return excluded;
 }"
 	DuplicateHead "(options) {
-    heads = CreateSparseArray(options.bellHead, options.chimeHead, options.smbHead);
+    heads = CreateSparseArray(options.bellHead, options.chimeHead, options.smbHead,
+        options.pfHead, options.whitechapelHead);
     for i = 0 to heads.Length {
         head = '' & heads[i];
         if (head != '') {
@@ -491,9 +506,13 @@
     bells = CreateSparseArray();
     chimes = CreateSparseArray();
     smbs = CreateSparseArray();
+    pfs = CreateSparseArray();
+    whitechapels = CreateSparseArray();
     seenBell = CreateDictionary();
     seenChime = CreateDictionary();
     seenSmb = CreateDictionary();
+    seenPf = CreateDictionary();
+    seenWhitechapel = CreateDictionary();
     outOfRange = CreateSparseArray();
     seenOutOfRange = CreateDictionary();
     unknownNames = CreateSparseArray();
@@ -506,6 +525,8 @@
     bellHead = '' & options.bellHead;
     chimeHead = '' & options.chimeHead;
     smbHead = '' & options.smbHead;
+    pfHead = '' & options.pfHead;
+    whitechapelHead = '' & options.whitechapelHead;
     if (bellHead = NoNoteHead()) {
         bellHead = '';
     }
@@ -514,6 +535,12 @@
     }
     if (smbHead = NoNoteHead()) {
         smbHead = '';
+    }
+    if (pfHead = NoNoteHead()) {
+        pfHead = '';
+    }
+    if (whitechapelHead = NoNoteHead()) {
+        whitechapelHead = '';
     }
 
     for i = 0 to records.Length {
@@ -546,6 +573,12 @@
             }
             if (smbHead != '') {
                 if (record.head = smbHead) { kind = 'smbs'; }
+            }
+            if (pfHead != '') {
+                if (record.head = pfHead) { kind = 'pf'; }
+            }
+            if (whitechapelHead != '') {
+                if (record.head = whitechapelHead) { kind = 'whitechapel'; }
             }
 
             if (kind = '') {
@@ -584,6 +617,12 @@
                     if (kind = 'smbs') {
                         RecordBell(smbs, seenSmb, key, bell, region);
                     }
+                    if (kind = 'pf') {
+                        RecordBell(pfs, seenPf, key, bell, region);
+                    }
+                    if (kind = 'whitechapel') {
+                        RecordBell(whitechapels, seenWhitechapel, key, bell, region);
+                    }
                 }
             }
         } else {
@@ -595,6 +634,8 @@
         'bells', SortBells(bells),
         'chimes', SortBells(chimes),
         'smbs', SortBells(smbs),
+        'pf', SortBells(pfs),
+        'whitechapel', SortBells(whitechapels),
         'unknown', unknown,
         'unknownNames', unknownNames,
         'unreadable', unreadable,
@@ -855,6 +896,12 @@
     if (collected.smbs.Length > 0) {
         sections.Push(MakeSection('smbs', collected.smbs));
     }
+    if (collected.pf.Length > 0) {
+        sections.Push(MakeSection('pf', collected.pf));
+    }
+    if (collected.whitechapel.Length > 0) {
+        sections.Push(MakeSection('whitechapel', collected.whitechapel));
+    }
 
     warnings = CreateSparseArray();
     if (collected.unknown > 0) {
@@ -927,6 +974,12 @@
     }
     if (kind = 'smbs') {
         return 'SMBs';
+    }
+    if (kind = 'pf') {
+        return 'P&F Handbells';
+    }
+    if (kind = 'whitechapel') {
+        return 'Whitechapel Handbells';
     }
     return 'Handbells';
 }"
@@ -1105,6 +1158,58 @@
         if (restores != null) {
             return restores;
         }
+    }
+    return CreateSparseArray();
+}"
+	StartsMarkerEncode "(starts) {
+    text = '' & STARTS_MARKER_PREFIX;
+    for i = 0 to starts.Length {
+        start = starts[i];
+        text = text & (('|' & start.staff) & ('|' & start.style));
+    }
+    return text;
+}"
+	StartsMarkerDecode "(text) {
+    if (text = null) {
+        return null;
+    }
+    parts = SplitOnPipe(text);
+    if (parts.Length < 3) {
+        return null;
+    }
+    if (parts[0] != ('' & STARTS_MARKER_PREFIX)) {
+        return null;
+    }
+    starts = CreateSparseArray();
+    i = 1;
+    while (i < parts.Length) {
+        if ((i + 1) >= parts.Length) {
+            return null;
+        }
+        staff = parts[i];
+        style = '' & parts[i + 1];
+        if (not(utils.IsNumeric(staff, True))) {
+            return null;
+        }
+        if (style = '') {
+            return null;
+        }
+        starts.Push(CreateDictionary('staff', 0 + staff, 'style', style));
+        i = i + 2;
+    }
+    return starts;
+}"
+	StartsMarkerRead "(score) {
+    n = 1;
+    while (n <= score.StaffCount) {
+        bar = score.NthStaff(n).NthBar(1);
+        for each Text t in bar {
+            starts = StartsMarkerDecode(t.Text);
+            if (starts != null) {
+                return starts;
+            }
+        }
+        n = n + 1;
     }
     return CreateSparseArray();
 }"
@@ -1505,9 +1610,14 @@
     }
     tokens = PrepareCopyStaves(score, roles, sections.Length);
     WriteCopies(score, sections, options, styles);
+    starts = HideOutsideCopies(score, roles, sections, sections.Length);
     if (tokens.Length > 0) {
         record = trebleStaves[0].NthBar(1).AddText(0, RestoreMarkerEncode(tokens), LabelTextStyle());
         record.Hidden = True;
+    }
+    if (starts.Length > 0) {
+        startsRecord = trebleStaves[0].NthBar(1).AddText(0, StartsMarkerEncode(starts), LabelTextStyle());
+        startsRecord.Hidden = True;
     }
 
     // 5. Hide the structural furniture across every staff in the chart bars.
@@ -1679,6 +1789,55 @@
     }
     return True;
 }"
+	HideOutsideCopies "(score, roles, sections, chartBars) {
+    starts = CreateSparseArray();
+    for i = 0 to roles.Length {
+        staffNum = roles[i].staff;
+        staff = score.NthStaff(staffNum);
+        own = staff.InitialStyleId;
+        names = CreateDictionary(
+            'full', staff.FullInstrumentNameWithFormatting,
+            'short', staff.ShortInstrumentNameWithFormatting,
+            'fullStaff', staff.FullStaffNameWithFormatting,
+            'shortStaff', staff.ShortStaffNameWithFormatting);
+        hidden = StaffHiddenBars(CopyBarsOfStaff(sections, staffNum), chartBars);
+        if (hidden[0] = 1) {
+            starts.Push(CreateDictionary('staff', staffNum, 'style', own));
+        }
+        hidden.Push(0);
+        previous = 0;
+        for b = 1 to chartBars + 2 {
+            flag = hidden[b - 1];
+            if (flag != previous) {
+                target = own;
+                if (flag = 1) {
+                    target = HiddenInstrument();
+                }
+                if (b = 1) {
+                    change = staff.NthBar(1).AddInstrumentChange(0, target, False, False, '', False);
+                } else {
+                    before = staff.NthBar(b - 1);
+                    change = before.AddInstrumentChange(before.Length, target, False, False, '', False);
+                }
+                if (flag = 0) {
+                    KeepStaffNames(change, names);
+                }
+            }
+            previous = flag;
+        }
+    }
+    return starts;
+}"
+	KeepStaffNames "(change, names) {
+    if (not(IsObject(change))) {
+        return False;
+    }
+    change.FullInstrumentNameWithFormatting = names.full;
+    change.ShortInstrumentNameWithFormatting = names.short;
+    change.FullStaffNameWithFormatting = names.fullStaff;
+    change.ShortStaffNameWithFormatting = names.shortStaff;
+    return True;
+}"
 	MarkPartsOnly "(bar) {
     for each NoteRest nr in bar {
         if (nr.NoteCount > 0) {
@@ -1698,6 +1857,12 @@
     }
     if (kind = 'smbs') {
         return '' & options.smbColor;
+    }
+    if (kind = 'pf') {
+        return '' & options.pfColor;
+    }
+    if (kind = 'whitechapel') {
+        return '' & options.whitechapelColor;
     }
     return '';
 }"
@@ -1798,7 +1963,7 @@
     return StemlessNoteStyle;
 }"
 	ColumnTick "(kind, styles) {
-    if (kind = 'bells') {
+    if (CustomStyleName(kind) = '') {
         return 256;
     }
     if (CustomStyle(kind, styles) < 0) {
@@ -1947,9 +2112,11 @@
             anchor = staff;
         }
     }
-    systems = PartChartSystems(CarriedPositions(chartBars, carried));
+    positions = CarriedPositions(chartBars, carried);
+    systems = PartChartSystems(positions);
     shows = systems.shows;
-    ends = systems.ends;
+    vanishing = PartVanishingBars(staffNums, sections, chartBars);
+    breaks = PartBarBreaks(positions, vanishing);
 
     parts = score.DynamicParts;
     score.CurrentDynamicPart = part;
@@ -1960,24 +2127,23 @@
         shown.Push(0);
     }
     for b = 1 to chartBars + 1 {
-        if (ends[b - 1] = 1) {
-            anchor.NthBar(b).BreakType = EndOfSystemOrPage;
-            if (b = chartBars) {
-                if (endsPage = 1) {
-                    anchor.NthBar(b).BreakType = EndOfPage;
-                }
-            }
-        } else {
-            anchor.NthBar(b).BreakType = MiddleOfSystem;
+        // The last chart bar always ends a system, so the page break can
+        // take its place.
+        breakType = breaks[b - 1];
+        if ((b = chartBars) and (endsPage = 1)) {
+            breakType = EndOfPage;
         }
-        position = shows[b - 1];
-        index = carried[position];
-        hidden = PartBarHiddenStaves(staffNums, SectionCopyStaves(sections[index]));
-        for s = 0 to hidden.Length {
-            if (hidden[s] = 1) {
-                score.HideEmptyStaves(s + 1, s + 1, b, b);
-            } else {
-                shown[s] = 1;
+        anchor.NthBar(b).BreakType = breakType;
+        if (vanishing[b - 1] = 0) {
+            position = shows[b - 1];
+            index = carried[position];
+            hidden = PartBarHiddenStaves(staffNums, SectionCopyStaves(sections[index]));
+            for s = 0 to hidden.Length {
+                if (hidden[s] = 1) {
+                    score.HideEmptyStaves(s + 1, s + 1, b, b);
+                } else {
+                    shown[s] = 1;
+                }
             }
         }
     }
@@ -2074,6 +2240,96 @@
         }
     }
     return CreateDictionary('shows', shows, 'ends', ends);
+}"
+	CopyBarsOfStaff "(sections, staffNum) {
+    bars = CreateSparseArray();
+    for i = 0 to sections.Length {
+        section = sections[i];
+        copies = section._property:copies;
+        held = 0;
+        if (copies != null) {
+            for j = 0 to copies.Length {
+                staves = copies[j];
+                for k = 0 to staves.Length {
+                    if (staves[k] = staffNum) {
+                        held = 1;
+                    }
+                }
+            }
+        }
+        if (held = 1) {
+            bars.Push(i + 1);
+        }
+    }
+    return bars;
+}"
+	StaffHiddenBars "(copyBars, chartBars) {
+    flags = CreateSparseArray();
+    for b = 1 to chartBars + 1 {
+        flag = 0;
+        if (copyBars.Length > 0) {
+            flag = 1;
+            for i = 0 to copyBars.Length {
+                if (copyBars[i] = b) {
+                    flag = 0;
+                }
+            }
+        }
+        flags.Push(flag);
+    }
+    return flags;
+}"
+	PartVanishingBars "(partStaffNums, sections, chartBars) {
+    flags = CreateSparseArray();
+    for b = 0 to chartBars {
+        flags.Push(1);
+    }
+    for s = 0 to partStaffNums.Length {
+        hidden = StaffHiddenBars(CopyBarsOfStaff(sections, partStaffNums[s]), chartBars);
+        for b = 0 to chartBars {
+            if (hidden[b] = 0) {
+                flags[b] = 0;
+            }
+        }
+    }
+    return flags;
+}"
+	PartBarBreaks "(positions, vanishing) {
+    kept = CreateSparseArray();
+    for k = 0 to positions.Length {
+        if (vanishing[k] = 0) {
+            kept.Push(positions[k]);
+        }
+    }
+    systems = PartChartSystems(kept);
+    ends = systems.ends;
+    breaks = CreateSparseArray();
+    j = 0;
+    for k = 0 to positions.Length {
+        if (vanishing[k] = 1) {
+            // Nested, not joined with and: the guide documents no
+            // short-circuiting, and the last bar has no next one to read.
+            runEnds = 1;
+            if (k < (positions.Length - 1)) {
+                if (vanishing[k + 1] = 1) {
+                    runEnds = 0;
+                }
+            }
+            if (runEnds = 1) {
+                breaks.Push(EndOfSystemOrPage);
+            } else {
+                breaks.Push(MiddleOfSystem);
+            }
+        } else {
+            if (ends[j] = 1) {
+                breaks.Push(EndOfSystemOrPage);
+            } else {
+                breaks.Push(MiddleOfSystem);
+            }
+            j = j + 1;
+        }
+    }
+    return breaks;
 }"
 	DeleteChartOnlyParts "(score, firstChartStaff) {
     parts = score.DynamicParts;
@@ -2368,6 +2624,9 @@
         if (recordStaff > 0) {
             RestoreNamesRule(score, recordStaff);
         }
+        // The staves hidden from bar 1 too: deleting the chart bars by hand
+        // would otherwise leave them hidden through the music.
+        RestoreStarts(score, StartsMarkerRead(score));
         return RemovalResult(False, found.error);
     }
     if (not(found.found)) {
@@ -2389,6 +2648,7 @@
     RelocateSystemText(score, found.sections, found.sections + 1, False);
     ClearHiddenBarNumber(score.NthStaff(1).NthBar(found.sections + 1));
     RemoveRestores(score, found);
+    starts = StartsMarkerRead(score);
 
     // Bars first: removing the staves renumbers everything underneath us. The
     // marker goes with the bar that holds it.
@@ -2401,6 +2661,7 @@
             'This score records a Handbells Used chart, but Sibelius did not remove '
             & 'the chart bars.'));
     }
+    RestoreStarts(score, starts);
 
     // While the chart staves still exist to say which parts are only theirs.
     DeleteChartOnlyParts(score, found.firstStaff);
@@ -2435,6 +2696,13 @@
         if (doomed != null) {
             doomed.Delete();
         }
+    }
+    return True;
+}"
+	RestoreStarts "(score, starts) {
+    for i = 0 to starts.Length {
+        start = starts[i];
+        score.NthStaff(start.staff).NthBar(1).AddInstrumentChange(0, start.style, False, False, '', False);
     }
     return True;
 }"
@@ -2652,8 +2920,8 @@ _SettingsDialog "Dialog"
 		Title "Create a Handbells/Handchimes/SMBs Used Chart"
 		X "333"
 		Y "271"
-		Width "198"
-		Height "328"
+		Width "398"
+		Height "264"
 		Controls
 		{
 			Text
@@ -2750,9 +3018,9 @@ _SettingsDialog "Dialog"
 			Text
 			{
 				Title "Handbell Notehead Type"
-				X "22"
-				Y "164"
-				Width "74"
+				X "212"
+				Y "16"
+				Width "84"
 				Height "14"
 				RightAlign "0"
 				ID "IDC_BELLHEAD_STATIC"
@@ -2763,8 +3031,8 @@ _SettingsDialog "Dialog"
 			ComboBox
 			{
 				Title
-				X "98"
-				Y "160"
+				X "298"
+				Y "12"
 				Width "92"
 				Height "21"
 				ListVar "_BellHeadItems"
@@ -2777,9 +3045,9 @@ _SettingsDialog "Dialog"
 			Text
 			{
 				Title "Handchime Notehead Type"
-				X "22"
-				Y "186"
-				Width "74"
+				X "212"
+				Y "38"
+				Width "84"
 				Height "14"
 				RightAlign "0"
 				ID "IDC_CHIMEHEAD_STATIC"
@@ -2790,8 +3058,8 @@ _SettingsDialog "Dialog"
 			ComboBox
 			{
 				Title
-				X "98"
-				Y "182"
+				X "298"
+				Y "34"
 				Width "92"
 				Height "21"
 				ListVar "_ChimeHeadItems"
@@ -2804,9 +3072,9 @@ _SettingsDialog "Dialog"
 			Text
 			{
 				Title "SMBs Notehead Type"
-				X "22"
-				Y "208"
-				Width "74"
+				X "212"
+				Y "60"
+				Width "84"
 				Height "14"
 				RightAlign "0"
 				ID "IDC_SMBHEAD_STATIC"
@@ -2817,8 +3085,8 @@ _SettingsDialog "Dialog"
 			ComboBox
 			{
 				Title
-				X "98"
-				Y "204"
+				X "298"
+				Y "56"
 				Width "92"
 				Height "21"
 				ListVar "_SmbHeadItems"
@@ -2830,10 +3098,64 @@ _SettingsDialog "Dialog"
 			}
 			Text
 			{
+				Title "P&F Notehead Type"
+				X "212"
+				Y "82"
+				Width "84"
+				Height "14"
+				RightAlign "0"
+				ID "IDC_PFHEAD_STATIC"
+				Value
+				Method
+				SetFocus "0"
+			}
+			ComboBox
+			{
+				Title
+				X "298"
+				Y "78"
+				Width "92"
+				Height "21"
+				ListVar "_PfHeadItems"
+				AllowMultipleSelections "0"
+				ID "dlg_pfHead"
+				Value "dlg_pfHead"
+				Method
+				SetFocus "0"
+			}
+			Text
+			{
+				Title "Whitechapel Notehead Type"
+				X "212"
+				Y "104"
+				Width "84"
+				Height "14"
+				RightAlign "0"
+				ID "IDC_WHITECHAPELHEAD_STATIC"
+				Value
+				Method
+				SetFocus "0"
+			}
+			ComboBox
+			{
+				Title
+				X "298"
+				Y "100"
+				Width "92"
+				Height "21"
+				ListVar "_WhitechapelHeadItems"
+				AllowMultipleSelections "0"
+				ID "dlg_whitechapelHead"
+				Value "dlg_whitechapelHead"
+				Method
+				SetFocus "0"
+			}
+			Text
+			{
 				Title "Handchime Color"
-				X "22"
-				Y "234"
-				Width "74"
+				X "212"
+				Y "130"
+				Width "84"
 				Height "14"
 				RightAlign "0"
 				ID "IDC_CHIMECOLOR_STATIC"
@@ -2844,8 +3166,8 @@ _SettingsDialog "Dialog"
 			Edit
 			{
 				Title
-				X "98"
-				Y "230"
+				X "298"
+				Y "126"
 				Width "92"
 				Height "14"
 				ID "dlg_chimeColor"
@@ -2856,9 +3178,9 @@ _SettingsDialog "Dialog"
 			Text
 			{
 				Title "SMBs Color"
-				X "22"
-				Y "254"
-				Width "74"
+				X "212"
+				Y "150"
+				Width "84"
 				Height "14"
 				RightAlign "0"
 				ID "IDC_SMBCOLOR_STATIC"
@@ -2869,8 +3191,8 @@ _SettingsDialog "Dialog"
 			Edit
 			{
 				Title
-				X "98"
-				Y "250"
+				X "298"
+				Y "146"
 				Width "92"
 				Height "14"
 				ID "dlg_smbColor"
@@ -2878,11 +3200,61 @@ _SettingsDialog "Dialog"
 				Method
 				SetFocus "0"
 			}
+			Text
+			{
+				Title "P&F Color"
+				X "212"
+				Y "170"
+				Width "84"
+				Height "14"
+				RightAlign "0"
+				ID "IDC_PFCOLOR_STATIC"
+				Value
+				Method
+				SetFocus "0"
+			}
+			Edit
+			{
+				Title
+				X "298"
+				Y "166"
+				Width "92"
+				Height "14"
+				ID "dlg_pfColor"
+				Value "dlg_pfColor"
+				Method
+				SetFocus "0"
+			}
+			Text
+			{
+				Title "Whitechapel Color"
+				X "212"
+				Y "190"
+				Width "84"
+				Height "14"
+				RightAlign "0"
+				ID "IDC_WHITECHAPELCOLOR_STATIC"
+				Value
+				Method
+				SetFocus "0"
+			}
+			Edit
+			{
+				Title
+				X "298"
+				Y "186"
+				Width "92"
+				Height "14"
+				ID "dlg_whitechapelColor"
+				Value "dlg_whitechapelColor"
+				Method
+				SetFocus "0"
+			}
 			CheckBox
 			{
 				Title "Remove Existing Chart"
-				X "98"
-				Y "272"
+				X "298"
+				Y "208"
 				Width "92"
 				Height "14"
 				ID "dlg_remove"
@@ -2893,8 +3265,8 @@ _SettingsDialog "Dialog"
 			Button
 			{
 				Title "Cancel"
-				X "84"
-				Y "294"
+				X "284"
+				Y "230"
 				Width "50"
 				Height "14"
 				DefaultButton "0"
@@ -2907,8 +3279,8 @@ _SettingsDialog "Dialog"
 			Button
 			{
 				Title "OK"
-				X "140"
-				Y "294"
+				X "340"
+				Y "230"
 				Width "50"
 				Height "14"
 				DefaultButton "0"
@@ -2922,20 +3294,26 @@ _SettingsDialog "Dialog"
 	}
 	_PluginMenuName "Handbells Used Chart"
 	CHART_INSTRUMENT "instrument.other.trebleclef"
+	HIDDEN_INSTRUMENT "instrument.other.none.hidden"
 	LABEL_TEXT_STYLE "text.staff.plain"
 	LABEL_DASH " - "
 	MARKER_PREFIX "HBUC"
 	MARKER_VERSION "1"
 	NAMES_MARKER_PREFIX "HBUCNAMES"
 	RESTORE_MARKER_PREFIX "HBUCRESTORE"
+	STARTS_MARKER_PREFIX "HBUCSTARTS"
 	STEMLESS_DIAMOND "Diamond (stemless)"
 	SQUARE_STEMLESS "Square (stemless)"
 	NO_NOTEHEAD "(no notehead)"
 	dlg_chimeColor ""
 	dlg_smbColor ""
+	dlg_pfColor ""
+	dlg_whitechapelColor ""
 	dlg_bellHead ""
 	dlg_chimeHead ""
 	dlg_smbHead ""
+	dlg_pfHead ""
+	dlg_whitechapelHead ""
 	_BellHeadItems
 	{
 	}
@@ -2943,6 +3321,12 @@ _SettingsDialog "Dialog"
 	{
 	}
 	_SmbHeadItems
+	{
+	}
+	_PfHeadItems
+	{
+	}
+	_WhitechapelHeadItems
 	{
 	}
 	CHART_MODE_COMBINED "One combined chart"
