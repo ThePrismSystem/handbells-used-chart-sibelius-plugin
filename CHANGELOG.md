@@ -59,16 +59,17 @@ in a stemless shape you pick.
   remembered. The charts are drawn in the instrument's own colour when one
   is set.
 - A "Chart Shape" box beside each notehead box draws that instrument's
-  chart in one of six stemless shapes: round, diamond, square, triangle,
-  inverted triangle or cross. It opens on `(match notehead)`, which follows
-  the notehead the music uses. Sibelius' own noteheads are recognised by
-  number and noteheads made by hand by their names. A notehead the plugin
-  can't read is charted as before: diamonds for handchimes, squares for
-  SMBs and round for the rest.
+  chart in one of seven stemless shapes: round, diamond, square, triangle,
+  inverted triangle, half circle or cone. It opens on `(match notehead)`,
+  which follows the notehead the music uses. Sibelius' own noteheads are
+  recognised by number and noteheads made by hand by their names. A
+  notehead the plugin can't read is charted as before: diamonds for
+  handchimes, squares for SMBs and round for the rest.
 - The stemless noteheads come from a notehead file installed beside the
   plugin, `Handbells Used Chart Noteheads.sib`, and are copied into a score
-  that lacks them. Handchimes and SMBs no longer need noteheads made by
-  hand, and their charts are filled instead of hollow. A `Diamond
+  that lacks them. The file comes in the release zip. Handchimes and SMBs
+  no longer need noteheads made by hand, and their charts are filled
+  instead of hollow. A `Diamond
   (stemless)` or `Square (stemless)` made by hand still works, because a
   score uses its own notehead by that name. Without the file, those charts
   fall back to hollow whole notes as before, and the message at the end of

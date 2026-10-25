@@ -7,7 +7,7 @@ TestShapes() {
         'a built-in head is read by number whatever it is called');
     AssertEquals(ShapeOfStyle(BlackAndWhiteDiamondNoteStyle, ''), ShapeDiamond(),
         'the black and white diamond is a diamond');
-    AssertEquals(ShapeOfStyle(CrossNoteStyle, ''), ShapeCross(), 'the cross is a cross');
+    AssertEquals(ShapeOfStyle(CrossNoteStyle, ''), '', 'the cross is none of the chart shapes');
     AssertEquals(ShapeOfStyle(InvertedTriangleNoteStyle, ''), ShapeInverted(),
         'the inverted triangle is an inverted triangle');
     AssertEquals(ShapeOfStyle(ArrowDownNoteStyle, ''), ShapeInverted(), 'the down arrow points down');
@@ -16,8 +16,9 @@ TestShapes() {
     AssertEquals(ShapeOfStyle(ShapedNote3NoteStyle, ''), ShapeDiamond(), 'mi is a diamond');
     AssertEquals(ShapeOfStyle(ShapedNote4StemDownNoteStyle, ''), ShapeTriangle(), 'fa is a triangle');
     AssertEquals(ShapeOfStyle(ShapedNote6NoteStyle, ''), ShapeSquare(), 'la is a square');
+    AssertEquals(ShapeOfStyle(ShapedNote2NoteStyle, ''), ShapeHalfCircle(), 're is a half circle');
+    AssertEquals(ShapeOfStyle(ShapedNote7NoteStyle, ''), ShapeCone(), 'ti is a cone');
     AssertEquals(ShapeOfStyle(HeadlessNoteStyle, 'Headless'), '', 'a headless note has no shape');
-    AssertEquals(ShapeOfStyle(ShapedNote2NoteStyle, ''), '', 're is none of the chart shapes');
 
     // A head made by hand has only its name, and a copy is named after the
     // head it was made from.
@@ -27,7 +28,10 @@ TestShapes() {
         'an inverted triangle is not read as a triangle');
     AssertEquals(ShapeOfStyle(33, 'Triangle (stemless)'), ShapeTriangle(), 'a triangle by name');
     AssertEquals(ShapeOfStyle(34, 'SQUARE'), ShapeSquare(), 'case makes no difference');
-    AssertEquals(ShapeOfStyle(35, 'Cross (2)'), ShapeCross(), 'a cross by name');
+    AssertEquals(ShapeOfStyle(35, 'Cross (2)'), '', 'a cross is no shape by name either');
+    AssertEquals(ShapeOfStyle(38, 'Half circle (stemless)'), ShapeHalfCircle(), 'a half circle by name');
+    AssertEquals(ShapeOfStyle(39, 'Cone (stemless)'), ShapeCone(),
+        'a cone is not read as round for its stemless name');
     AssertEquals(ShapeOfStyle(36, 'Normal (2)'), ShapeRound(), 'a copy of the plain head is round');
     AssertEquals(ShapeOfStyle(37, 'Chime'), '', 'a name with no shape in it has no shape');
     AssertEquals(ShapeOfStyle(-1, 'Diamond (stemless)'), ShapeDiamond(),
@@ -38,8 +42,10 @@ TestShapes() {
         'a chosen shape wins over the notehead');
     AssertEquals(ChartShape(ShapeMatch(), DiamondNoteStyle, 'Diamond', 'bells'), ShapeDiamond(),
         'matching takes the shape of the notehead');
-    AssertEquals(ChartShape('', CrossNoteStyle, 'Cross', 'smbs'), ShapeCross(),
+    AssertEquals(ChartShape('', ShapedNote7NoteStyle, '', 'smbs'), ShapeCone(),
         'no choice at all matches the notehead');
+    AssertEquals(ChartShape(ShapeMatch(), CrossNoteStyle, 'Cross', 'smbs'), ShapeSquare(),
+        'SMBs written with crosses are charted as squares');
     AssertEquals(ChartShape(ShapeMatch(), 37, 'Chime', 'chimes'), ShapeDiamond(),
         'handchimes of no known shape are charted as diamonds');
     AssertEquals(ChartShape(ShapeMatch(), 37, 'Chime', 'smbs'), ShapeSquare(),
@@ -57,6 +63,8 @@ TestShapes() {
     AssertEquals(ShapeHeadName(ShapeSquare()), 'Square (stemless)', 'the square head name');
     AssertEquals(ShapeHeadName(ShapeInverted()), 'Inverted triangle (stemless)',
         'the inverted triangle head name');
+    AssertEquals(ShapeHeadName(ShapeHalfCircle()), 'Half circle (stemless)', 'the half circle head name');
+    AssertEquals(ShapeHeadName(ShapeCone()), 'Cone (stemless)', 'the cone head name');
 
     // The head a column is drawn with, and how long it is. A stemless head
     // takes quarter notes; a built-in fallback carries stems, so its column
@@ -77,14 +85,16 @@ TestShapes() {
     head = ChartHead(ShapeInverted(), -1);
     AssertEquals(head.style, InvertedTriangleNoteStyle,
         'a missing inverted triangle falls back to the built-in one');
-    head = ChartHead(ShapeCross(), -1);
-    AssertEquals(head.style, CrossNoteStyle, 'a missing cross falls back to the built-in cross');
+    head = ChartHead(ShapeHalfCircle(), -1);
+    AssertEquals(head.style, ShapedNote2NoteStyle, 'a missing half circle falls back to re');
+    head = ChartHead(ShapeCone(), -1);
+    AssertEquals(head.style, ShapedNote7NoteStyle, 'a missing cone falls back to ti');
 
     // Each instrument's own settings.
     options = CreateDictionary('bellHead', 'Normal', 'chimeHead', 'Diamond', 'smbHead', 'Cross',
         'pfHead', 'P', 'whitechapelHead', 'W',
         'bellShape', ShapeMatch(), 'chimeShape', ShapeSquare(), 'smbShape', ShapeTriangle(),
-        'pfShape', ShapeCross(), 'whitechapelShape', ShapeInverted());
+        'pfShape', ShapeCone(), 'whitechapelShape', ShapeInverted());
     AssertEquals(HeadChosen('bells', options), 'Normal', 'the handbell notehead');
     AssertEquals(HeadChosen('chimes', options), 'Diamond', 'the handchime notehead');
     AssertEquals(HeadChosen('smbs', options), 'Cross', 'the SMB notehead');
@@ -93,14 +103,15 @@ TestShapes() {
     AssertEquals(ShapeChosen('bells', options), ShapeMatch(), 'the handbell shape');
     AssertEquals(ShapeChosen('chimes', options), ShapeSquare(), 'the handchime shape');
     AssertEquals(ShapeChosen('smbs', options), ShapeTriangle(), 'the SMB shape');
-    AssertEquals(ShapeChosen('pf', options), ShapeCross(), 'the P&F shape');
+    AssertEquals(ShapeChosen('pf', options), ShapeCone(), 'the P&F shape');
     AssertEquals(ShapeChosen('whitechapel', options), ShapeInverted(), 'the Whitechapel shape');
 
     // The boxes.
     items = ChartShapeItems();
-    AssertEquals(items.Length, 7, 'matching and six shapes');
+    AssertEquals(items.Length, 8, 'matching and seven shapes');
     AssertEquals(items[0], ShapeMatch(), 'matching comes first');
     AssertEquals(items[1], ShapeRound(), 'then round');
+    AssertEquals(items[7], ShapeCone(), 'and the cone last');
     AssertEquals(PreferredShape(ShapeSquare()), ShapeSquare(), 'a remembered shape is kept');
     AssertEquals(PreferredShape('Hexagon'), ShapeMatch(), 'an unknown shape opens on matching');
     AssertEquals(PreferredShape(''), ShapeMatch(), 'nothing remembered opens on matching');

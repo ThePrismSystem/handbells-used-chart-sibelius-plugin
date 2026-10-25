@@ -1376,12 +1376,15 @@
 	ShapeInverted "() {
     return '' & SHAPE_INVERTED;
 }"
-	ShapeCross "() {
-    return '' & SHAPE_CROSS;
+	ShapeHalfCircle "() {
+    return '' & SHAPE_HALF_CIRCLE;
+}"
+	ShapeCone "() {
+    return '' & SHAPE_CONE;
 }"
 	ChartShapeItems "() {
     return CreateSparseArray(ShapeMatch(), ShapeRound(), ShapeDiamond(), ShapeSquare(),
-        ShapeTriangle(), ShapeInverted(), ShapeCross());
+        ShapeTriangle(), ShapeInverted(), ShapeHalfCircle(), ShapeCone());
 }"
 	PreferredShape "(remembered) {
     if (HeadListed(ChartShapeItems(), remembered) = 1) {
@@ -1416,8 +1419,11 @@
     if (StyleIn(index, CreateSparseArray(ArrowDownNoteStyle, InvertedTriangleNoteStyle))) {
         return ShapeInverted();
     }
-    if (index = CrossNoteStyle) {
-        return ShapeCross();
+    if (index = ShapedNote2NoteStyle) {
+        return ShapeHalfCircle();
+    }
+    if (index = ShapedNote7NoteStyle) {
+        return ShapeCone();
     }
     return '';
 }"
@@ -1443,8 +1449,11 @@
     if (TextContains(text, 'square')) {
         return ShapeSquare();
     }
-    if (TextContains(text, 'cross')) {
-        return ShapeCross();
+    if (TextContains(text, 'half circle')) {
+        return ShapeHalfCircle();
+    }
+    if (TextContains(text, 'cone')) {
+        return ShapeCone();
     }
     if ((TextContains(text, 'normal')) or (TextContains(text, 'round')) or (TextContains(text, 'stemless'))) {
         return ShapeRound();
@@ -1500,7 +1509,10 @@
     if (shape = ShapeInverted()) {
         return InvertedTriangleNoteStyle;
     }
-    return CrossNoteStyle;
+    if (shape = ShapeHalfCircle()) {
+        return ShapedNote2NoteStyle;
+    }
+    return ShapedNote7NoteStyle;
 }"
 	HeadChosen "(kind, options) {
     if (kind = 'chimes') {
@@ -3686,7 +3698,8 @@ _SettingsDialog "Dialog"
 	SHAPE_SQUARE "Square"
 	SHAPE_TRIANGLE "Triangle"
 	SHAPE_INVERTED "Inverted triangle"
-	SHAPE_CROSS "Cross"
+	SHAPE_HALF_CIRCLE "Half circle"
+	SHAPE_CONE "Cone"
 	STEMLESS_SUFFIX " (stemless)"
 	NOTEHEAD_FILE "Handbells Used Chart Noteheads"
 	dlg_chimeColor ""

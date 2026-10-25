@@ -25,14 +25,18 @@ ShapeInverted() {
     return '' & SHAPE_INVERTED;
 }
 
-ShapeCross() {
-    return '' & SHAPE_CROSS;
+ShapeHalfCircle() {
+    return '' & SHAPE_HALF_CIRCLE;
+}
+
+ShapeCone() {
+    return '' & SHAPE_CONE;
 }
 
 // What each Chart Shape box lists, matching first.
 ChartShapeItems() {
     return CreateSparseArray(ShapeMatch(), ShapeRound(), ShapeDiamond(), ShapeSquare(),
-        ShapeTriangle(), ShapeInverted(), ShapeCross());
+        ShapeTriangle(), ShapeInverted(), ShapeHalfCircle(), ShapeCone());
 }
 
 // The value a Chart Shape box opens on: the last choice, while it is still a
@@ -59,10 +63,10 @@ ShapeOfStyle(index, name) {
     return NamedShape(name);
 }
 
-// The shaped notes run do to ti, so 1 is do's triangle, 3 mi's diamond, 4
-// fa's right triangle, in two orientations, and 6 la's square. Re and ti, and
-// the slashes, the headless note and the cross-or-diamond, are none of the
-// chart shapes.
+// The shaped notes run do to ti, so 1 is do's triangle, 2 re's half circle, 3
+// mi's diamond, 4 fa's right triangle, in two orientations, 6 la's square and
+// 7 ti's cone. The cross, the slashes, the headless note and the
+// cross-or-diamond are none of the chart shapes.
 BuiltInShape(index) {
     if (StyleIn(index, CreateSparseArray(NormalNoteStyle, StemlessNoteStyle, SilentNoteStyle,
         CueNoteStyle, SlashedNoteStyle, BackSlashedNoteStyle, ShapedNote5NoteStyle))) {
@@ -82,8 +86,11 @@ BuiltInShape(index) {
     if (StyleIn(index, CreateSparseArray(ArrowDownNoteStyle, InvertedTriangleNoteStyle))) {
         return ShapeInverted();
     }
-    if (index = CrossNoteStyle) {
-        return ShapeCross();
+    if (index = ShapedNote2NoteStyle) {
+        return ShapeHalfCircle();
+    }
+    if (index = ShapedNote7NoteStyle) {
+        return ShapeCone();
     }
     return '';
 }
@@ -117,8 +124,11 @@ NamedShape(name) {
     if (TextContains(text, 'square')) {
         return ShapeSquare();
     }
-    if (TextContains(text, 'cross')) {
-        return ShapeCross();
+    if (TextContains(text, 'half circle')) {
+        return ShapeHalfCircle();
+    }
+    if (TextContains(text, 'cone')) {
+        return ShapeCone();
     }
     if ((TextContains(text, 'normal')) or (TextContains(text, 'round')) or (TextContains(text, 'stemless'))) {
         return ShapeRound();
@@ -189,7 +199,10 @@ FallbackStyle(shape) {
     if (shape = ShapeInverted()) {
         return InvertedTriangleNoteStyle;
     }
-    return CrossNoteStyle;
+    if (shape = ShapeHalfCircle()) {
+        return ShapedNote2NoteStyle;
+    }
+    return ShapedNote7NoteStyle;
 }
 
 // Each instrument's notehead and Chart Shape box.

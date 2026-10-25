@@ -62,8 +62,11 @@ Two rough edges worth knowing before you run it on work you care about:
 
 The simplest route is the [latest
 release](https://github.com/ThePrismSystem/handbells-used-chart-sibelius-plugin/releases/latest):
-download the zip and copy `HandbellsUsedChart.plg` into Sibelius' per-user
-plugin folder, under a `Handbells` subfolder.
+download the zip and copy `HandbellsUsedChart.plg` and `Handbells Used
+Chart Noteheads.sib` into Sibelius' per-user plugin folder, under a
+`Handbells` subfolder. The plugin copies its stemless noteheads from the
+`.sib` file, so keep the two together. Without it, charts in any shape but
+round are drawn as hollow whole notes. See [Chart shapes](#chart-shapes).
 
 On macOS:
 
@@ -91,12 +94,14 @@ npm run build
 
 This writes `build/HandbellsUsedChart.plg` and
 `build/HandbellsUsedChartTests.plg`, and `npm run package` assembles the
-release zip in `dist/` from the first of them. The test plug-in is a
+release zip in `dist/` from the first of them and the notehead file. The
+notehead file is made by hand in Sibelius and kept in `build/`, and `npm run
+deploy` copies it into the plugin folder with the plug-ins. The test plug-in is a
 development tool. It builds a real chart on the open score and removes it
 again, so it is never part of a release.
 
-Every pull request's CI run also uploads the built `.plg` files as a
-downloadable `plugins` artifact.
+Every pull request's CI run also uploads the built `.plg` files and the
+notehead file as a downloadable `plugins` artifact.
 
 ## Settings
 
@@ -252,45 +257,47 @@ reading those notes as two instruments at once.
 ## Chart shapes
 
 Chart notes carry no stems, and each instrument's chart is drawn in one of
-six shapes: round, diamond, square, triangle, inverted triangle or cross.
-The chart shape box beside each notehead box picks the shape. It opens on
-`(match notehead)`, which draws the chart in the shape of the notehead the
-music uses for that instrument, so handchimes written as diamonds are
-charted as diamonds. Your last choice is remembered between runs.
+the seven shapes below. The chart shape box beside each notehead box picks
+the shape. It opens on `(match notehead)`, which draws the chart in the
+shape of the notehead the music uses for that instrument, so handchimes
+written as diamonds are charted as diamonds. Your last choice is remembered
+between runs.
+
+| | Shape | Chart notehead | Sibelius' own noteheads of this shape |
+|---|---|---|---|
+| <img src="docs/shapes/round.svg" alt="" width="40" height="28"> | Round | `Stemless`, built in | Normal, stemless, cue, silent, slashed and back-slashed, shaped note 5 |
+| <img src="docs/shapes/diamond.svg" alt="" width="40" height="28"> | Diamond | `Diamond (stemless)` | Diamond, black and white diamond, shaped note 3 |
+| <img src="docs/shapes/square.svg" alt="" width="40" height="28"> | Square | `Square (stemless)` | Shaped note 6 |
+| <img src="docs/shapes/triangle.svg" alt="" width="40" height="28"> | Triangle, point up | `Triangle (stemless)` | Shaped notes 1 and 4, up arrow |
+| <img src="docs/shapes/inverted-triangle.svg" alt="" width="40" height="28"> | Inverted triangle, point down | `Inverted triangle (stemless)` | Inverted triangle, down arrow |
+| <img src="docs/shapes/half-circle.svg" alt="" width="40" height="28"> | Half circle, flat side up | `Half circle (stemless)` | Shaped note 2 |
+| <img src="docs/shapes/cone.svg" alt="" width="40" height="28"> | Cone, point down | `Cone (stemless)` | Shaped note 7 |
 
 ManuScript can't see what a notehead looks like, only its number and its
 name, so the plugin works the shape out from those:
 
 - Sibelius' own noteheads have the same shape in every score and every
-  language, so the plugin reads them by number. Diamond, black and white
-  diamond and shaped note 3 are diamonds, and shaped note 6 is the square.
-  Shaped notes 1 and 4 and the up arrow are triangles, and the inverted
-  triangle and the down arrow are inverted triangles. The plain, stemless,
-  cue, silent and slashed heads and shaped note 5 are round, and the cross
-  is a cross.
+  language, so the plugin reads them by number, as the last column lists.
+  Shaped note 4 is a right triangle, which counts as a triangle.
 - A notehead made by hand is read by its name. Sibelius names a copy after
   the head it came from, such as `Black & white diamond (2)`, so a name
-  containing diamond, square, triangle, inverted, cross, normal, round or
-  stemless gives the shape. Only English names are read.
+  containing diamond, square, triangle, inverted, half circle, cone,
+  normal, round or stemless gives the shape. Only English names are read.
 
-When neither works, as for the headless notehead or one renamed `Chime`,
-handchimes are charted as diamonds, SMBs as squares and every other
-instrument as round. Pick a shape in the box to change that.
+When neither works, as for the cross, the headless notehead or one renamed
+`Chime`, handchimes are charted as diamonds, SMBs as squares and every
+other instrument as round. Pick a shape in the box to change that.
 
 Round charts use Sibelius' built-in `Stemless` notehead, which every score
 has. The other shapes need stemless noteheads that Sibelius doesn't ship
-and ManuScript can't create, so they come from a notehead file installed
-beside the plugin, `Handbells Used Chart Noteheads.sib`. When a score lacks
-one, the plugin opens the file, copies a note in that notehead into the
-score and closes the file. If the file is already open in Sibelius, the
-plugin uses it and leaves it open. The notehead stays in the score
-afterwards. The copy goes through Sibelius' clipboard, so whatever you last
-copied is replaced.
-
-The file's noteheads are named `Diamond (stemless)`, `Square (stemless)`,
-`Triangle (stemless)`, `Inverted triangle (stemless)` and `Cross
-(stemless)`. A score that already has a notehead by one of those names uses
-its own.
+and ManuScript can't create, so they come from the notehead file,
+`Handbells Used Chart Noteheads.sib`, which goes beside the plugin. When a
+score lacks one, the plugin opens the file, copies a note in that notehead
+into the score and closes the file. If the file is already open in
+Sibelius, the plugin uses it and leaves it open. The notehead stays in the
+score afterwards. The copy goes through Sibelius' clipboard, so whatever
+you last copied is replaced. A score that already has a notehead by one of
+the names in the table uses its own.
 
 If the file isn't installed, or a notehead can't be copied from it, the
 chart still has no stems. That instrument's columns are written as whole

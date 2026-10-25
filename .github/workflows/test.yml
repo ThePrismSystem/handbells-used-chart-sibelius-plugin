@@ -22,4 +22,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: plugins
-          path: build/*.plg
+          path: |
+            build/*.plg
+            build/*.sib

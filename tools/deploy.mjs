@@ -20,11 +20,17 @@ export function pluginDir(platform, home) {
     return join(home, 'Library/Application Support/Avid/Sibelius/Plugins', CATEGORY);
 }
 
+// The plug-ins, and the notehead file the plug-in copies stemless noteheads
+// from, which has to sit in the same plug-in folder.
+export function deployable(name) {
+    return name.endsWith('.plg') || name.endsWith('.sib');
+}
+
 function main() {
     const target = pluginDir(process.platform, homedir());
     mkdirSync(target, { recursive: true });
     for (const name of readdirSync(join(ROOT, 'build'))) {
-        if (!name.endsWith('.plg')) continue;
+        if (!deployable(name)) continue;
         copyFileSync(join(ROOT, 'build', name), join(target, name));
         console.log(`deployed ${name} -> ${target}`);
     }
