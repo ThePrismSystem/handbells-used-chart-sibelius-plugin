@@ -6,7 +6,7 @@ added to individual instrument parts if you're writing for dual+ choirs. The plu
 handchimes, silver melody bells, Petit & Fritsen bells, and/or Whitechapel bells - all charted separately.
 
 - Bells/chimes/etc are listed in pitch order, with same bell accidentals (e.g. G#5 and Ab5) listed
-  as both spellings when both appear in the score. This ensure ringers know when they need to share
+  as both spellings when both appear in the score. This ensures ringers know when they need to share
   a bell throughout a piece. Note that natural signs are never drawn on the charts
 - Handchimes, silver melody bells, P&F bells, and Whitechapel bells can each have charts of their own.
   You can choose in the dialog which notehead maps to which type of bell/chime, from the noteheads the score uses
@@ -15,7 +15,7 @@ handchimes, silver melody bells, Petit & Fritsen bells, and/or Whitechapel bells
   charted on a single treble staff, because there are no SMBs below C5
 - Bells/chimes above C7 and below C3 share the column with the octave below/above it (e.g. D7 and D8 are
   charted in the same column as/above D6; G2 is charted in the same column as/below G3)
-- You're able to choose whether to have tbe charts placed only in the full score, or to include a subset
+- You're able to choose whether to have the charts placed only in the full score, or to include a subset
   of applicable charts in individual parts for chosen instruments as well
 - Rerunning the plugin will update all applicable charts if any changes to the score have been made.
   There's also an option to remove the charts from the score entirely.
