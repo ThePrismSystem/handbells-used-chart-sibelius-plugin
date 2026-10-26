@@ -1,15 +1,3 @@
-# AI tooling — not part of this project
-CLAUDE.md
-AGENTS.md
-GEMINI.md
-.claude/
-.claude-prism/
-.cursor/
-.cursorrules
-.aider*
-.github/copilot-instructions.md
-docs/superpowers/
-
 # Vendor documentation — copyrighted, not ours to redistribute
 *.pdf
 
