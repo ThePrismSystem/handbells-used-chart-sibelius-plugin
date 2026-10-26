@@ -1,50 +1,30 @@
 # Handbells Used Chart for Sibelius
 
-A Sibelius Ultimate plugin, written in ManuScript, that draws a "handbells
-used" chart into a score: a grand staff, placed between the title and the
-first system, listing every distinct handbell, handchime and silver melody
-bell the piece needs.
+A Sibelius Ultimate plugin, written in ManuScript, that draws "handbells used" charts into a score.
+The charts are placed between the title and the first system in the full score, and can be automatically
+added to individual instrument parts if you're writing for dual+ choirs. The plugin can handle handbells,
+handchimes, silver melody bells, Petit & Fritsen bells, and/or Whitechapel bells - all charted separately.
 
-It is a port of
-[handbells-used-chart-musescore-extension](https://github.com/ThePrismSystem/handbells-used-chart-musescore-extension)
-to Sibelius, and charts the same way, with additions such as charting each
-instrument into its own part:
-
-- Bells are listed in pitch order, spelled the way the score spells them. A
-  bell the piece writes as both G#5 and Ab5 gets a column for each spelling,
-  each with its own accidental. That is deliberate, not a failure to
-  deduplicate: the two spellings are one physical bell, and they fall to
-  different positions, so the chart is how the F5-G5 ringer and the A5-B5
-  ringer see that they have to share it.
-- No natural sign is ever drawn on the chart. Sibelius adds one to a plain E
-  a few columns along from an E flat, where it reads as cancelling that flat
-  rather than naming a bell of its own. Which bells are charted is unaffected:
-  E flat and E are two separate bells and get a column each either way.
-- Handchimes, silver melody bells, and P&F and Whitechapel handbells get
-  charts of their own. You choose in the dialog which notehead means which
-  instrument, from the noteheads the score uses, so an arrangement that
-  marks them some other way charts as readily as one using the conventional
-  heads.
-- Each chart is drawn without stems, in the shape of the notehead its
-  instrument uses, or in a shape you pick.
-- Handbells, handchimes, and P&F and Whitechapel handbells are charted on a
-  treble and a bass staff. Silver melody bells are a treble set, so they get
-  a single treble staff, C5 included, which is how they are usually printed
-  and one staff less on the page.
-- A bell that also appears an octave or two higher shares its column, so D6,
-  D7 and D8 print as one stack rather than three.
-- A score with several handbell parts can be charted one instrument at a
-  time, and each instrument's charts can go into its Sibelius part as well as
-  the full score. Instruments that are not handbells, such as a piano, can be
-  left out.
-- Running the plugin again on a score that already carries a chart replaces
-  it rather than adding a second one.
-- If the plugin cannot positively identify an existing chart as its own, it
-  refuses to touch it and explains why, rather than guessing.
+- Bells/chimes/etc are listed in pitch order, with same bell accidentals (e.g. G#5 and Ab5) listed
+  as both spellings when both appear in the score. This ensure ringers know when they need to share
+  a bell throughout a piece. Note that natural signs are never drawn on the charts
+- Handchimes, silver melody bells, P&F bells, and Whitechapel bells can each have charts of their own.
+  You can choose in the dialog which notehead maps to which type of bell/chime, from the noteheads the score uses
+- Each chart is drawn without stems, with the notehead shape its instrument uses, or in a custom shape you pick
+- Handbells, handchimes, P&F bells, and Whitechapel bells are charted on grand staffs. Silver melody bells are
+  charted on a single treble staff, because there are no SMBs below C5
+- Bells/chimes above C7 and below C3 share the column with the octave below/above it (e.g. D7 and D8 are
+  charted in the same column as/above D6; G2 is charted in the same column as/below G3)
+- You're able to choose whether to have tbe charts placed only in the full score, or to include a subset
+  of applicable charts in individual parts for chosen instruments as well
+- Rerunning the plugin will update all applicable charts if any changes to the score have been made.
+  There's also an option to remove the charts from the score entirely.
+- If the plugin cannot positively identify an existing chart as one it created, it refuses to change/remove
+  it and explains why.
 
 ## Status
 
-Released and working. Verified inside real Sibelius Ultimate 2026 on macOS:
+Released and working. Verified inside real Sibelius Ultimate 2026 on macOS and Windows:
 the in-Sibelius test suite passes in full, including tests that read a real
 score, build a chart into it and its parts, and remove it again.
 
@@ -80,9 +60,9 @@ On Windows:
 C:\Users\<username>\AppData\Roaming\Avid\Sibelius\Plugins\Handbells\
 ```
 
-Create the `Handbells` folder if it isn't there, then restart Sibelius. The
-subfolder name is the category the plugin appears under in the Plug-ins
-gallery, so call it something you will recognise.
+Create the `Handbells` folder if it isn't there, place the files in the folder,
+then restart Sibelius. The subfolder name is the category the plugin appears
+under in the Plug-ins gallery, so call it something you will recognise.
 
 ### Building it yourself
 
@@ -95,10 +75,9 @@ npm run build
 This writes `build/HandbellsUsedChart.plg` and
 `build/HandbellsUsedChartTests.plg`, and `npm run package` assembles the
 release zip in `dist/` from the first of them and the notehead file. The
-notehead file is made by hand in Sibelius and kept in `build/`, and `npm run
+notehead file was made by hand in Sibelius and kept in `build/`, and `npm run
 deploy` copies it into the plugin folder with the plug-ins. The test plug-in is a
-development tool. It builds a real chart on the open score and removes it
-again, so it is never part of a release.
+development tool, so it's never part of a release.
 
 Every pull request's CI run also uploads the built `.plg` files and the
 notehead file as a downloadable `plugins` artifact.
@@ -109,35 +88,35 @@ The plugin's dialog has nineteen controls. The instrument and chart choices
 are on the left. On the right, each instrument has a row with a notehead box
 and a chart shape box, and the colours and removal come after them.
 
-| Control | Effect |
-|---|---|
-| Instruments to chart | Which of the score's instruments are read; Cmd-click (Ctrl-click on Windows) to pick more than one |
-| Charts | One combined chart, or a separate chart for each instrument |
-| Also add charts to parts | Puts each instrument's charts into its parts as well |
+| Control                    | Effect                                                                                                                                        |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Instruments to chart       | Which of the score's instruments are read; Cmd-click (Ctrl-click on Windows) to pick more than one                                            |
+| Charts                     | One combined chart, or a separate chart for each instrument                                                                                   |
+| Also add charts to parts   | Puts each instrument's charts into its parts as well                                                                                          |
 | Page break after one chart | Starts a part's music on a new page when the part has a single chart section; with two or more (bells and chimes count as two) it always does |
-| Notehead in music | One box per instrument: which notehead in the score counts as a handbell, handchime, SMB, P&F handbell or Whitechapel handbell |
-| Chart shape | One box per instrument: the shape its chart is drawn in, or `(match notehead)` to follow the notehead in the music |
-| Handchime colour | Notehead colour for chimes, as a hex value, filled in from the music when you pick their notehead; blank leaves them black |
-| SMBs colour | Notehead colour for SMBs, on the same terms |
-| P&F colour | Notehead colour for P&F handbells, on the same terms |
-| Whitechapel colour | Notehead colour for Whitechapel handbells, on the same terms |
-| Remove existing chart | Strips the chart instead of generating one |
+| Notehead in music          | One box per instrument: which notehead in the score counts as a handbell, handchime, SMB, P&F bell or Whitechapel bell                        |
+| Chart shape                | One box per instrument: the shape its chart is drawn in, or `(match notehead)` to follow the notehead in the music                            |
+| Handchime colour           | Notehead colour for chimes, as a hex value, filled in from the music when you pick their notehead; blank leaves them black                    |
+| SMBs colour                | Notehead colour for SMBs, same explanation as above                                                                                           |
+| P&F colour                 | Notehead colour for P&F bells, same explanation as above                                                                                      |
+| Whitechapel colour         | Notehead colour for Whitechapel bells, same explanation as above                                                                              |
+| Remove existing chart      | Removes all charts generated by the plugin from the score instead of adding them                                                              |
 
-Section labels are generated: "Handbells Used: *n*", "Handchimes Used: *n*",
-"SMBs Used: *n*", "P&F Handbells Used: *n*", "Whitechapel Handbells Used:
-*n*". Each counts physical bells, so a bell appearing under two
+Section labels are generated: "Handbells Used: _n_", "Handchimes Used: _n_",
+"SMBs Used: _n_", "P&F Handbells Used: _n_", "Whitechapel Handbells Used:
+_n_". Each counts physical bells, so a bell appearing under two
 spellings is counted once, although it is charted under both. They are
 ordinary staff text once the chart is drawn, so retype them in the score if
-you want something else.
+you want to use different labels.
 
 ### Choosing the instruments
 
-The list names every instrument in the score, by the name it carries there,
-leaving out an existing chart's own staves. Two instruments with the same name
-are told apart as `Handbells`, `Handbells (2)`. Only the selected instruments
-are read, so a piano or other accompaniment written with plain noteheads can
-be left out rather than charted as handbells. A passage selection still
-narrows that further to the bars and staves selected.
+The list names every instrument in the score, leaving out an existing chart's
+own staves. Two instruments with the same name are told apart as `Handbells`,
+`Handbells (2)`. Only the selected instruments are read, so a piano or other
+accompaniment written with plain noteheads can be left out rather than charted
+as handbells. A passage selection still narrows that further to the bars and
+staves selected.
 
 The instruments you leave out are remembered by name, across scores: a piano
 left out of one score starts left out of the next score that has a piano. An
@@ -147,7 +126,7 @@ every instrument is.
 With one combined chart, the selected instruments are pooled into one set of
 sections. With a separate chart for each instrument, each gets its own
 sections, stacked in the full score in score order and labelled with the
-instrument's name: "Handbells I - Handbells Used: 25". The choice only
+instrument's name (e.g. "Handbells I - Handbells Used: 25"). The choice only
 applies with two or more instruments selected. With separate charts, an
 instrument that turns out to have nothing to chart is named in the message
 at the end of the run.
@@ -206,7 +185,7 @@ system of its own, and an instrument's bells and chimes are two sections. In
 a part with two or more sections, the music therefore starts on a new page,
 laid out as it was, one page later. In a part with one section, the music
 follows the chart on the first page unless "Page break after one chart" is
-ticked.
+enabled.
 
 After that page break the music starts on a left-hand page instead of a
 right-hand one. If the part uses mirrored or different page margins in
@@ -215,19 +194,15 @@ than the old first page did, as every left-hand page in the part already
 does. To keep the music on the same left- or right-hand pages as before, add
 a blank page after the chart in Sibelius.
 
-Sibelius gives every instrument the plugin adds a part of its own, so any
-part holding nothing but chart staves is deleted, on a build and on a
-removal.
-
 ### Colours
 
 The four colour fields take a **six-digit hex RGB value**, with or without the
 leading `#`, and surrounding spaces are ignored. All of `c00000`, `#c00000`
-and ` #C00000 ` set the same red. A blank field leaves that section black,
-which is what handbells always are.
+and `#C00000` set the same red. A blank field charts with the default
+color (black).
 
 The fields fill themselves in from the music. When you pick a notehead for
-handchimes, SMBs, P&F or Whitechapel handbells, that instrument's colour
+handchimes, SMBs, P&F bells, or Whitechapel bells, that instrument's colour
 field takes the colour most of the notes in that notehead carry, so a few
 notes left black among red ones still give red. A notehead whose notes are
 mostly black leaves the field blank. You can type over the field afterwards,
@@ -235,30 +210,26 @@ and picking another notehead fills it in again. When the dialog opens, a
 field that was blank on your last run takes the colour of the notehead its
 box opens on, and any other field keeps the colour from your last run. To
 chart an instrument with coloured noteheads in black, clear its field before
-you run. The field fills in again the next time the dialog opens.
+you run.
 
 Anything that is not six digits after the `#` counts as no colour at all, so
 that section stays black rather than the run failing. Within a six-digit
 value, a character that is not a hex digit reads as `0`: `zz0000` is accepted
-and comes out black rather than being refused, so blank is the clearer way to
-ask for black.
+and comes out black rather than being refused.
 
 ### Choosing the noteheads
 
 All five notehead dropdowns are filled from the open score each time the
-dialog opens: they list the notehead styles the music actually uses, by the name
-Sibelius knows them under, plus a `(no notehead)` entry meaning that
-instrument is not in this piece. An existing chart's own staves are left out
-of the scan, so re-running never offers the chart's noteheads back.
+dialog opens: they list the notehead styles the music actually uses, plus
+a `(no notehead)` entry meaning that instrument is not in this piece.
 
 The boxes open on the plain notehead for handbells and the diamond for
 handchimes wherever the score uses them, which is what the plugin assumed
-before these controls existed. The SMBs, P&F and Whitechapel boxes have no
-such default, because nothing in a score suggests one, so they open on
-`(no notehead)` until you pick. Your last choice is remembered between
-runs and wins over the defaults, but only while the score in front of you
-still uses it. Picking a notehead also fills in that instrument's colour
-field. See [Colours](#colours).
+before these controls existed. The SMB, P&F and Whitechapel boxes have no
+default, so they open on `(no notehead)` until you select one. Your last
+choice is remembered between runs, but only while the score still uses it.
+Picking a notehead also fills in that instrument's colour field.
+See [Colours](#colours).
 
 Notes carrying a notehead none of the five boxes names are skipped and
 counted in the unrecognised-notehead warning, which names the heads it
@@ -275,15 +246,15 @@ shape of the notehead the music uses for that instrument, so handchimes
 written as diamonds are charted as diamonds. Your last choice is remembered
 between runs.
 
-| | Shape | Chart notehead | Sibelius' own noteheads of this shape |
-|---|---|---|---|
-| <img src="docs/shapes/round.svg" alt="" width="40" height="28"> | Round | `Stemless`, built in | Normal, stemless, cue, silent, slashed and back-slashed, shaped note 5 |
-| <img src="docs/shapes/diamond.svg" alt="" width="40" height="28"> | Diamond | `Diamond (stemless)` | Diamond, black and white diamond, shaped note 3 |
-| <img src="docs/shapes/square.svg" alt="" width="40" height="28"> | Square | `Square (stemless)` | Shaped note 6 |
-| <img src="docs/shapes/triangle.svg" alt="" width="40" height="28"> | Triangle, point up | `Triangle (stemless)` | Shaped notes 1 and 4, up arrow |
-| <img src="docs/shapes/inverted-triangle.svg" alt="" width="40" height="28"> | Inverted triangle, point down | `Inverted triangle (stemless)` | Inverted triangle, down arrow |
-| <img src="docs/shapes/half-circle.svg" alt="" width="40" height="28"> | Half circle, flat side up | `Half circle (stemless)` | Shaped note 2 |
-| <img src="docs/shapes/cone.svg" alt="" width="40" height="28"> | Cone, point down | `Cone (stemless)` | Shaped note 7 |
+|                                                                             | Shape                         | Chart notehead                 | Sibelius' own noteheads of this shape                                  |
+| --------------------------------------------------------------------------- | ----------------------------- | ------------------------------ | ---------------------------------------------------------------------- |
+| <img src="docs/shapes/round.svg" alt="" width="40" height="28">             | Round                         | `Stemless`, built in           | Normal, stemless, cue, silent, slashed and back-slashed, shaped note 5 |
+| <img src="docs/shapes/diamond.svg" alt="" width="40" height="28">           | Diamond                       | `Diamond (stemless)`           | Diamond, black and white diamond, shaped note 3                        |
+| <img src="docs/shapes/square.svg" alt="" width="40" height="28">            | Square                        | `Square (stemless)`            | Shaped note 6                                                          |
+| <img src="docs/shapes/triangle.svg" alt="" width="40" height="28">          | Triangle, point up            | `Triangle (stemless)`          | Shaped notes 1 and 4, up arrow                                         |
+| <img src="docs/shapes/inverted-triangle.svg" alt="" width="40" height="28"> | Inverted triangle, point down | `Inverted triangle (stemless)` | Inverted triangle, down arrow                                          |
+| <img src="docs/shapes/half-circle.svg" alt="" width="40" height="28">       | Half circle, flat side up     | `Half circle (stemless)`       | Shaped note 2                                                          |
+| <img src="docs/shapes/cone.svg" alt="" width="40" height="28">              | Cone, point down              | `Cone (stemless)`              | Shaped note 7                                                          |
 
 ManuScript can't see what a notehead looks like, only its number and its
 name, so the plugin works the shape out from those:
@@ -296,27 +267,24 @@ name, so the plugin works the shape out from those:
   containing diamond, square, triangle, inverted, half circle, cone,
   normal, round or stemless gives the shape. Only English names are read.
 
-When neither works, as for the cross, the headless notehead or one renamed
-`Chime`, handchimes are charted as diamonds, SMBs as squares and every
-other instrument as round. Pick a shape in the box to change that.
+When the plugin can't determine the shape of the notehead used, handchimes
+are charted as diamonds, SMBs as squares, and every other instrument as
+round. To change this, select a different notehead shape.
 
 Round charts use Sibelius' built-in `Stemless` notehead, which every score
 has. The other shapes need stemless noteheads that Sibelius doesn't ship
 and ManuScript can't create, so they come from the notehead file,
-`Handbells Used Chart Noteheads.sib`, which goes beside the plugin. When a
-score lacks one, the plugin opens the file, copies a note in that notehead
-into the score and closes the file. If the file is already open in
-Sibelius, the plugin uses it and leaves it open. The notehead stays in the
-score afterwards. The copy goes through Sibelius' clipboard, so whatever
-you last copied is replaced. A score that already has a notehead by one of
-the names in the table uses its own.
+`Handbells Used Chart Noteheads.sib`, which needs to be in the same folder
+as the plugin. When a score lacks one, the plugin opens the file, copies a
+note in that notehead into the score and closes the file. A score that
+already has a notehead by one of the names in the table uses its own.
 
-If the file isn't installed, or a notehead can't be copied from it, the
-chart still has no stems. That instrument's columns are written as whole
-notes in Sibelius' own notehead of that shape, since a whole note has no
-stem. The cost is that a whole note's head is hollow, so the chart reads as
-outlined shapes. The message at the end of the run names the instrument,
-the missing notehead and the file.
+If the file isn't included in the Handbells plugin folder, or a notehead
+can't be copied from it, the chart notes will still be stemless. That
+instrument's notes are written as whole notes in Sibelius' own notehead
+of that shape, since a whole note has no stem. The cost is that a whole
+note's head is hollow, so the chart reads as outlined shapes. The message
+at the end of the run names the instrument, the missing notehead and the file.
 
 ## Usage
 
@@ -353,12 +321,12 @@ this project can be executed by a CI runner.
 
 The real tests are a second plugin, `HandbellsUsedChartTests.plg`, built
 from the same `src/` sources plus `test/*.mss`. It is run by hand inside
-Sibelius Ultimate 2026 on macOS, and reports pass/fail counts to the trace
-window. It covers bell naming and region boundaries, collection and
-enharmonic handling, column anchoring and stacking, plan assembly, the
-dialog's options, chart shapes, copying a notehead in from the notehead
-file, instrument and part planning, and score-level runs that build a chart
-into a real score and its parts and remove it again.
+Sibelius, and reports pass/fail counts to the plugin trace window. It
+covers bell naming and region boundaries, collection and enharmonic handling,
+column anchoring and stacking, plan assembly, the dialog's options, chart
+shapes, copying a notehead in from the notehead file, instrument and part
+planning, and score-level runs that build a chart into a real score and its
+parts then remove it again.
 
 The score-level tests run on whatever score is open, and the parts tests
 need two instruments that each have a part of their own. The notehead test
@@ -369,24 +337,12 @@ needs `Handbells Used Chart Noteheads.sib` installed beside the plugin.
 - Sibelius Ultimate 2026 or later. `Initialize` checks
   `Sibelius.ProgramVersion` and declines to register the plugin on an older
   release rather than failing obscurely partway through a run.
-- Developed and tested on macOS. Nothing in the ManuScript is
-  platform-specific and it should behave the same on Windows, but that is
-  untested, so treat Windows as unverified rather than supported. Only
-  `npm run deploy`, a convenience for copying a fresh build into place, is
-  macOS-only.
 - Handbells sound an octave above written pitch. Sibelius has no transposing
   handbell instrument, so the plugin applies that octave itself.
 - An instrument is recognised from the number of staves Sibelius gave it when
   it was created, and from its instrument type. One given an extra staff by
   hand may be listed as two. One that lost a staff by hand can take in the
   next instrument's first staff when both are the same type.
-- Many instruments make many charts: each chart section is a system of its
-  own before the music, so five instruments with bells and chimes put ten
-  systems ahead of bar 1 in the full score, running onto later pages. A part
-  carries only its own.
-- In a part with a staff that holds no chart, another instrument's chart
-  shows as a short empty bar beside the part's own, because Sibelius keeps a
-  staff showing in every system.
 - In a part, the chart is drawn on the instrument's own staves, so the
   instrument's brace shows beside it. Sibelius sets braces for a whole part,
   not for one system.
@@ -399,21 +355,20 @@ needs `Handbells Used Chart Noteheads.sib` installed beside the plugin.
 - The plugin doesn't make room between the title block and a chart. A
   chart's label, or high bells on ledger lines, can reach the composer lines
   in the full score or in a part. If they do, select the title lines in
-  Sibelius and move them up.
+  Sibelius and move them up (or select the chart and move it down).
 - One notehead per kind of bell. A score marking its handchimes with two
   different diamond styles has to be normalised first. Notes carrying the
   head that was not chosen are skipped and counted toward the
   unrecognised-notehead warning.
-- Handbells take no colour of their own. They are the reference the other
-  charts are read against, so they are always black.
+- Handbells are currently charted as black only.
 - Bells outside C2-C9 are skipped and reported as a warning rather than
   charted.
 - The chart adds a system per section to the first page, which can push the
-  page over the threshold at which Sibelius draws system separators, the
-  double slash at the left margin between systems. That is an engraving
+  page over the threshold at which Sibelius draws system separators (the
+  double slash at the left margin between systems). That is an engraving
   rule, not something the chart draws, and ManuScript exposes no way to set
-  it: turn it off in Engraving Rules, on the Instruments page, under System
-  separators.
+  it. You can turn it off in Engraving Rules, on the Instruments page, under
+  System separators.
 - ManuScript has no exception handling. If a run hits a hard error partway
   through, the score's redraw can stay disabled until Sibelius is
   restarted.
@@ -421,17 +376,9 @@ needs `Handbells Used Chart Noteheads.sib` installed beside the plugin.
   `utils.DeleteStaff` from `utils.plg`, which Sibelius installs and intends
   other plugins to call. A Sibelius installation missing that plugin will
   fail on those calls.
-- Bells above C7 are drawn in Sibelius's out-of-range colour on screen, since
-  `InstrumentType` exposes no minimum or maximum pitch to a plugin; print is
-  unaffected.
-- Ledger lines run continuously from the staff to each stacked bell.
-  Published charts use detached ledger lines, which this plugin does not
-  draw.
 - Plugin actions may not be undoable as a single step; Sibelius warns about
   this for plugins generally.
 
 ## Licence
 
-GPL-3.0-only. See [LICENSE.md](LICENSE.md). The note-reading logic descends
-from the [handbell-notation](https://github.com/andy-lyttle/handbell-notation)
-plugins, copyright 2025 Andy Lyttle, used under the GPL-3.0.
+GPL-3.0-only. See [LICENSE.md](LICENSE.md).
