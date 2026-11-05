@@ -1,5 +1,11 @@
 # Handbells Used Chart for Sibelius
 
+[![test](https://github.com/ThePrismSystem/handbells-used-chart-sibelius-plugin/actions/workflows/test.yml/badge.svg)](https://github.com/ThePrismSystem/handbells-used-chart-sibelius-plugin/actions/workflows/test.yml)
+[![lint](https://github.com/ThePrismSystem/handbells-used-chart-sibelius-plugin/actions/workflows/lint.yml/badge.svg)](https://github.com/ThePrismSystem/handbells-used-chart-sibelius-plugin/actions/workflows/lint.yml)
+[![CodeQL](https://github.com/ThePrismSystem/handbells-used-chart-sibelius-plugin/actions/workflows/codeql.yml/badge.svg)](https://github.com/ThePrismSystem/handbells-used-chart-sibelius-plugin/actions/workflows/codeql.yml)
+[![codecov](https://codecov.io/gh/ThePrismSystem/handbells-used-chart-sibelius-plugin/graph/badge.svg?token=UFZ5C5RAHR)](https://codecov.io/gh/ThePrismSystem/handbells-used-chart-sibelius-plugin)
+[![Licence: GPL-3.0](https://img.shields.io/github/license/ThePrismSystem/handbells-used-chart-sibelius-plugin)](LICENSE.md)
+
 A Sibelius Ultimate plugin, written in ManuScript, that draws "handbells used" charts into a score.
 The charts are placed between the title and the first system in the full score, and can be automatically
 added to individual instrument parts if you're writing for dual+ choirs. The plugin can handle handbells,
@@ -66,7 +72,8 @@ under in the Plug-ins gallery, so call it something you will recognise.
 
 ### Building it yourself
 
-Requires Node.js 22 or later. There are no dependencies to install.
+Requires Node.js 26 or later. The plugin and the build need nothing installed.
+`npm ci` installs ESLint, which `npm run lint` uses.
 
 ```
 npm run build
@@ -315,9 +322,9 @@ this setting back before asking you to delete the chart by hand.
 
 ## Testing
 
-**CI builds and lints only. It cannot run the plugin.** Sibelius has no
-headless mode, no Linux build and no command-line interface, so nothing in
-this project can be executed by a CI runner.
+**CI cannot run the plugin.** Sibelius has no headless mode, no Linux build
+and no command-line interface, so no CI runner can execute any of the
+ManuScript.
 
 The real tests are a second plugin, `HandbellsUsedChartTests.plg`, built
 from the same `src/` sources plus `test/*.mss`. It is run by hand inside
@@ -331,6 +338,14 @@ parts then remove it again.
 The score-level tests run on whatever score is open, and the parts tests
 need two instruments that each have a part of their own. The notehead test
 needs `Handbells Used Chart Noteheads.sib` installed beside the plugin.
+
+What CI can test is the Node tooling. The tests for the build and lint tools
+have to cover 80% of their lines, and Codecov holds the lines a pull request
+changes to 90%. `npm run test:coverage` runs those tests with the same floor
+and writes an lcov report to `coverage/`. `npm run lint` runs the ManuScript
+lint, ESLint, zizmor and gitleaks. CI runs it with `--strict`, so a missing
+tool fails the job. CodeQL scans the workflows and the JavaScript on every
+pull request, and Renovate opens the updates for the pinned actions and tools.
 
 ## Known limitations
 
