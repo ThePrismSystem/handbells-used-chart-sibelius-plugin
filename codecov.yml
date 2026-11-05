@@ -1,0 +1,18 @@
+# Codecov holds the lines a pull request changes to 90%. The test job holds tools/ to 80% of its lines itself
+# (npm run test:coverage), since the whole project is one upload.
+coverage:
+  status:
+    project: off
+    patch:
+      default:
+        target: 90%
+
+# An upload that doesn't arrive keeps the last commit's numbers instead of counting as no coverage.
+flag_management:
+  default_rules:
+    carryforward: true
+
+# The tooling tests themselves, and the ManuScript tests, which only Sibelius runs.
+ignore:
+  - "tools/__tests__/**"
+  - "test/**"

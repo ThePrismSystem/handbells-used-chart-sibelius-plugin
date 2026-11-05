@@ -1,27 +1,45 @@
-name: Tests
+name: test
 
 on:
-  pull_request:
+  push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
+permissions: {}
+
 jobs:
-  tooling:
-    name: Build, lint and tooling tests
+  # The tooling tests, the 80% line floor on tools/ (npm run test:coverage), and the built plug-ins. Sibelius can't
+  # run here, so the ManuScript is tested by hand inside it.
+  test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: 22
-      # No install step: the project has no dependencies, runtime or otherwise.
-      - run: npm test
-      - run: npm run lint
-      - run: npm run build
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "26"
+      # No install step: the tests, the coverage and the build need nothing beyond Node.
+      - name: Tooling tests and coverage
+        run: npm run test:coverage
+      - name: Build the plug-ins
+        run: npm run build
       - name: Upload built plug-ins
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: plugins
           path: |
             build/*.plg
             build/*.sib
+      # Last, so a Codecov outage never costs a run its plug-ins.
+      - name: Upload coverage
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: tools
+          files: coverage/lcov.info
+          disable_search: true
+          fail_ci_if_error: true
