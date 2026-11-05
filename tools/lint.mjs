@@ -21,7 +21,7 @@ const RULES = [
     // An already-bracketed `(a + b) * c` cannot match, because the character
     // after the additive operand is `)` rather than `*`, so this needs no
     // leading exclusion, and having one blinded it to `Foo(a + b * c)`.
-    [/\b[\w.]+\s*[+\-]\s*[\w.]+\s*[*/%]/, 'mixes + or - with * / or % without parentheses; ManuScript has no operator precedence'],
+    [/\b[\w.]+\s*[+-]\s*[\w.]+\s*[*/%]/, 'mixes + or - with * / or % without parentheses; ManuScript has no operator precedence'],
     // The guide says / now yields floats; Zawalich's field notes say integer
     // operands still truncate. Neither can be relied on, so force the result.
     // Skipped when the line already forces it, or the rule fires on
