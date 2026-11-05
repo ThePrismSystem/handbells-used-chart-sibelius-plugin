@@ -13,6 +13,7 @@
     "lint": "node tools/lint.mjs",
     "deploy": "node tools/build.mjs && node tools/deploy.mjs",
     "test": "node --test tools/__tests__/*.test.mjs",
+    "test:coverage": "node -e \"require('fs').mkdirSync('coverage',{recursive:true})\" && node --test --experimental-test-coverage --test-coverage-include=tools/*.mjs --test-coverage-lines=80 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info tools/__tests__/*.test.mjs",
     "package": "node tools/build.mjs && node tools/package.mjs"
   }
 }

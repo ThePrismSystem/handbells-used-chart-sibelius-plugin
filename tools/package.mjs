@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync, mkdirSync, copyFileSync, rmSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -15,23 +15,25 @@ const PLUGIN = 'HandbellsUsedChart.plg';
 const NOTEHEADS = 'Handbells Used Chart Noteheads.sib';
 const DOCS = ['README.md', 'LICENSE.md', 'CHANGELOG.md'];
 
-function main() {
-    const { version } = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
-    const built = join(ROOT, 'build', PLUGIN);
+// Stages the release under root/dist and zips it. Returns the zip's path and
+// the names staged into it, in order.
+export function packageRelease(root) {
+    const { version } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+    const built = join(root, 'build', PLUGIN);
     if (!existsSync(built)) {
         throw new Error(`${PLUGIN} is not built. Run npm run build first.`);
     }
 
     const name = `handbells-used-chart-v${version}`;
-    const dist = join(ROOT, 'dist');
+    const dist = join(root, 'dist');
     const stage = join(dist, name);
     rmSync(stage, { recursive: true, force: true });
     mkdirSync(stage, { recursive: true });
 
     copyFileSync(built, join(stage, PLUGIN));
-    copyFileSync(join(ROOT, 'build', NOTEHEADS), join(stage, NOTEHEADS));
+    copyFileSync(join(root, 'build', NOTEHEADS), join(stage, NOTEHEADS));
     for (const doc of DOCS) {
-        copyFileSync(join(ROOT, doc), join(stage, doc));
+        copyFileSync(join(root, doc), join(stage, doc));
     }
 
     const archive = `${name}.zip`;
@@ -40,10 +42,13 @@ function main() {
     // archive differ between machines for no visible reason.
     execFileSync('zip', ['-rqX', archive, name], { cwd: dist });
 
-    console.log(`packaged dist/${archive}`);
-    console.log(`  ${PLUGIN}`);
-    console.log(`  ${NOTEHEADS}`);
-    for (const doc of DOCS) console.log(`  ${doc}`);
+    return { archive: join(dist, archive), files: [PLUGIN, NOTEHEADS, ...DOCS] };
+}
+
+function main() {
+    const { archive, files } = packageRelease(ROOT);
+    console.log(`packaged dist/${basename(archive)}`);
+    for (const file of files) console.log(`  ${file}`);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) main();
