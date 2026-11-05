@@ -14,8 +14,9 @@ node_modules/
 # Release staging
 dist/
 
-# Test output
+# Test and lint output
 coverage/
+sarif/
 
 # The test plug-in is a development tool, not a release artifact
 build/HandbellsUsedChartTests.plg
