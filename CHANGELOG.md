@@ -5,6 +5,12 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Building the plugin from source now needs Node.js 26 or later.
+
 ## [1.3.1] - 2026-10-25
 
 Documentation only. The plugin and the notehead file are the same as in 1.3.0.

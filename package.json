@@ -6,7 +6,7 @@
   "description": "Sibelius plugin that charts every handbell and handchime a piece uses",
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=26"
   },
   "scripts": {
     "build": "node tools/build.mjs",
